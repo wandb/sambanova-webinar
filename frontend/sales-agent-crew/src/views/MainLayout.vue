@@ -1,341 +1,351 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
+  <div class="h-screen flex">
     <!-- Sidebar -->
-    <Sidebar ref="sidebarRef" @loadSearch="handleLoadSearch" />
+    <Sidebar ref="sidebarRef" @loadSearch="handleLoadSearch" class="h-screen flex-shrink-0" />
     
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col">
-      <Header />
-      <main class="flex-1 container mx-auto px-4 py-8">
-        <div class="max-w-4xl mx-auto">
-          <!-- Search Section -->
-          <SearchSection 
-            :isLoading="isLoading"
-            @search="handleSearch" 
-          />
-
-          <!-- Loading Progress Bar -->
-          <div v-if="isLoading" class="mt-8">
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center space-x-3">
-                  <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                  <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
-                </div>
-                <span class="text-sm text-gray-500">Please wait</span>
-              </div>
-
-              <div class="w-full bg-primary-600 h-2 rounded-full animate-pulse"></div>
-              
-              <div class="text-sm text-gray-500">
-                <span>This may take a few moments</span>
-              </div>
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+      <!-- Fixed Header -->
+      <Header class="flex-shrink-0" />
+      
+      <!-- Scrollable Content -->
+      <main class="flex-1 overflow-auto">
+        <div class="container mx-auto px-4 py-8">
+          <div class="max-w-4xl mx-auto">
+            <!-- Search Section (Fixed) -->
+            <div class="sticky top-0 z-10 bg-gray-50 pt-4 pb-2">
+              <SearchSection 
+                :isLoading="isLoading"
+                @search="handleSearch" 
+              />
             </div>
-          </div>
 
-          <!-- Debug Info (hidden) -->
-          <div class="hidden">
-            isLoading: {{ isLoading }}
-            results length: {{ results.length }}
-          </div>
+            <!-- Scrollable Results -->
+            <div class="mt-4">
+              <!-- Loading Progress Bar -->
+              <div v-if="isLoading" class="mt-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                      <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
+                    </div>
+                    <span class="text-sm text-gray-500">Please wait</span>
+                  </div>
 
-          <!-- Results Section -->
-          <div v-if="!isLoading && results.length > 0" class="mt-8 space-y-4">
-            <div 
-              v-for="(result, index) in results" 
-              :key="index"
-              class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg overflow-hidden"
-            >
-              <!-- Collapsible Header -->
-              <div 
-                @click="toggleExpand(index)"
-                class="p-6 flex justify-between items-center cursor-pointer hover:bg-primary-600/50 transition-all duration-200"
-              >
-                <div class="flex-1">
-                  <h3 class="text-xl font-bold text-white mb-3">
-                    {{ result.company_name }}
-                  </h3>
-                  <div class="flex flex-wrap gap-6 text-white/90">
-                    <div class="flex items-center">
-                      <!-- Headquarters Icon -->
-                      <svg 
-                        class="w-5 h-5 mr-2 text-white/70" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
-                        />
-                      </svg>
-                      {{ result.headquarters }}
-                    </div>
-                    <div class="flex items-center">
-                      <!-- Website Icon -->
-                      <svg 
-                        class="w-5 h-5 mr-2 text-white/70" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" 
-                        />
-                      </svg>
-                      <a 
-                        :href="result.website" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        class="text-white hover:text-white/80 underline"
-                      >
-                        {{ result.website }}
-                      </a>
-                    </div>
-                    <span class="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      {{ result.funding_status }}
-                    </span>
+                  <div class="w-full bg-primary-600 h-2 rounded-full animate-pulse"></div>
+                  
+                  <div class="text-sm text-gray-500">
+                    <span>This may take a few moments</span>
                   </div>
                 </div>
-                <div class="flex items-center ml-4">
-                  <span class="mr-2 text-sm font-medium text-white/90">
-                    {{ expandedItems[index] ? 'Show Less' : 'Show More' }}
-                  </span>
-                  <svg 
-                    class="w-5 h-5 text-white/70 transform transition-transform duration-200"
-                    :class="{ 'rotate-180': expandedItems[index] }"
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+              </div>
+
+              <!-- Debug Info (hidden) -->
+              <div class="hidden">
+                isLoading: {{ isLoading }}
+                results length: {{ results.length }}
+              </div>
+
+              <!-- Results Section -->
+              <div v-if="!isLoading && results.length > 0" class="mt-8 space-y-4">
+                <div 
+                  v-for="(result, index) in results" 
+                  :key="index"
+                  class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg overflow-hidden"
+                >
+                  <!-- Collapsible Header -->
+                  <div 
+                    @click="toggleExpand(index)"
+                    class="p-6 flex justify-between items-center cursor-pointer hover:bg-primary-600/50 transition-all duration-200"
                   >
-                    <path 
-                      stroke-linecap="round" 
-                      stroke-linejoin="round" 
-                      stroke-width="2" 
-                      d="M19 9l-7 7-7-7" 
-                    />
-                  </svg>
+                    <div class="flex-1">
+                      <h3 class="text-xl font-bold text-white mb-3">
+                        {{ result.company_name }}
+                      </h3>
+                      <div class="flex flex-wrap gap-6 text-white/90">
+                        <div class="flex items-center">
+                          <!-- Headquarters Icon -->
+                          <svg 
+                            class="w-5 h-5 mr-2 text-white/70" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
+                            />
+                          </svg>
+                          {{ result.headquarters }}
+                        </div>
+                        <div class="flex items-center">
+                          <!-- Website Icon -->
+                          <svg 
+                            class="w-5 h-5 mr-2 text-white/70" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" 
+                            />
+                          </svg>
+                          <a 
+                            :href="result.website" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            class="text-white hover:text-white/80 underline"
+                          >
+                            {{ result.website }}
+                          </a>
+                        </div>
+                        <span class="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {{ result.funding_status }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="flex items-center ml-4">
+                      <span class="mr-2 text-sm font-medium text-white/90">
+                        {{ expandedItems[index] ? 'Show Less' : 'Show More' }}
+                      </span>
+                      <svg 
+                        class="w-5 h-5 text-white/70 transform transition-transform duration-200"
+                        :class="{ 'rotate-180': expandedItems[index] }"
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="2" 
+                          d="M19 9l-7 7-7-7" 
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Expanded Content -->
+                  <div v-if="expandedItems[index]" class="bg-white">
+                    <div class="p-6 space-y-6">
+                      <!-- Funding Amount -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <svg 
+                            class="w-5 h-5 text-primary-600" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M12 8c-1.657 0-3 .843-3 2 0 1.105.718 1.648 2.165 2.406 1.119.593 1.835 1.175 1.835 2.594 0 1.157-1.343 2-3 2s-3-.843-3-2"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900">Funding Amount</h4>
+                          <p class="text-gray-700">{{ result.funding_amount }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Product -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <!-- CPU chip icon, for example -->
+                          <svg 
+                            class="w-5 h-5 text-primary-600" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2"
+                              d="M12 4v1m0 14v1m8-8h-1M5 12H4m2 4h.01M7 16h10a2 2 0 002-2V9a2 2 0 00-2-2H7a2 2 0 00-2 2v5c0 1.105.895 2 2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900">Product</h4>
+                          <p class="text-gray-700">{{ result.product }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Relevant Trends -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <!-- Example chart icon -->
+                          <svg 
+                            class="w-5 h-5 text-primary-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9 17v-2m4 2v-6m4 6v-4"
+                            />
+                            <path 
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M3 3v18h18"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900">Relevant Trends</h4>
+                          <p class="text-gray-700">{{ result.relevant_trends }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Opportunities -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <!-- Light bulb icon -->
+                          <svg 
+                            class="w-5 h-5 text-primary-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M9.75 17a3.25 3.25 0 01-.4-6.475 5 5 0 117.3 0A3.25 3.25 0 0114.25 17h-4.5z"
+                            />
+                            <path 
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9.75 17l-.28.783a1.004 1.004 0 00.93 1.217h3.2a1.004 1.004 0 00.93-1.217L14.25 17"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900">Opportunities</h4>
+                          <p class="text-gray-700">{{ result.opportunities }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Challenges -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <!-- Exclamation triangle icon -->
+                          <svg 
+                            class="w-5 h-5 text-primary-600" 
+                            fill="none" 
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M10.29 3.86l-6.6 11.45A2 2 0 005.65 18h12.7a2 2 0 001.96-2.69l-6.6-11.45a2 2 0 00-3.42 0z"
+                            />
+                            <path 
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v4m0 4h.01"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900">Challenges</h4>
+                          <p class="text-gray-700">{{ result.challenges }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Email Subject -->
+                      <div class="flex items-center space-x-2">
+                        <div class="p-2 bg-primary-100 rounded-lg">
+                          <!-- Envelope icon -->
+                          <svg 
+                            class="w-5 h-5 text-primary-600" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-2 8h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v7a2 2 0 002 2h2"
+                            />
+                          </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-gray-900">
+                          {{ result.email_subject }}
+                        </h4>
+                      </div>
+
+                      <!-- Email Body with Copy Button -->
+                      <div class="relative bg-gray-50 rounded-lg p-5">
+                        <p class="text-gray-700 leading-relaxed pr-10">
+                          {{ result.email_body }}
+                        </p>
+                        <button 
+                          @click.stop="copyToClipboard(result.email_body, index)"
+                          class="absolute top-4 right-4 p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                          :class="{ 'text-green-500 bg-green-50': copySuccess[index] }"
+                        >
+                          <!-- Copy icons -->
+                          <svg 
+                            v-if="!copySuccess[index]" 
+                            class="h-5 w-5" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <svg 
+                            v-else 
+                            class="h-5 w-5" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Expanded Content -->
-              <div v-if="expandedItems[index]" class="bg-white">
-                <div class="p-6 space-y-6">
-                  <!-- Funding Amount -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <svg 
-                        class="w-5 h-5 text-primary-600" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M12 8c-1.657 0-3 .843-3 2 0 1.105.718 1.648 2.165 2.406 1.119.593 1.835 1.175 1.835 2.594 0 1.157-1.343 2-3 2s-3-.843-3-2"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 class="text-lg font-semibold text-gray-900">Funding Amount</h4>
-                      <p class="text-gray-700">{{ result.funding_amount }}</p>
-                    </div>
-                  </div>
-
-                  <!-- Product -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <!-- CPU chip icon, for example -->
-                      <svg 
-                        class="w-5 h-5 text-primary-600" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2"
-                          d="M12 4v1m0 14v1m8-8h-1M5 12H4m2 4h.01M7 16h10a2 2 0 002-2V9a2 2 0 00-2-2H7a2 2 0 00-2 2v5c0 1.105.895 2 2 2z"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 class="text-lg font-semibold text-gray-900">Product</h4>
-                      <p class="text-gray-700">{{ result.product }}</p>
-                    </div>
-                  </div>
-
-                  <!-- Relevant Trends -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <!-- Example chart icon -->
-                      <svg 
-                        class="w-5 h-5 text-primary-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 17v-2m4 2v-6m4 6v-4"
-                        />
-                        <path 
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M3 3v18h18"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 class="text-lg font-semibold text-gray-900">Relevant Trends</h4>
-                      <p class="text-gray-700">{{ result.relevant_trends }}</p>
-                    </div>
-                  </div>
-
-                  <!-- Opportunities -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <!-- Light bulb icon -->
-                      <svg 
-                        class="w-5 h-5 text-primary-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M9.75 17a3.25 3.25 0 01-.4-6.475 5 5 0 117.3 0A3.25 3.25 0 0114.25 17h-4.5z"
-                        />
-                        <path 
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9.75 17l-.28.783a1.004 1.004 0 00.93 1.217h3.2a1.004 1.004 0 00.93-1.217L14.25 17"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 class="text-lg font-semibold text-gray-900">Opportunities</h4>
-                      <p class="text-gray-700">{{ result.opportunities }}</p>
-                    </div>
-                  </div>
-
-                  <!-- Challenges -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <!-- Exclamation triangle icon -->
-                      <svg 
-                        class="w-5 h-5 text-primary-600" 
-                        fill="none" 
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M10.29 3.86l-6.6 11.45A2 2 0 005.65 18h12.7a2 2 0 001.96-2.69l-6.6-11.45a2 2 0 00-3.42 0z"
-                        />
-                        <path 
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 9v4m0 4h.01"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 class="text-lg font-semibold text-gray-900">Challenges</h4>
-                      <p class="text-gray-700">{{ result.challenges }}</p>
-                    </div>
-                  </div>
-
-                  <!-- Email Subject -->
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-primary-100 rounded-lg">
-                      <!-- Envelope icon -->
-                      <svg 
-                        class="w-5 h-5 text-primary-600" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-2 8h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v7a2 2 0 002 2h2"
-                        />
-                      </svg>
-                    </div>
-                    <h4 class="text-lg font-semibold text-gray-900">
-                      {{ result.email_subject }}
-                    </h4>
-                  </div>
-
-                  <!-- Email Body with Copy Button -->
-                  <div class="relative bg-gray-50 rounded-lg p-5">
-                    <p class="text-gray-700 leading-relaxed pr-10">
-                      {{ result.email_body }}
-                    </p>
-                    <button 
-                      @click.stop="copyToClipboard(result.email_body, index)"
-                      class="absolute top-4 right-4 p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
-                      :class="{ 'text-green-500 bg-green-50': copySuccess[index] }"
-                    >
-                      <!-- Copy icons -->
-                      <svg 
-                        v-if="!copySuccess[index]" 
-                        class="h-5 w-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <svg 
-                        v-else 
-                        class="h-5 w-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          stroke-linecap="round" 
-                          stroke-linejoin="round" 
-                          stroke-width="2" 
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+              <!-- No Results Message -->
+              <div v-if="!isLoading && results.length === 0" class="mt-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
+                  <p class="text-gray-600">No results found. Try modifying your search query.</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- No Results Message -->
-          <div v-if="!isLoading && results.length === 0" class="mt-8">
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
-              <p class="text-gray-600">No results found. Try modifying your search query.</p>
             </div>
           </div>
         </div>

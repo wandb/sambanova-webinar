@@ -1,9 +1,9 @@
 <template>
-  <div class="relative flex">
+  <div class="relative flex h-screen">
     <!-- Collapse Button -->
     <button 
       @click="isCollapsed = !isCollapsed"
-      class="absolute -right-3 top-4 z-10 bg-white rounded-full p-1 shadow-md border border-gray-200"
+      class="absolute -right-3 top-4 z-20 bg-white rounded-full p-1 shadow-md border border-gray-200"
     >
       <svg 
         class="w-4 h-4 text-gray-600 transform transition-transform"
@@ -18,27 +18,34 @@
 
     <!-- Sidebar Content -->
     <div 
-      class="bg-white border-r border-gray-200 flex flex-col transition-all duration-300"
+      class="bg-white border-r border-gray-200 flex flex-col transition-all duration-300 h-full"
       :class="{ 'w-64': !isCollapsed, 'w-0': isCollapsed }"
     >
-      <div class="p-4 border-b border-gray-200" v-show="!isCollapsed">
+      <!-- Fixed Header -->
+      <div class="p-4 border-b border-gray-200 flex-shrink-0" v-show="!isCollapsed">
         <h2 class="text-lg font-semibold text-gray-900">Search History</h2>
       </div>
       
-      <div class="flex-1 overflow-y-auto p-4 space-y-2" v-show="!isCollapsed">
-        <button
-          v-for="(search, index) in searchHistory"
-          :key="index"
-          @click="loadSearch(search)"
-          class="w-full text-left p-3 rounded-lg hover:bg-gray-100 transition-colors group"
-        >
-          <div class="text-sm font-medium text-gray-900 truncate">
-            {{ search.query }}
-          </div>
-          <div class="text-xs text-gray-500 mt-1">
-            {{ new Date(search.timestamp).toLocaleString() }}
-          </div>
-        </button>
+      <!-- Scrollable History -->
+      <div 
+        class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400"
+        v-show="!isCollapsed"
+      >
+        <div class="p-4 space-y-2">
+          <button
+            v-for="(search, index) in searchHistory"
+            :key="index"
+            @click="loadSearch(search)"
+            class="w-full text-left p-3 rounded-lg hover:bg-gray-100 transition-colors group"
+          >
+            <div class="text-sm font-medium text-gray-900 truncate">
+              {{ search.query }}
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+              {{ new Date(search.timestamp).toLocaleString() }}
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   </div>

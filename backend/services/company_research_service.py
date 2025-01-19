@@ -1,63 +1,71 @@
 # file: services/company_research_service.py
 
-from typing import Optional
-import json
-from datetime import datetime
 import os
+import json
 import sys
+from datetime import datetime
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from utils.envutils import EnvUtils
-# Import your new tool
 from tools.exa_dev_tool import ExaDevTool
 
-
 class CompanyIntelligenceService:
+    """
+    Step 1: Perform aggregator search for user criteria 
+    Return the raw Exa results.
+    """
     def __init__(self):
-        """
-        Initialize with the ExaDevTool approach for searching.
-        """
         self.env_utils = EnvUtils()
-        # If you want to do something with the environment, do it here:
         self.exa_api_key = self.env_utils.get_required_env("EXA_API_KEY")
-
-        # Initialize the Exa-based search tool
         self.search_tool = ExaDevTool()
 
     def get_company_intelligence(
         self,
-        industry: Optional[str] = None,
-        company_name: Optional[str] = None,
-        product: Optional[str] = None,
-        company_stage: Optional[str] = None,
-        geography: Optional[str] = None,
-        funding_stage: Optional[str] = None
+        industry=None,
+        company_name=None,
+        product=None,
+        company_stage=None,
+        geography=None,
+        funding_stage=None
     ) -> str:
         """
-        Get detailed company intelligence based on provided criteria using Exa.
-        Returns a JSON string with 'companies' plus the 'search_criteria'.
+        Return the raw Exa search JSON, with text+summary for each result,
+        then return as a JSON string.
         """
-        search_query = self._build_search_query(
-            industry, company_name, product, company_stage, geography, funding_stage
+        exa_results = self.get_raw_search_results(
+            industry=industry,
+            company_name=company_name,
+            product=product,
+            company_stage=company_stage,
+            geography=geography,
+            funding_stage=funding_stage
         )
+        return json.dumps(exa_results, indent=2)
 
-        # Use the Exa search tool with the user's combined query
+    def get_raw_search_results(
+        self,
+        industry=None,
+        company_name=None,
+        product=None,
+        company_stage=None,
+        geography=None,
+        funding_stage=None
+    ) -> dict:
+        query = self._build_search_query(industry, company_name, product, company_stage, geography, funding_stage)
         exa_results = self.search_tool.run(
-            search_query=search_query,  # required
-            search_type="auto",       # or "auto" or "keyword"
+            search_query=query,
+            search_type="auto",
+            category="company",
+            num_results=25,
             text=True,
-            use_autoprompt=True,
-            num_results=20,           # Adjust as needed
-            summary=True
+            summary=True,
+            livecrawl="always"
         )
- 
-
-        if "results" not in exa_results:
-            # error or empty
-            return json.dumps({
+        if not isinstance(exa_results, dict) or "results" not in exa_results:
+            return {
                 "companies": [],
                 "search_criteria": {
                     "industry": industry or "",
@@ -69,13 +77,23 @@ class CompanyIntelligenceService:
                 },
                 "total_companies": 0,
                 "generated_at": datetime.now().isoformat()
-            }, indent=2)
+            }
 
-        # Parse Exa results into your "companies" structure
-        companies_array = self._parse_exa_results(exa_results["results"])
+        # Reformat exa_results into the same shape
+        # We'll put final data under "companies"
+        # each item might have "title, url, text, summary"
+        companies = []
+        for r in exa_results.get("results", []):
+            c = {
+                "name": r.get("title","Unknown"),
+                "website": r.get("url",""),
+                # put aggregator text in "description"
+                "description": (r.get("summary") or "") + "\n" + (r.get("text") or "")
+            }
+            companies.append(c)
 
         output = {
-            "companies": companies_array,
+            "companies": companies,
             "search_criteria": {
                 "industry": industry or "",
                 "company_name": company_name or "",
@@ -84,81 +102,20 @@ class CompanyIntelligenceService:
                 "geography": geography or "",
                 "funding_stage": funding_stage or ""
             },
-            "total_companies": len(companies_array),
+            "total_companies": len(companies),
             "generated_at": datetime.now().isoformat()
         }
+        return output
 
-        return json.dumps(output, indent=2)
+    def _build_search_query(self, industry, company_name, product, company_stage, geography, funding_stage):
+        parts = []
+        if company_name: parts.append(company_name)
+        if product: parts.append(product)
+        if industry: parts.append(f"{industry} industry")
+        if company_stage: parts.append(f"{company_stage} stage")
+        if geography: parts.append(f"in {geography}")
+        if funding_stage: parts.append(f"{funding_stage} funding")
 
-    def _build_search_query(
-        self,
-        industry: Optional[str],
-        company_name: Optional[str],
-        product: Optional[str],
-        company_stage: Optional[str],
-        geography: Optional[str],
-        funding_stage: Optional[str]
-    ) -> str:
-        """
-        Combine all user parameters into a single search string for Exa.
-        """
-        query_parts = []
-        if company_name:
-            query_parts.append(company_name)
-        if product:
-            query_parts.append(product)
-        if industry:
-            query_parts.append(f"{industry} industry")
-        if company_stage:
-            query_parts.append(f"{company_stage} stage")
-        if geography:
-            query_parts.append(f"in {geography}")
-        if funding_stage:
-            query_parts.append(f"{funding_stage} funding")
-
-        # If user gave no data, fallback:
-        if not query_parts:
+        if not parts:
             return "technology companies"
-
-        return " ".join(query_parts)
-
-    def _parse_exa_results(self, results: list) -> list:
-        """
-        Convert the Exa search results into a list of
-        simple 'company' objects:
-        { "name", "website", "description", ... }
-        """
-        companies = []
-        for item in results:
-            title = item.get("title", "Unknown Company")
-            url = item.get("url", "N/A")
-            text = item.get("text", "")
-            summary = item.get("summary", "")  # <-- here's the summary from Exa
-
-            c = {
-                "name": title,
-                "website": url,
-                # Use summary as the description
-                "description": summary,  
-                "headquarters": "Unknown, Unknown",
-                "employee_count": "Unknown",
-                "funding_status": "Unknown",
-                "product_list": "",
-                "competitor_list": "",
-                "founded_year": "Unknown",
-                "revenue_range": "Unknown"
-            }
-            companies.append(c)
-
-        return companies[:15]  # If you only want the top 15
-
-if __name__ == "__main__":
-    # Quick test
-    svc = CompanyIntelligenceService()
-    example_json = svc.get_company_intelligence(
-        industry="hardware",
-        product="ai",
-        geography="bay area",
-        company_stage="startup"
-    )
-    print(example_json)
+        return " ".join(parts)

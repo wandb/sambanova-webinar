@@ -30,37 +30,42 @@ class CompanyIntelligenceTool(BaseTool):
         industry: Optional[str] = None,
         company_stage: Optional[str] = None,
         geography: Optional[str] = None,
-        funding_stage: Optional[str] = None
+        funding_stage: Optional[str] = None,
+        product: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Execute the company intelligence search using Exa.
         """
         try:
-            # Validate stage, if needed
-            valid_stages = ["startup", "smb", "enterprise", "growing", "none"]
+            # Accept empty or None for the optional fields
+            valid_stages = ["startup", "smb", "enterprise", "growing", "none", ""]
             if company_stage and company_stage.lower() not in valid_stages:
-                raise ValueError(f"Invalid company_stage. Must be one of {valid_stages}.")
+                raise ValueError(
+                    f"Invalid company_stage. Must be one of {valid_stages}."
+                )
 
             # Prepare parameters
             clean_params = {
                 "industry": industry,
-                "company_stage": company_stage.lower() if company_stage else None,
+                "company_stage": (company_stage.lower() if company_stage else None),
                 "geography": geography,
                 "funding_stage": funding_stage,
-                "company_name": None,
-                "product": None
+                "company_name": None,   # Not used currently
+                "product": product      # We pass product directly
             }
 
-            if not any(clean_params.values()):
+            # At least one field must not be all None/empty
+            non_empty = [v for k, v in clean_params.items() if v]
+            if not non_empty:
                 raise ValueError(
                     "At least one search parameter must be provided "
-                    "(industry, company_stage, geography, or funding_stage)."
+                    "(industry, company_stage, geography, funding_stage, or product)."
                 )
 
             # Make the service call
             result_json_string = self.service.get_company_intelligence(**clean_params)
-            # Parse to dict
             return json.loads(result_json_string)
+
         except Exception as e:
             return {"error": str(e)}
 
@@ -77,6 +82,7 @@ class CompanyIntelligenceTool(BaseTool):
                 "error": f"Error formatting result: {str(ex)}",
                 "raw_result": result
             }
+
 
 if __name__ == "__main__":
     # Example usage:

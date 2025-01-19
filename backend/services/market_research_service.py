@@ -41,7 +41,7 @@ class MarketResearchService:
             search_type="neural",        # or "auto"/"keyword" etc.
             text=True,
             use_autoprompt=True,
-            num_results=5
+            num_results=20
         )
 
         # Build a summary from the results

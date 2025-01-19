@@ -15,9 +15,17 @@
         </h1>
       </div>
 
-      <!-- Right: DateTime -->
-      <div class="text-sm text-gray-600">
-        {{ currentDateTime }}
+      <!-- Right: User Button and DateTime -->
+      <div class="flex items-center space-x-6">
+        <div class="text-sm text-gray-600">
+          {{ currentDateTime }}
+        </div>
+        <SignedIn>
+          <UserButton 
+            afterSignOutUrl="/login" 
+            :appearance="{ elements: { avatarBox: 'h-10 w-10' } }"
+          />
+        </SignedIn>
       </div>
     </div>
   </header>
@@ -25,12 +33,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { SignedIn, UserButton } from '@clerk/vue'
 
 const currentDateTime = computed(() => {
-const now = new Date()
-return new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'full',
-  timeStyle: 'medium'
-}).format(now)
+  const now = new Date()
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'medium'
+  }).format(now)
 })
 </script>

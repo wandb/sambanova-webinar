@@ -15,15 +15,13 @@
           <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div class="flex items-center justify-between mb-4">
               <div class="flex items-center space-x-3">
-                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
                 <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
               </div>
               <span class="text-sm text-gray-500">Please wait</span>
             </div>
 
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-              <div class="bg-blue-600 h-2 rounded-full animate-pulse"></div>
-            </div>
+            <div class="w-full bg-primary-600 h-2 rounded-full animate-pulse"></div>
             
             <div class="text-sm text-gray-500">
               <span>This may take a few moments</span>
@@ -42,12 +40,12 @@
           <div 
             v-for="(result, index) in results" 
             :key="index"
-            class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg overflow-hidden"
+            class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg overflow-hidden"
           >
             <!-- Collapsible Header -->
             <div 
               @click="toggleExpand(index)"
-              class="p-6 flex justify-between items-center cursor-pointer hover:bg-blue-600/50 transition-all duration-200"
+              class="p-6 flex justify-between items-center cursor-pointer hover:bg-primary-600/50 transition-all duration-200"
             >
               <div class="flex-1">
                 <h3 class="text-xl font-bold text-white mb-3">
@@ -119,9 +117,9 @@
               <div class="p-6 space-y-6">
                 <!-- Funding Amount -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <svg 
-                      class="w-5 h-5 text-blue-600" 
+                      class="w-5 h-5 text-primary-600" 
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -142,10 +140,10 @@
 
                 <!-- Product -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <!-- CPU chip icon, for example -->
                     <svg 
-                      class="w-5 h-5 text-blue-600" 
+                      class="w-5 h-5 text-primary-600" 
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -166,10 +164,10 @@
 
                 <!-- Relevant Trends -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <!-- Example chart icon -->
                     <svg 
-                      class="w-5 h-5 text-blue-600"
+                      class="w-5 h-5 text-primary-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -196,10 +194,10 @@
 
                 <!-- Opportunities -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <!-- Light bulb icon -->
                     <svg 
-                      class="w-5 h-5 text-blue-600"
+                      class="w-5 h-5 text-primary-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -226,10 +224,10 @@
 
                 <!-- Challenges -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <!-- Exclamation triangle icon -->
                     <svg 
-                      class="w-5 h-5 text-blue-600" 
+                      class="w-5 h-5 text-primary-600" 
                       fill="none" 
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -256,10 +254,10 @@
 
                 <!-- Email Subject -->
                 <div class="flex items-center space-x-2">
-                  <div class="p-2 bg-blue-100 rounded-lg">
+                  <div class="p-2 bg-primary-100 rounded-lg">
                     <!-- Envelope icon -->
                     <svg 
-                      class="w-5 h-5 text-blue-600" 
+                      class="w-5 h-5 text-primary-600" 
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -284,7 +282,7 @@
                   </p>
                   <button 
                     @click.stop="copyToClipboard(result.email_body, index)"
-                    class="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                    class="absolute top-4 right-4 p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                     :class="{ 'text-green-500 bg-green-50': copySuccess[index] }"
                   >
                     <!-- Copy icons -->

@@ -1,6 +1,6 @@
 <!-- App.vue -->
 <template>
-  <div>
+  <div class="h-screen">
     <!-- Main content -->
     <main>
       <SignedIn>

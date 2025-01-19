@@ -16,7 +16,6 @@ if parent_dir not in sys.path:
 
 # Services, Tools, etc.
 from services.user_prompt_extractor_service import UserPromptExtractor
-from services.read_json_test import JSONFileReader
 from agent.lead_generation_crew import ResearchCrew
 
 class QueryRequest(BaseModel):
@@ -58,11 +57,7 @@ class LeadGenerationAPI:
                 
                 # 6) Return that list at the top level so the frontend gets [ {..}, {..}, ... ]
                 return JSONResponse(content=outreach_list)
-            else:
-                # Fallback behavior
-                time.sleep(3)
-                structured_json = JSONFileReader().read_json()
-                return structured_json
+
 
 def create_app():
     api = LeadGenerationAPI()

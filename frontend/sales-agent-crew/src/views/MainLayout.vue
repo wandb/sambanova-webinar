@@ -329,19 +329,30 @@
         </div>
       </div>
     </main>
+
+    <!-- Completion Summary -->
+    <SearchNotification
+      :show="showCompletion"
+      :time="(executionTime / 1000).toFixed(1)"
+      :result-count="results.length"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, computed } from 'vue'
 import Header from '../components/Header.vue'
 import SearchSection from '../components/SearchSection.vue'
+import SearchNotification from '../components/SearchNotification.vue'
 
 const results = ref([])
 const expandedItems = ref({})
 const copySuccess = ref({})
 const isLoading = ref(false)
 const currentLoadingMessage = ref('')
+const showCompletion = ref(false)
+const executionTime = ref(0)
+const searchStartTime = ref(0)
 let loadingInterval
 
 const loadingMessages = [
@@ -367,6 +378,9 @@ const stopLoadingMessages = () => {
 const handleSearch = async (searchQuery) => {
   isLoading.value = true
   startLoadingMessages()
+  searchStartTime.value = Date.now()
+  showCompletion.value = false
+  
   try {
     console.log('Making API call with query:', searchQuery)
     const response = await fetch('http://localhost:8000/research', {
@@ -385,13 +399,21 @@ const handleSearch = async (searchQuery) => {
     const data = await response.json()
     console.log('API Response:', data)
 
-    // data should be an array of objects from your API
     results.value = data
-
-    // Initialize all items as collapsed
     expandedItems.value = Object.fromEntries(
       data.map((_, index) => [index, false])
     )
+
+    executionTime.value = Date.now() - searchStartTime.value
+    console.log('Search completed in:', executionTime.value, 'ms')
+    
+    setTimeout(() => {
+      showCompletion.value = true
+      setTimeout(() => {
+        showCompletion.value = false
+      }, 5000)
+    }, 100)
+    
   } catch (error) {
     console.error('Search error:', error)
   } finally {

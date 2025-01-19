@@ -50,7 +50,7 @@ class CompanyIntelligenceService:
             search_type="auto",       # or "auto" or "keyword"
             text=True,
             use_autoprompt=True,
-            num_results=10,           # Adjust as needed
+            num_results=20,           # Adjust as needed
             summary=True
         )
  
@@ -150,7 +150,7 @@ class CompanyIntelligenceService:
             }
             companies.append(c)
 
-        return companies[:15]  # If you only want the top 5
+        return companies[:15]  # If you only want the top 15
 
 if __name__ == "__main__":
     # Quick test

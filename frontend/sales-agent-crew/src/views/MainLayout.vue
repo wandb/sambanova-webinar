@@ -1,4 +1,3 @@
-# MainLayout.vue
 <template>
   <div class="min-h-screen bg-gray-50">
     <Header />
@@ -12,27 +11,25 @@
         />
 
         <!-- Loading Progress Bar -->
-        <!-- Loading Progress Bar -->
-  <!-- Loading Progress Bar -->
-    <div v-if="isLoading" class="mt-8">
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-3">
-            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
+        <div v-if="isLoading" class="mt-8">
+          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
+              </div>
+              <span class="text-sm text-gray-500">Please wait</span>
+            </div>
+
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div class="bg-blue-600 h-2 rounded-full animate-pulse"></div>
+            </div>
+            
+            <div class="text-sm text-gray-500">
+              <span>This may take a few moments</span>
+            </div>
           </div>
-          <span class="text-sm text-gray-500">Please wait</span>
         </div>
-        
-        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-          <div class="bg-blue-600 h-2 rounded-full animate-pulse"></div>
-        </div>
-        
-        <div class="text-sm text-gray-500">
-          <span>This may take a few moments</span>
-        </div>
-      </div>
-    </div>
 
         <!-- Debug Info (hidden) -->
         <div class="hidden">
@@ -42,27 +39,52 @@
 
         <!-- Results Section -->
         <div v-if="!isLoading && results.length > 0" class="mt-8 space-y-4">
-          <div v-for="(result, index) in results" :key="index" 
-               class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg overflow-hidden">
+          <div 
+            v-for="(result, index) in results" 
+            :key="index"
+            class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg overflow-hidden"
+          >
             <!-- Collapsible Header -->
             <div 
               @click="toggleExpand(index)"
               class="p-6 flex justify-between items-center cursor-pointer hover:bg-blue-600/50 transition-all duration-200"
             >
               <div class="flex-1">
-                <h3 class="text-xl font-bold text-white mb-3">{{ result.company_name }}</h3>
+                <h3 class="text-xl font-bold text-white mb-3">
+                  {{ result.company_name }}
+                </h3>
                 <div class="flex flex-wrap gap-6 text-white/90">
                   <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <!-- Headquarters Icon -->
+                    <svg 
+                      class="w-5 h-5 mr-2 text-white/70" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
+                      />
                     </svg>
                     {{ result.headquarters }}
                   </div>
                   <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    <!-- Website Icon -->
+                    <svg 
+                      class="w-5 h-5 mr-2 text-white/70" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" 
+                      />
                     </svg>
                     {{ result.website }}
                   </div>
@@ -82,36 +104,217 @@
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  <path 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round" 
+                    stroke-width="2" 
+                    d="M19 9l-7 7-7-7" 
+                  />
                 </svg>
               </div>
             </div>
 
             <!-- Expanded Content -->
             <div v-if="expandedItems[index]" class="bg-white">
-              <div class="p-6 space-y-4">
+              <div class="p-6 space-y-6">
+                <!-- Funding Amount -->
                 <div class="flex items-center space-x-2">
                   <div class="p-2 bg-blue-100 rounded-lg">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <svg 
+                      class="w-5 h-5 text-blue-600" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M12 8c-1.657 0-3 .843-3 2 0 1.105.718 1.648 2.165 2.406 1.119.593 1.835 1.175 1.835 2.594 0 1.157-1.343 2-3 2s-3-.843-3-2"
+                      />
                     </svg>
                   </div>
-                  <h4 class="text-lg font-semibold text-gray-900">{{ result.email_subject }}</h4>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Funding Amount</h4>
+                    <p class="text-gray-700">{{ result.funding_amount }}</p>
+                  </div>
                 </div>
+
+                <!-- Product -->
+                <div class="flex items-center space-x-2">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <!-- CPU chip icon, for example -->
+                    <svg 
+                      class="w-5 h-5 text-blue-600" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2"
+                        d="M12 4v1m0 14v1m8-8h-1M5 12H4m2 4h.01M7 16h10a2 2 0 002-2V9a2 2 0 00-2-2H7a2 2 0 00-2 2v5c0 1.105.895 2 2 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Product</h4>
+                    <p class="text-gray-700">{{ result.product }}</p>
+                  </div>
+                </div>
+
+                <!-- Relevant Trends -->
+                <div class="flex items-center space-x-2">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <!-- Example chart icon -->
+                    <svg 
+                      class="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 17v-2m4 2v-6m4 6v-4"
+                      />
+                      <path 
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 3v18h18"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Relevant Trends</h4>
+                    <p class="text-gray-700">{{ result.relevant_trends }}</p>
+                  </div>
+                </div>
+
+                <!-- Opportunities -->
+                <div class="flex items-center space-x-2">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <!-- Light bulb icon -->
+                    <svg 
+                      class="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M9.75 17a3.25 3.25 0 01-.4-6.475 5 5 0 117.3 0A3.25 3.25 0 0114.25 17h-4.5z"
+                      />
+                      <path 
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9.75 17l-.28.783a1.004 1.004 0 00.93 1.217h3.2a1.004 1.004 0 00.93-1.217L14.25 17"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Opportunities</h4>
+                    <p class="text-gray-700">{{ result.opportunities }}</p>
+                  </div>
+                </div>
+
+                <!-- Challenges -->
+                <div class="flex items-center space-x-2">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <!-- Exclamation triangle icon -->
+                    <svg 
+                      class="w-5 h-5 text-blue-600" 
+                      fill="none" 
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10.29 3.86l-6.6 11.45A2 2 0 005.65 18h12.7a2 2 0 001.96-2.69l-6.6-11.45a2 2 0 00-3.42 0z"
+                      />
+                      <path 
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v4m0 4h.01"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Challenges</h4>
+                    <p class="text-gray-700">{{ result.challenges }}</p>
+                  </div>
+                </div>
+
+                <!-- Email Subject -->
+                <div class="flex items-center space-x-2">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <!-- Envelope icon -->
+                    <svg 
+                      class="w-5 h-5 text-blue-600" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-2 8h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v7a2 2 0 002 2h2"
+                      />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-900">
+                    {{ result.email_subject }}
+                  </h4>
+                </div>
+
+                <!-- Email Body with Copy Button -->
                 <div class="relative bg-gray-50 rounded-lg p-5">
-                  <p class="text-gray-700 leading-relaxed pr-10">{{ result.email_body }}</p>
+                  <p class="text-gray-700 leading-relaxed pr-10">
+                    {{ result.email_body }}
+                  </p>
                   <button 
                     @click.stop="copyToClipboard(result.email_body, index)"
                     class="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                     :class="{ 'text-green-500 bg-green-50': copySuccess[index] }"
                   >
-                    <svg v-if="!copySuccess[index]" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <!-- Copy icons -->
+                    <svg 
+                      v-if="!copySuccess[index]" 
+                      class="h-5 w-5" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
                     </svg>
-                    <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    <svg 
+                      v-else 
+                      class="h-5 w-5" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -132,10 +335,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import Header from '../components/Header.vue'
 import SearchSection from '../components/SearchSection.vue'
-import { onUnmounted } from 'vue'
 
 const results = ref([])
 const expandedItems = ref({})
@@ -148,20 +350,22 @@ const loadingMessages = [
   'Fetching company details',
   'Analyzing market trends',
   'Preparing outreach emails'
-] 
+]
+
 const startLoadingMessages = () => {
   let index = 0
   currentLoadingMessage.value = loadingMessages[0]
   loadingInterval = setInterval(() => {
     index = (index + 1) % loadingMessages.length
     currentLoadingMessage.value = loadingMessages[index]
-  }, 2000) // Change message every 2 seconds
+  }, 2000)
 }
 
 const stopLoadingMessages = () => {
   clearInterval(loadingInterval)
   currentLoadingMessage.value = ''
 }
+
 const handleSearch = async (searchQuery) => {
   isLoading.value = true
   startLoadingMessages()
@@ -183,9 +387,10 @@ const handleSearch = async (searchQuery) => {
     const data = await response.json()
     console.log('API Response:', data)
 
+    // data should be an array of objects from your API
     results.value = data
-    console.log('Results after setting:', results.value)
 
+    // Initialize all items as collapsed
     expandedItems.value = Object.fromEntries(
       data.map((_, index) => [index, false])
     )
@@ -212,6 +417,7 @@ const copyToClipboard = async (text, index) => {
     console.error('Failed to copy:', error)
   }
 }
+
 onUnmounted(() => {
   stopLoadingMessages()
 })

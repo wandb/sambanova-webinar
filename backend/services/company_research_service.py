@@ -59,7 +59,7 @@ class CompanyIntelligenceService:
             search_query=query,
             search_type="auto",
             category="company",
-            num_results=25,
+            num_results=20,
             text=True,
             summary=True,
             livecrawl="always"

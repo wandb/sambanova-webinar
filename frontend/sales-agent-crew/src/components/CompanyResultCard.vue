@@ -4,7 +4,11 @@ import {
   ClipboardIcon, 
   BuildingOffice2Icon, 
   GlobeAltIcon, 
-  CurrencyDollarIcon 
+  CurrencyDollarIcon, 
+  CpuChipIcon,
+  ChartBarIcon,
+  LightBulbIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -33,6 +37,7 @@ const copyEmailBody = () => {
 
 <template>
   <div class="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <!-- Card Header -->
     <div 
       @click="toggleExpand" 
       class="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition group"
@@ -77,16 +82,83 @@ const copyEmailBody = () => {
           stroke-linejoin="round" 
           stroke-width="2" 
           d="M19 9l-7 7-7-7"
-        ></path>
+        />
       </svg>
     </div>
 
+    <!-- Expanded Content -->
     <div 
       v-if="isExpanded" 
-      class="p-4 bg-gray-50 border-t"
+      class="p-4 bg-gray-50 border-t space-y-6"
     >
-      <div class="mb-4">
-        <div class="flex items-center mb-2">
+      <!-- Funding Amount -->
+      <div>
+        <div class="flex items-center mb-1">
+          <CurrencyDollarIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Funding Amount
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.funding_amount }}
+        </p>
+      </div>
+
+      <!-- Product -->
+      <div>
+        <div class="flex items-center mb-1">
+          <CpuChipIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Product
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.product }}
+        </p>
+      </div>
+
+      <!-- Relevant Trends -->
+      <div>
+        <div class="flex items-center mb-1">
+          <ChartBarIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Relevant Trends
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.relevant_trends }}
+        </p>
+      </div>
+
+      <!-- Opportunities -->
+      <div>
+        <div class="flex items-center mb-1">
+          <LightBulbIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Opportunities
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.opportunities }}
+        </p>
+      </div>
+
+      <!-- Challenges -->
+      <div>
+        <div class="flex items-center mb-1">
+          <ExclamationTriangleIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Challenges
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.challenges }}
+        </p>
+      </div>
+
+      <!-- Email Subject -->
+      <div>
+        <div class="flex items-center mb-1">
           <CurrencyDollarIcon class="w-5 h-5 mr-2 text-gray-500" />
           <h4 class="font-semibold text-gray-700">
             Email Subject
@@ -96,18 +168,18 @@ const copyEmailBody = () => {
           {{ company.email_subject }}
         </p>
       </div>
-      
+
+      <!-- Email Body with Copy Button -->
       <div class="relative">
-        <div class="flex items-center mb-2">
+        <div class="flex items-center mb-1">
           <ClipboardIcon class="w-5 h-5 mr-2 text-gray-500" />
           <h4 class="font-semibold text-gray-700">
             Email Body
           </h4>
         </div>
-        <p class="text-gray-600 pl-7 mb-2">
+        <p class="text-gray-600 pl-7 mb-2 whitespace-pre-line">
           {{ company.email_body }}
         </p>
-        
         <button 
           @click="copyEmailBody"
           class="absolute top-0 right-0 text-gray-500 hover:text-blue-600 transition"

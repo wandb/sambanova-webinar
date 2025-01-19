@@ -15,6 +15,8 @@ export const searchLeads = async (query) => {
     if (!response.ok) {
       throw new Error('API request failed')
     }
+    // log the response body
+    console.log(await response.json())
 
     return await response.json()
   } catch (error) {

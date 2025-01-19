@@ -19,6 +19,10 @@ class Outreach(BaseModel):
     headquarters: str
     funding_status: str
     funding_amount: str
+    product: str
+    relevant_trends: str
+    opportunities: str
+    challenges: str
     email_subject: str
     email_body: str
 

@@ -247,8 +247,11 @@ const transcribeAudio = async (audioBlob) => {
       }
     }
 
+    // Clean the transcription
+    const cleanedText = cleanTranscription(transcribedText);
+
     // Update search query and trigger search
-    searchQuery.value = transcribedText.trim()
+    searchQuery.value = cleanedText.trim()
     if (searchQuery.value) {
       handleSearch()
     }
@@ -257,5 +260,36 @@ const transcribeAudio = async (audioBlob) => {
     console.error('Transcription error:', error)
     alert(error.message || 'Failed to transcribe audio. Please try again.')
   }
+}
+
+// Function to clean the transcription
+function cleanTranscription(transcribedText) {
+  // Define possible prefixes
+  const prefixes = [
+    "The transcription of the audio is:",
+    "The transcription is:",
+  ];
+
+  // Trim whitespace
+  let cleanedText = transcribedText.trim();
+
+  // Check for each prefix
+  for (const prefix of prefixes) {
+    if (cleanedText.startsWith(prefix)) {
+      // Remove prefix
+      cleanedText = cleanedText.slice(prefix.length).trim();
+      break;
+    }
+  }
+
+  // Remove surrounding quotes if present
+  if (
+    (cleanedText.startsWith("'") && cleanedText.endsWith("'")) ||
+    (cleanedText.startsWith('"') && cleanedText.endsWith('"'))
+  ) {
+    cleanedText = cleanedText.slice(1, -1).trim();
+  }
+
+  return cleanedText;
 }
 </script>

@@ -195,7 +195,8 @@ const handleLoadSearch = (search) => {
 
 const getKeys = () => {
   // Now using localStorage
-  const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+  const sambanovaKey = localStorage.getItem(`samban
+  ova_key_${userId}`)
   const exaKey = localStorage.getItem(`exa_key_${userId}`)
   return { sambanovaKey, exaKey }
 }

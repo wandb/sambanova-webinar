@@ -13,11 +13,6 @@ from tools.exa_dev_tool import ExaDevTool
 
 class MarketResearchService:
     def __init__(self):
-        # Load environment variables (we expect EXA_API_KEY now)
-        self.env_utils = EnvUtils()
-        self.api_key = self.env_utils.get_required_env('EXA_API_KEY')
-
-        # Initialize ExaDevTool (similar to your Company Intelligence Service)
         self.search_tool = ExaDevTool()
 
     def generate_market_research(
@@ -41,7 +36,8 @@ class MarketResearchService:
             search_type="neural",        # or "auto"/"keyword" etc.
             text=True,
             use_autoprompt=True,
-            num_results=20
+            num_results=20,
+            api_key=self.api_key
         )
 
         # Build a summary from the results

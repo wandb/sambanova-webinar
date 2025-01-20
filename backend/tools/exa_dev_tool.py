@@ -29,6 +29,7 @@ class ExaDevTool(BaseTool):
         #text = kwargs.get("text", True)
         summary = kwargs.get("summary", True)
         livecrawl = kwargs.get("livecrawl", "always")
+        api_key = kwargs.get("api_key")
 
         payload = {
             "query": search_query,
@@ -43,14 +44,11 @@ class ExaDevTool(BaseTool):
             }
         }
 
-        exa_api_key = os.environ.get("EXA_API_KEY")
-        if not exa_api_key:
-            return {"error": "EXA_API_KEY not found"}
 
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
-            "x-api-key": exa_api_key
+            "x-api-key": api_key
         }
 
         try:

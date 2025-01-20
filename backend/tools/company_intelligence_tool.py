@@ -25,6 +25,8 @@ class CompanyIntelligenceTool(BaseTool):
     )
     service: CompanyIntelligenceService = Field(default_factory=CompanyIntelligenceService)
 
+    api_key: str = Field(default="")
+
     def _run(
         self, 
         industry: Optional[str] = None,
@@ -63,6 +65,7 @@ class CompanyIntelligenceTool(BaseTool):
                 )
 
             # Make the service call
+            self.service.api_key = self.api_key
             result_json_string = self.service.get_company_intelligence(**clean_params)
             return json.loads(result_json_string)
 

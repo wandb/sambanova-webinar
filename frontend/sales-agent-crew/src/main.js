@@ -9,6 +9,7 @@ import router from './router/index.js'
 
 const PUBLISHABLE_KEY = 'pk_test_dHJ1c3RlZC1sb2JzdGVyLTgwLmNsZXJrLmFjY291bnRzLmRldiQ'
 
+
 if (!PUBLISHABLE_KEY) {
   throw new Error('Missing Publishable Key')
 }

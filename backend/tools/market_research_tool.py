@@ -21,7 +21,9 @@ class MarketResearchTool(BaseTool):
         "Can search by industry, product, or specific technology. "
         "Returns a textual summary of market insights."
     )
+
     service: MarketResearchService = Field(default_factory=MarketResearchService)
+    api_key: str = Field(default="")
 
     def _run(
         self,
@@ -42,6 +44,8 @@ class MarketResearchTool(BaseTool):
             raise ValueError(
                 "At least one search parameter must be provided (industry or product)."
             )
+        
+        self.service.api_key = self.api_key
 
         return self.service.generate_market_research(
             industry=industry,
@@ -49,7 +53,7 @@ class MarketResearchTool(BaseTool):
         )
 
 if __name__ == "__main__":
-    tool = MarketResearchTool()
+    tool = MarketResearchTool(api_key="your_api_key_here")
     
     test_cases = [
         {

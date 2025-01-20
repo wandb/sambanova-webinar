@@ -10,7 +10,7 @@ if parent_dir not in sys.path:
 from utils.envutils import EnvUtils
 
 class UserPromptExtractor:
-    def __init__(self):
+    def __init__(self, sambanova_api_key: str):
         """
         This class uses the raw requests approach (like a curl) 
         to call the SambaNova ChatCompletion endpoint,
@@ -19,7 +19,7 @@ class UserPromptExtractor:
         Make sure your environment includes SAMBANOVA_API_KEY.
         """
         self.env_utils = EnvUtils()
-        self.api_key = self.env_utils.get_required_env("SAMBANOVA_API_KEY")
+        self.api_key = sambanova_api_key
 
         # We'll use an example model name "gpt-4o-mini" 
         # as in your curl snippet. Adjust if needed:

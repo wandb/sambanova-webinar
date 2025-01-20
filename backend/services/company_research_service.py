@@ -19,8 +19,8 @@ class CompanyIntelligenceService:
     """
     def __init__(self):
         self.env_utils = EnvUtils()
-        self.exa_api_key = self.env_utils.get_required_env("EXA_API_KEY")
         self.search_tool = ExaDevTool()
+    
 
     def get_company_intelligence(
         self,
@@ -62,7 +62,8 @@ class CompanyIntelligenceService:
             num_results=20,
             text=True,
             summary=True,
-            livecrawl="always"
+            livecrawl="always",
+            api_key=self.api_key
         )
         if not isinstance(exa_results, dict) or "results" not in exa_results:
             return {

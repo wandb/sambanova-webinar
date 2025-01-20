@@ -53,14 +53,19 @@ class ExtractedMarketTrendList(BaseModel):
 
 
 class ResearchCrew:
-    def __init__(self):
+    def __init__(self, sambanova_key: str, exa_key: str):
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
-            max_tokens=4096
+            max_tokens=4096,
+            api_key=sambanova_key
         )
+        self.exa_key = exa_key
+        self.sambanova_key = sambanova_key
         self._initialize_agents()
         self._initialize_tasks()
+        
+
 
     def _initialize_agents(self) -> None:
         """We define aggregator_agent, data_extraction_agent, market_trends_agent, outreach_agent."""
@@ -72,7 +77,7 @@ class ResearchCrew:
             llm=self.llm,
             allow_delegation=False,
             verbose=True,
-            tools=[CompanyIntelligenceTool()]
+            tools=[CompanyIntelligenceTool(api_key=self.exa_key)]
         )
 
         # 2) data_extraction_agent
@@ -93,7 +98,7 @@ class ResearchCrew:
             llm=self.llm,
             allow_delegation=False,
             verbose=True,
-            tools=[MarketResearchTool()]
+            tools=[MarketResearchTool(api_key=self.exa_key)]
         )
 
         # 4) outreach_agent
@@ -235,6 +240,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
+
 
     def execute_research(self, inputs: dict) -> str:
         """

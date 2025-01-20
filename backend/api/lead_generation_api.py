@@ -1,6 +1,6 @@
 # lead_generation_api.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -9,6 +9,7 @@ import os
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
+
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
@@ -19,45 +20,70 @@ from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
 
 class QueryRequest(BaseModel):
-    query: str
+    prompt: str
 
 class LeadGenerationAPI:
     def __init__(self):
         self.app = FastAPI()
-        self.prompt_extractor = UserPromptExtractor()
-        
+        self.setup_cors()
+        self.setup_routes()
+
+    def setup_cors(self):
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=["http://localhost:5173", "http://localhost:5174"],
             allow_credentials=True,
             allow_methods=["*"],
-            allow_headers=["*"],
+            allow_headers=["*", "x-sambanova-key", "x-exa-key"],
         )
-        
-        self.use_agent_pipeline = True
 
-        @self.app.post("/research")
-        def execute_research(request: QueryRequest):
-            if self.use_agent_pipeline:
-                # 1) Extract structured info from user query
-                extracted_json = self.prompt_extractor.extract_lead_info(request.query)
-               
-                # 2) Initialize research crew
-                crew = ResearchCrew()
-                
-                # 3) Execute the research pipeline with the extracted JSON
-                #    The agent returns a JSON string in `results_str`
-                results_str = crew.execute_research(dict(extracted_json))
-                
-                # 4) Parse the JSON string into a Python dict
-                parsed_result = json.loads(results_str)
-                
-                # 5) Extract the 'outreach_list' (which should be a list of outreach objects)
+    def setup_routes(self):
+        @self.app.post("/generate-leads")
+        async def generate_leads(request: Request):
+            # Extract API keys from headers
+            sambanova_key = request.headers.get("x-sambanova-key")
+            exa_key = request.headers.get("x-exa-key")
+
+            if not sambanova_key or not exa_key:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Missing required API keys"}
+                )
+
+            try:
+                # Get request body
+                body = await request.json()
+                prompt = body.get("prompt", "")
+
+                if not prompt:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "Missing prompt in request body"}
+                    )
+
+                # Initialize services with API keys
+                extractor = UserPromptExtractor(sambanova_key)
+                extracted_info = extractor.extract_lead_info(prompt)
+
+                # Initialize crew with API keys
+                crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
+                result = crew.execute_research(extracted_info)
+
+                # Parse result and return
+                parsed_result = json.loads(result)
                 outreach_list = parsed_result.get("outreach_list", [])
-                
-                # 6) Return that list at the top level so the frontend gets [ {..}, {..}, ... ]
                 return JSONResponse(content=outreach_list)
 
+            except json.JSONDecodeError:
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": "Invalid JSON response from research crew"}
+                )
+            except Exception as e:
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": str(e)}
+                )
 
 def create_app():
     api = LeadGenerationAPI()

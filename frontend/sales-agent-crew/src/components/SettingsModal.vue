@@ -98,6 +98,7 @@ const exaKey = ref('')
 const isSaving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const keys = ref(null)
 
 const { userId } = useAuth()
 
@@ -108,14 +109,17 @@ onMounted(async () => {
 
 const loadKeys = async () => {
   try {
+    // Use localStorage instead of sessionStorage
     const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
     const savedExaKey = localStorage.getItem(`exa_key_${userId}`)
     
-    if (savedSambanovaKey) {
+    if (savedSambanovaKey && savedExaKey) {
       sambanovaKey.value = await decryptKey(savedSambanovaKey)
-    }
-    if (savedExaKey) {
       exaKey.value = await decryptKey(savedExaKey)
+      keys.value = {
+        sambanovaKey: sambanovaKey.value,
+        exaKey: exaKey.value
+      }
     }
   } catch (error) {
     console.error('Failed to load keys:', error)
@@ -136,8 +140,14 @@ const saveKeys = async () => {
     const encryptedSambanovaKey = await encryptKey(sambanovaKey.value)
     const encryptedExaKey = await encryptKey(exaKey.value)
     
+    // Use localStorage instead of sessionStorage
     localStorage.setItem(`sambanova_key_${userId}`, encryptedSambanovaKey)
     localStorage.setItem(`exa_key_${userId}`, encryptedExaKey)
+    
+    keys.value = {
+      sambanovaKey: sambanovaKey.value,
+      exaKey: exaKey.value
+    }
     
     successMessage.value = 'Keys saved successfully!'
     setTimeout(() => {
@@ -157,26 +167,9 @@ const close = () => {
   successMessage.value = ''
 }
 
-// Explicitly define what we're exposing
+// Expose methods and state
 defineExpose({
   isOpen,
-  getKeys: async () => {
-    try {
-      const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-      const savedExaKey = localStorage.getItem(`exa_key_${userId}`)
-      
-      if (!savedSambanovaKey || !savedExaKey) {
-        return null
-      }
-
-      return {
-        sambanovaKey: await decryptKey(savedSambanovaKey),
-        exaKey: await decryptKey(savedExaKey)
-      }
-    } catch (error) {
-      console.error('Failed to retrieve keys:', error)
-      return null
-    }
-  }
+  getKeys: () => keys.value
 })
 </script> 

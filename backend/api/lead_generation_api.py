@@ -36,6 +36,7 @@ class LeadGenerationAPI:
             allow_methods=["*"],
             allow_headers=["*", "x-sambanova-key", "x-exa-key"],
         )
+        
 
     def setup_routes(self):
         @self.app.post("/generate-leads")

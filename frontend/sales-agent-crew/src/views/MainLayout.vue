@@ -77,7 +77,7 @@
   </div>
 
   <!-- Settings Modal -->
-  <SettingsModal ref="settingsModal" />
+  <SettingsModal ref="settingsModalRef" />
 </template>
 
 <script setup>
@@ -89,6 +89,7 @@ import Sidebar from '../components/Sidebar.vue'
 import { generateLeads } from '../services/api'
 import SettingsModal from '../components/SettingsModal.vue'
 import CompanyResultCard from '../components/CompanyResultCard.vue'
+import { useAuth } from '@clerk/vue'
 
 const results = ref([])
 const expandedItems = ref({})
@@ -101,7 +102,8 @@ const searchStartTime = ref(0)
 let loadingInterval
 const sidebarRef = ref(null)
 const errorMessage = ref('')
-const settingsModal = ref(null)
+const settingsModalRef = ref(null)
+const { userId } = useAuth()
 
 const loadingMessages = [
   'Fetching company details',
@@ -128,15 +130,12 @@ const handleSearch = async (query) => {
   errorMessage.value = ''
   
   try {
-    // Get API keys from settings
-    const keys = await settingsModal.value.getKeys()
+    const keys = await settingsModalRef.value?.getKeys()
     if (!keys) {
-      settingsModal.value.isOpen = true
       throw new Error('Please configure your API keys first')
     }
 
-    const { sambanovaKey, exaKey } = keys
-    const searchResults = await generateLeads(query, sambanovaKey, exaKey)
+    const searchResults = await generateLeads(query, keys)
     results.value = searchResults
   } catch (error) {
     console.error('Search error:', error)
@@ -170,6 +169,13 @@ const handleLoadSearch = (search) => {
   
   // Scroll to top of results
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const getKeys = () => {
+  // Now using localStorage
+  const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+  const exaKey = localStorage.getItem(`exa_key_${userId}`)
+  return { sambanovaKey, exaKey }
 }
 
 onUnmounted(() => {

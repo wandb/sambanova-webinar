@@ -128,6 +128,8 @@ const stopLoadingMessages = () => {
 const handleSearch = async (query) => {
   isLoading.value = true
   errorMessage.value = ''
+  searchStartTime.value = Date.now()
+  startLoadingMessages()
   
   try {
     const keys = await settingsModalRef.value?.getKeys()
@@ -137,11 +139,31 @@ const handleSearch = async (query) => {
 
     const searchResults = await generateLeads(query, keys)
     results.value = searchResults
+    
+    // Calculate execution time
+    executionTime.value = Date.now() - searchStartTime.value
+    
+    // Show completion notification
+    showCompletion.value = true
+    setTimeout(() => {
+      showCompletion.value = false
+    }, 3000)
+
+    // Save to search history
+    // Get the current expanded state for all results
+    const expandedState = Object.fromEntries(
+      searchResults.map((_, index) => [index, expandedItems.value[index] || false])
+    )
+    
+    // Add to sidebar history
+    sidebarRef.value?.addSearch(query, searchResults, expandedState)
+
   } catch (error) {
     console.error('Search error:', error)
     errorMessage.value = error.message || 'An error occurred during search'
   } finally {
     isLoading.value = false
+    stopLoadingMessages()
   }
 }
 

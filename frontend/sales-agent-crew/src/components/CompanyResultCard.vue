@@ -33,6 +33,12 @@ const copyEmailBody = () => {
       console.error('Failed to copy: ', err)
     })
 }
+
+const formatUrl = (url) => {
+  if (!url) return ''
+  // Add https:// if no protocol is specified
+  return url.startsWith('http') ? url : `https://${url}`
+}
 </script>
 
 <template>
@@ -57,7 +63,7 @@ const copyEmailBody = () => {
           <div class="flex items-center">
             <GlobeAltIcon class="w-4 h-4 mr-2 text-gray-400" />
             <a 
-              :href="`https://${company.website}`" 
+              :href="formatUrl(company.website)" 
               target="_blank" 
               class="text-blue-500 hover:underline"
               @click.stop

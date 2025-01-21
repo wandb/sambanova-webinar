@@ -292,13 +292,3 @@ if __name__ == "__main__":
     main()
 
 
-def main():
-    crew = ResearchCrew()
-    prompt = "Generate leads for quantum computing startups in California interested in AI-driven cryptography"
-
-    final_output = crew.execute_research({"prompt": prompt})
-    print("Crew Output:")
-    print(final_output)
-
-if __name__ == "__main__":
-    main()

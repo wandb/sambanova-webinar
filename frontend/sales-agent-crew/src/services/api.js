@@ -37,19 +37,3 @@ export const generateLeads = async (prompt, keys) => {
 
 export default api
 
-export const searchLeads = async (query) => {
-  try {
-    const response = await api.post('/research', {
-      query
-    })
-    
-    if (!response.data) {
-      throw new Error('API request failed')
-    }
-    
-    return response.data
-  } catch (error) {
-    console.error('Search error:', error)
-    throw error
-  }
-}

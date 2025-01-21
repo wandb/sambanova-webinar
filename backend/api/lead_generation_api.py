@@ -29,9 +29,19 @@ class LeadGenerationAPI:
         self.setup_routes()
 
     def setup_cors(self):
+        # Get allowed origins from environment variable or use default
+        allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
+        
+        # If no specific origins are set, default to allowing all
+        if not allowed_origins or (len(allowed_origins) == 1 and allowed_origins[0] == '*'):
+            allowed_origins = ["*"]
+        else:
+            # Add localhost for development
+            allowed_origins.extend(["http://localhost:5173", "http://localhost:5174"])
+
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["http://localhost:5173", "http://localhost:5174"],
+            allow_origins=allowed_origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*", "x-sambanova-key", "x-exa-key"],

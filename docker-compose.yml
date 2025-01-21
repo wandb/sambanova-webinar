@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    environment:
+      # Add any environment variables your backend needs
+      # - EXAMPLE_ENV_VAR=value
+    depends_on:
+      - exa_service  # If using an external service, define it below
+    volumes:
+      - ./backend:/app  # Optional: Mount the backend code for development
+
+  frontend:
+    build:
+      context: ./frontend/sales-agent-crew
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        # VITE_CLERK_FRONTEND_API: ${VITE_CLERK_FRONTEND_API}
+        # VITE_CLERK_DOMAIN: ${VITE_CLERK_DOMAIN}
+    container_name: frontend
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+  # Define other services if needed (e.g., databases, external APIs)
+  # Example:
+  # exa_service:
+  #   image: exa/search:latest
+  #   networks:
+  #     - app-network
+
+networks:
+  app-network:
+    driver: bridge 

@@ -8,7 +8,8 @@ import {
   CpuChipIcon,
   ChartBarIcon,
   LightBulbIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  UserIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -107,6 +108,19 @@ const formatUrl = (url) => {
         </div>
         <p class="text-gray-600 pl-7">
           {{ company.funding_amount }}
+        </p>
+      </div>
+
+      <!-- Key Contacts -->
+      <div>
+        <div class="flex items-center mb-1">
+          <UserIcon class="w-5 h-5 mr-2 text-gray-500" />
+          <h4 class="font-semibold text-gray-700">
+            Key Contacts
+          </h4>
+        </div>
+        <p class="text-gray-600 pl-7">
+          {{ company.key_contacts }}
         </p>
       </div>
 

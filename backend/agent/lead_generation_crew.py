@@ -17,6 +17,7 @@ class Outreach(BaseModel):
     company_name: str
     website: str
     headquarters: str
+    key_contacts: str
     funding_status: str
     funding_amount: str
     product: str
@@ -37,7 +38,7 @@ class ExtractedCompany(BaseModel):
     funding_amount: str
     product: str
     detailed_description: str
-
+    key_contacts: str
 class ExtractedCompanyList(BaseModel):
     companies: List[ExtractedCompany]
 
@@ -170,6 +171,8 @@ class ResearchCrew:
             description=(
                 "Step 3: For each partial company, if missing fields, do an extra aggregator query, parse again.  "
                 "The data should be as enriched as possible. Listing all named products and services from that company."
+                "As well as the key contacts and their titles for outreach."
+                "For key contacts, you should return as many as possible not just CEO etc."
                 "Then return the final enriched array."
             ),
             expected_output=(
@@ -179,6 +182,7 @@ class ResearchCrew:
                 "    'funding_stage': '...', 'employee_count': '...', 'product': '...', ...\n"
                 "    'funding_amount': '...', ...\n"
                 "    'detailed_description': '...', ...\n"
+                "    'key_contacts': '...', ...\n"
                 "  }\n"
                 "]"
             ),

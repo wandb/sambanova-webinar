@@ -10,11 +10,6 @@ services:
       - "8000:8000"
     networks:
       - app-network
-    environment:
-      # Add any environment variables your backend needs
-      # - EXAMPLE_ENV_VAR=value
-    depends_on:
-      - exa_service  # If using an external service, define it below
     volumes:
       - ./backend:/app  # Optional: Mount the backend code for development
 
@@ -34,13 +29,6 @@ services:
       - app-network
     depends_on:
       - backend
-
-  # Define other services if needed (e.g., databases, external APIs)
-  # Example:
-  # exa_service:
-  #   image: exa/search:latest
-  #   networks:
-  #     - app-network
 
 networks:
   app-network:

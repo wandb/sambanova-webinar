@@ -10,11 +10,8 @@ COPY requirements.txt .
 # Upgrade pip
 RUN pip install --upgrade pip
 
-#Pip install uv for package management
-RUN pip install uv
-
 # Install the required packages
-RUN uv pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the backend code into the container
 COPY . .

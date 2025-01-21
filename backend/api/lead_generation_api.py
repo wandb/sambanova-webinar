@@ -1,6 +1,6 @@
 # lead_generation_api.py
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -9,6 +9,8 @@ import os
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -18,6 +20,10 @@ if parent_dir not in sys.path:
 # Services, Tools, etc.
 from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
+
+# Create a global ThreadPoolExecutor if you want concurrency in a single worker
+# for CPU-heavy tasks (Pick a reasonable max_workers based on your environment).
+executor = ThreadPoolExecutor(max_workers=4)
 
 class QueryRequest(BaseModel):
     prompt: str
@@ -50,7 +56,7 @@ class LeadGenerationAPI:
 
     def setup_routes(self):
         @self.app.post("/generate-leads")
-        async def generate_leads(request: Request):
+        async def generate_leads(request: Request, background_tasks: BackgroundTasks):
             # Extract API keys from headers
             sambanova_key = request.headers.get("x-sambanova-key")
             exa_key = request.headers.get("x-exa-key")
@@ -78,7 +84,14 @@ class LeadGenerationAPI:
 
                 # Initialize crew with API keys
                 crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
-                result = crew.execute_research(extracted_info)
+
+                # Offload CPU-bound or time-consuming "execute_research" call 
+                # to a separate thread so it doesn't block the async event loop.
+                loop = asyncio.get_running_loop()
+                future = executor.submit(crew.execute_research, extracted_info)
+                result = await loop.run_in_executor(None, future.result)
+                # Alternatively:
+                # result = await loop.run_in_executor(executor, crew.execute_research, extracted_info)
 
                 # Parse result and return
                 parsed_result = json.loads(result)

@@ -38,7 +38,7 @@
       </div>
     </div>
     
-    <SettingsModal ref="settingsModalRef" />
+    <SettingsModal ref="settingsModalRef" @keysUpdated="onKeysUpdated" />
   </header>
 </template>
 
@@ -46,6 +46,8 @@
 import { ref, computed } from 'vue'
 import { SignedIn, UserButton } from '@clerk/vue'
 import SettingsModal from './SettingsModal.vue'
+
+const emit = defineEmits(['keysUpdated'])
 
 const settingsModalRef = ref(null)
 
@@ -59,5 +61,9 @@ const currentDateTime = computed(() => {
 
 const openSettings = () => {
   settingsModalRef.value.isOpen = true
+}
+
+const onKeysUpdated = () => {
+  emit('keysUpdated')
 }
 </script>

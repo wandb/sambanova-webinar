@@ -83,16 +83,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, inject } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 
 const props = defineProps({
+  keysUpdated: {
+    type: Number,
+    default: 0,
+  },
   isLoading: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const emit = defineEmits(['search', 'openSettings'])
@@ -105,9 +109,6 @@ const sambanovaKey = ref(null)
 const exaKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
-
-// Inject key change event
-const keyChangeEvent = inject('keyChangeEvent', null)
 
 // Load API keys
 const loadKeys = async () => {
@@ -134,9 +135,9 @@ onMounted(async () => {
   await loadKeys()
 })
 
-// Watch for key changes
+// Watch for changes to keysUpdated prop
 watch(
-  () => keyChangeEvent,
+  () => props.keysUpdated,
   async () => {
     await loadKeys()
   }

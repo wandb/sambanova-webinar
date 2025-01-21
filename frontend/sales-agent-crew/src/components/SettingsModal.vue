@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, provide } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { encryptKey, decryptKey } from '../utils/encryption'
 
@@ -167,6 +167,9 @@ const sambanovaKeyVisible = ref(false)
 const exaKeyVisible = ref(false)
 
 const { userId } = useAuth()
+
+// Define the emit function
+const emit = defineEmits(['keysUpdated'])
 
 // Load keys on mount
 onMounted(async () => {
@@ -200,12 +203,12 @@ const saveSambanovaKey = async () => {
     const encryptedKey = await encryptKey(sambanovaKey.value)
     localStorage.setItem(`sambanova_key_${userId}`, encryptedKey)
     successMessage.value = 'SambaNova API key saved successfully!'
+    emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save SambaNova key:', error)
     errorMessage.value = 'Failed to save SambaNova API key'
   } finally {
     clearMessagesAfterDelay()
-    emitKeyChange()
   }
 }
 
@@ -213,8 +216,8 @@ const clearSambanovaKey = () => {
   localStorage.removeItem(`sambanova_key_${userId}`)
   sambanovaKey.value = ''
   successMessage.value = 'SambaNova API key cleared successfully!'
+  emit('keysUpdated')
   clearMessagesAfterDelay()
-  emitKeyChange()
 }
 
 const saveExaKey = async () => {
@@ -226,12 +229,12 @@ const saveExaKey = async () => {
     const encryptedKey = await encryptKey(exaKey.value)
     localStorage.setItem(`exa_key_${userId}`, encryptedKey)
     successMessage.value = 'Exa API key saved successfully!'
+    emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save Exa key:', error)
     errorMessage.value = 'Failed to save Exa API key'
   } finally {
     clearMessagesAfterDelay()
-    emitKeyChange()
   }
 }
 
@@ -239,8 +242,8 @@ const clearExaKey = () => {
   localStorage.removeItem(`exa_key_${userId}`)
   exaKey.value = ''
   successMessage.value = 'Exa API key cleared successfully!'
+  emit('keysUpdated')
   clearMessagesAfterDelay()
-  emitKeyChange()
 }
 
 // Toggle key visibility
@@ -274,9 +277,4 @@ defineExpose({
     exaKey: exaKey.value,
   }),
 })
-
-// Provide an event emitter to communicate with other components
-const emitKeyChange = () => {
-  provide('keyChangeEvent', Date.now())
-}
 </script> 

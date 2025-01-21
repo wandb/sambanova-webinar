@@ -6,7 +6,7 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
       <!-- Fixed Header -->
-      <Header ref="settingsModalRef" class="flex-shrink-0" />
+      <Header @keysUpdated="onKeysUpdated" class="flex-shrink-0" />
       
       <!-- Scrollable Content -->
       <main class="flex-1 overflow-auto">
@@ -15,8 +15,10 @@
             <!-- Search Section (Fixed) -->
             <div class="sticky top-0 z-10 bg-gray-50 pt-4 pb-2">
               <SearchSection 
+                :keys-updated="keysUpdated"
                 :isLoading="isLoading"
                 @search="handleSearch" 
+                @openSettings="openSettings"
               />
             </div>
 
@@ -206,4 +208,12 @@ const getKeys = () => {
 onUnmounted(() => {
   stopLoadingMessages()
 })
+
+// **Line 22**: Define the reactive keysUpdated variable
+const keysUpdated = ref(0)
+
+// **Line 50**: Handle the keysUpdated event
+const onKeysUpdated = () => {
+  keysUpdated.value = Date.now()
+}
 </script>

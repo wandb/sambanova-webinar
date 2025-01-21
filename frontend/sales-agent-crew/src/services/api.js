@@ -3,7 +3,7 @@ import axios from 'axios'
 
 // Use environment variable for the API base URL
 const API_URL = import.meta.env.PROD 
-  ? '/api'  // In production, use relative path for proxy
+  ? `${window.location.origin}/api`  // Use the current origin in production
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
 
 const api = axios.create({

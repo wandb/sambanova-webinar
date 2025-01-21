@@ -27,8 +27,20 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
+# Stage 2: Serve the application
 FROM nginx:alpine
+
+# Install OpenSSL
+RUN apk add --no-cache openssl
+
+# Create SSL certificate directory
+RUN mkdir -p /etc/nginx/ssl
+
+# Generate self-signed certificate
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/nginx.key \
+    -out /etc/nginx/ssl/nginx.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf

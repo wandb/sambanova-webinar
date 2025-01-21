@@ -32,5 +32,5 @@ COPY . .
 # Expose port 8000 for the FastAPI application
 EXPOSE 8000
 
-# Command to run the backend service
-CMD ["uvicorn", "api.lead_generation_api:create_app", "--host", "0.0.0.0", "--port", "8000"] 
+# Command to run multiple Uvicorn workers for concurrency
+CMD ["uvicorn", "api.lead_generation_api:create_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "8"] 

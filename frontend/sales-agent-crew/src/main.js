@@ -7,7 +7,7 @@ import { clerkPlugin } from '@clerk/vue'
 // Import your router
 import router from './router/index.js'
 
-const PUBLISHABLE_KEY = 'pk_test_dHJ1c3RlZC1sb2JzdGVyLTgwLmNsZXJrLmFjY291bnRzLmRldiQ'
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 
 if (!PUBLISHABLE_KEY) {

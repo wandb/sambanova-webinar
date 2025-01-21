@@ -30,11 +30,11 @@ RUN npm run build
 # Stage 2: Serve the application with Nginx
 FROM nginx:alpine
 
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
 # Copy the built files from the previous stage
 COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx configuration if needed (optional)
-# COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose port 80 for the Nginx server
 EXPOSE 80

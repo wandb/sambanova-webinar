@@ -18,7 +18,7 @@ services:
       context: ./frontend/sales-agent-crew
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_URL: '/api'
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
         # VITE_CLERK_FRONTEND_API: ${VITE_CLERK_FRONTEND_API}
         # VITE_CLERK_DOMAIN: ${VITE_CLERK_DOMAIN}

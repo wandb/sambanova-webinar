@@ -2,7 +2,9 @@
 import axios from 'axios'
 
 // Use environment variable for the API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.PROD 
+  ? '/api'  // In production, use relative path for proxy
+  : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
 
 const api = axios.create({
   baseURL: API_URL,
@@ -28,9 +30,6 @@ export const generateLeads = async (prompt, keys) => {
     )
     return response.data
   } catch (error) {
-    if (error.response?.status === 401) {
-      throw new Error('Invalid API keys')
-    }
     console.error('API error:', error)
     throw error
   }
@@ -40,24 +39,17 @@ export default api
 
 export const searchLeads = async (query) => {
   try {
-    const response = await fetch(`${API_URL}/research`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ query })
+    const response = await api.post('/research', {
+      query
     })
-
-    if (!response.ok) {
+    
+    if (!response.data) {
       throw new Error('API request failed')
     }
-    // log the response body
-    console.log(await response.json())
-
-    return await response.json()
+    
+    return response.data
   } catch (error) {
-    console.error('API Error:', error)
+    console.error('Search error:', error)
     throw error
   }
 }

@@ -47,9 +47,9 @@ import { ref, computed } from 'vue'
 import { SignedIn, UserButton } from '@clerk/vue'
 import SettingsModal from './SettingsModal.vue'
 
-const emit = defineEmits(['keysUpdated'])
-
 const settingsModalRef = ref(null)
+
+const emit = defineEmits(['keysUpdated'])
 
 const currentDateTime = computed(() => {
   const now = new Date()
@@ -66,4 +66,9 @@ const openSettings = () => {
 const onKeysUpdated = () => {
   emit('keysUpdated')
 }
+
+// **Line 70**: Expose the openSettings method
+defineExpose({
+  openSettings
+})
 </script>

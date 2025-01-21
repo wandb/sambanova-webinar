@@ -6,7 +6,7 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
       <!-- Fixed Header -->
-      <Header @keysUpdated="onKeysUpdated" class="flex-shrink-0" />
+      <Header ref="headerRef" @keysUpdated="onKeysUpdated" class="flex-shrink-0" />
       
       <!-- Scrollable Content -->
       <main class="flex-1 overflow-auto">
@@ -106,6 +106,7 @@ const sidebarRef = ref(null)
 const errorMessage = ref('')
 const settingsModalRef = ref(null)
 const { userId } = useAuth()
+const headerRef = ref(null)
 
 const loadingMessages = [
   'Fetching company details',
@@ -215,5 +216,13 @@ const keysUpdated = ref(0)
 // **Line 50**: Handle the keysUpdated event
 const onKeysUpdated = () => {
   keysUpdated.value = Date.now()
+}
+
+const openSettings = () => {
+  if (headerRef.value && headerRef.value.openSettings) {
+    headerRef.value.openSettings()
+  } else {
+    console.error('Header component is not available.')
+  }
 }
 </script>

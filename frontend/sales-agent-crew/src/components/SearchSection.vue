@@ -1,5 +1,26 @@
 <template>
   <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+    <!-- Warning Message -->
+    <div v-if="missingKeys.length > 0" class="mb-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+      <div class="flex">
+        <svg class="h-6 w-6 text-yellow-600 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 110-16 8 8 0 010 16zm1-13a1 1 0 10-2 0v4a1 1 0 102 0V5zm0 6a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          <p class="font-medium text-yellow-800">
+            Missing API Key(s): {{ missingKeys.join(', ') }}.
+            Please set them in the
+            <button
+              @click="$emit('openSettings')"
+              class="underline text-blue-600 hover:text-blue-800"
+            >
+              settings
+            </button>.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div class="flex items-center space-x-4">
       <div class="relative flex-1">
         <input
@@ -52,13 +73,20 @@
       <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
       <span>Recording... Click microphone to stop</span>
     </div>
+
+    <ErrorModal
+      :show="showErrorModal"
+      :errorMessage="errorMessage"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useAuth } from '@clerk/vue'
-import { decryptKey } from '../utils/encryption' // Import the decryptKey function
+import { decryptKey } from '../utils/encryption'
+import ErrorModal from './ErrorModal.vue'
 
 const props = defineProps({
   isLoading: {
@@ -67,30 +95,74 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['search'])
+const emit = defineEmits(['search', 'openSettings'])
 const searchQuery = ref('')
 const isRecording = ref(false)
 const mediaRecorder = ref(null)
 const audioChunks = ref([])
 const { userId } = useAuth()
 const sambanovaKey = ref(null)
+const exaKey = ref(null)
+const errorMessage = ref('')
+const showErrorModal = ref(false)
 
-// Load API key on mount and decrypt it
-onMounted(async () => {
+// Inject key change event
+const keyChangeEvent = inject('keyChangeEvent', null)
+
+// Load API keys
+const loadKeys = async () => {
   try {
-    const encryptedKey = localStorage.getItem(`sambanova_key_${userId}`)
-    if (encryptedKey) {
-      sambanovaKey.value = await decryptKey(encryptedKey)
+    const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+    const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
+    if (encryptedSambanovaKey) {
+      sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
     } else {
       sambanovaKey.value = null
     }
+    if (encryptedExaKey) {
+      exaKey.value = await decryptKey(encryptedExaKey)
+    } else {
+      exaKey.value = null
+    }
   } catch (error) {
-    console.error('Failed to load API key:', error)
+    console.error('Failed to load API keys:', error)
   }
+}
+
+// Load API keys on mount
+onMounted(async () => {
+  await loadKeys()
+})
+
+// Watch for key changes
+watch(
+  () => keyChangeEvent,
+  async () => {
+    await loadKeys()
+  }
+)
+
+const missingKeys = computed(() => {
+  const missing = []
+  if (!sambanovaKey.value) {
+    missing.push('SambaNova')
+  }
+  if (!exaKey.value) {
+    missing.push('Exa')
+  }
+  return missing
 })
 
 const handleSearch = () => {
   if (!searchQuery.value.trim()) return
+
+  if (missingKeys.value.length > 0) {
+    errorMessage.value = `Missing API Key(s): ${missingKeys.value.join(', ')}. Please set them in the settings.`
+    showErrorModal.value = true
+    return
+  }
+
+  errorMessage.value = ''
   emit('search', searchQuery.value)
 }
 

@@ -6,7 +6,7 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
       <!-- Fixed Header -->
-      <Header class="flex-shrink-0" />
+      <Header ref="settingsModalRef" class="flex-shrink-0" />
       
       <!-- Scrollable Content -->
       <main class="flex-1 overflow-auto">
@@ -132,12 +132,15 @@ const handleSearch = async (query) => {
   startLoadingMessages()
   
   try {
-    const keys = await settingsModalRef.value?.getKeys()
-    if (!keys) {
-      throw new Error('Please configure your API keys first')
+    const keys = settingsModalRef.value?.getKeys()
+    const sambanovaKey = keys?.sambanovaKey
+    const exaKey = keys?.exaKey
+
+    if (!sambanovaKey || !exaKey) {
+      throw new Error('Missing API keys')
     }
 
-    const searchResults = await generateLeads(query, keys)
+    const searchResults = await generateLeads(query, { sambanovaKey, exaKey })
     results.value = searchResults
     
     // Calculate execution time
@@ -195,8 +198,7 @@ const handleLoadSearch = (search) => {
 
 const getKeys = () => {
   // Now using localStorage
-  const sambanovaKey = localStorage.getItem(`samban
-  ova_key_${userId}`)
+  const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
   const exaKey = localStorage.getItem(`exa_key_${userId}`)
   return { sambanovaKey, exaKey }
 }

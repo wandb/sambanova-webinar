@@ -4,6 +4,19 @@ FROM python:3.11-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Install necessary system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    libffi-dev \
+    libssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the requirements file into the container
 COPY requirements.txt .
 
@@ -20,4 +33,4 @@ COPY . .
 EXPOSE 8000
 
 # Command to run the backend service
-CMD ["uvicorn", "api.lead_generation_api:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uvicorn", "api.lead_generation_api:create_app", "--host", "0.0.0.0", "--port", "8000"] 

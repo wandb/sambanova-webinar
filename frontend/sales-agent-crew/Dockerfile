@@ -30,17 +30,11 @@ RUN npm run build
 # Stage 2: Serve the application
 FROM nginx:alpine
 
-# Install OpenSSL
-RUN apk add --no-cache openssl
+# Install OpenSSL and gettext for envsubst
+RUN apk add --no-cache openssl gettext
 
-# Create SSL certificate directory
-RUN mkdir -p /etc/nginx/ssl
-
-# Generate self-signed certificate
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/nginx.key \
-    -out /etc/nginx/ssl/nginx.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+# Create SSL certificate directories
+RUN mkdir -p /etc/nginx/ssl /etc/sn-certs/snova.ai
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -48,8 +42,8 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Copy the built files from the previous stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expose port 80 for the Nginx server
-EXPOSE 80
+# Expose ports
+EXPOSE 80 443
 
 # Start Nginx when the container launches
 CMD ["nginx", "-g", "daemon off;"] 

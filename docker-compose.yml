@@ -24,12 +24,14 @@ services:
       args:
         VITE_API_URL: '/api'
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
-        # VITE_CLERK_FRONTEND_API: ${VITE_CLERK_FRONTEND_API}
-        # VITE_CLERK_DOMAIN: ${VITE_CLERK_DOMAIN}
     container_name: frontend
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      - /etc/sn-certs:/etc/sn-certs  # Mount the certificates directory
+    environment:
+      - USE_OFFICIAL_CERTS=${USE_OFFICIAL_CERTS:-false}  # Control which certs to use
     networks:
       - app-network
     depends_on:

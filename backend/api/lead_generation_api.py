@@ -23,7 +23,7 @@ from agent.lead_generation_crew import ResearchCrew
 
 # Create a global ThreadPoolExecutor if you want concurrency in a single worker
 # for CPU-heavy tasks (Pick a reasonable max_workers based on your environment).
-executor = ThreadPoolExecutor(max_workers=4)
+executor = ThreadPoolExecutor(max_workers=2)
 
 class QueryRequest(BaseModel):
     prompt: str

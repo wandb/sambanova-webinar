@@ -12,6 +12,7 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
+from services.query_router_service import QueryRouterService
 
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -28,7 +29,7 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 executor = ThreadPoolExecutor(max_workers=2)
 
 class QueryRequest(BaseModel):
-    prompt: str
+    query: str
 
 class EduContentRequest(BaseModel):
     topic: str
@@ -62,106 +63,101 @@ class LeadGenerationAPI:
         
 
     def setup_routes(self):
-        @self.app.post("/generate-leads")
-        async def generate_leads(request: Request, background_tasks: BackgroundTasks):
-            # Extract API keys from headers
-            sambanova_key = request.headers.get("x-sambanova-key")
-            exa_key = request.headers.get("x-exa-key")
-
-            if not sambanova_key or not exa_key:
-                return JSONResponse(
-                    status_code=401,
-                    content={"error": "Missing required API keys"}
-                )
-
-            try:
-                # Get request body
-                body = await request.json()
-                prompt = body.get("prompt", "")
-
-                if not prompt:
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Missing prompt in request body"}
-                    )
-
-                # Initialize services with API keys
-                extractor = UserPromptExtractor(sambanova_key)
-                extracted_info = extractor.extract_lead_info(prompt)
-
-                # Initialize crew with API keys
-                crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
-
-                # Offload CPU-bound or time-consuming "execute_research" call 
-                # to a separate thread so it doesn't block the async event loop.
-                loop = asyncio.get_running_loop()
-                future = executor.submit(crew.execute_research, extracted_info)
-                result = await loop.run_in_executor(None, future.result)
-                # Alternatively:
-                # result = await loop.run_in_executor(executor, crew.execute_research, extracted_info)
-
-                # Parse result and return
-                parsed_result = json.loads(result)
-                outreach_list = parsed_result.get("outreach_list", [])
-                return JSONResponse(content=outreach_list)
-
-            except json.JSONDecodeError:
-                return JSONResponse(
-                    status_code=500,
-                    content={"error": "Invalid JSON response from research crew"}
-                )
-            except Exception as e:
-                return JSONResponse(
-                    status_code=500,
-                    content={"error": str(e)}
-                )
-
-        @self.app.post("/api/edu-content")
-        def generate_educational_content(request: Request, content_request: EduContentRequest):
+        @self.app.post("/query")
+        async def route_query(request: Request, query_request: QueryRequest):
             # Extract API keys from headers
             sambanova_key = request.headers.get("x-sambanova-key")
             serper_key = request.headers.get("x-serper-key")
+            exa_key = request.headers.get("x-exa-key")
 
-            if not sambanova_key or not serper_key:
+            if not sambanova_key:
                 return JSONResponse(
                     status_code=401,
-                    content={"error": "Missing required API keys"}
+                    content={"error": "Missing required SambaNova API key"}
                 )
 
             try:
-                # Initialize EduFlow with the API keys
-                edu_flow = SambaResearchFlow(
-                    sambanova_key=sambanova_key,
-                    serper_key=serper_key
-                )
+                # Initialize router
+                router = QueryRouterService(sambanova_key)
+                route_result = router.route_query(query_request.query)
 
-                # Convert additional_context focus areas to string if present
-                additional_context = None
-                if content_request.additional_context and "focus_areas" in content_request.additional_context:
-                    additional_context = ", ".join(content_request.additional_context["focus_areas"])
-                
-                # Set input variables
-                edu_flow.input_variables = {
-                    "topic": content_request.topic,
-                    "audience_level": content_request.audience_level,
-                    "additional_context": additional_context
-                }
+                if route_result.type == "sales_leads":
+                    if not exa_key:
+                        return JSONResponse(
+                            status_code=401,
+                            content={"error": "Missing required Exa API key for sales leads"}
+                        )
+                    # Use existing lead generation logic
+                    crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
+                    result = await self.execute_research(crew, route_result.parameters)
+                    return JSONResponse(content=json.loads(result))
 
-                # Execute flow
-                result = edu_flow.kickoff()
-
-                return JSONResponse(content={
-                    "topic": content_request.topic,
-                    "audience_level": content_request.audience_level,
-                    "sections": result
-                })
+                elif route_result.type == "educational_content":
+                    if not serper_key:
+                        return JSONResponse(
+                            status_code=401,
+                            content={"error": "Missing required Serper API key for educational content"}
+                        )
+                    try:
+                        # Initialize EduFlow
+                        edu_flow = SambaResearchFlow(
+                            sambanova_key=sambanova_key,
+                            serper_key=serper_key
+                        )
+                        
+                        # Set input variables
+                        edu_flow.input_variables = {
+                            "topic": route_result.parameters["topic"],
+                            "audience_level": route_result.parameters.get("audience_level", "intermediate"),
+                            "additional_context": ", ".join(route_result.parameters.get("focus_areas", []))
+                        }
+                        
+                        # Execute flow in a way that works with asyncio
+                        loop = asyncio.get_running_loop()
+                        result = await loop.run_in_executor(None, edu_flow.kickoff)
+                        
+                        return JSONResponse(content={
+                            "topic": route_result.parameters["topic"],
+                            "audience_level": route_result.parameters.get("audience_level", "intermediate"),
+                            "sections": result
+                        })
+                    except Exception as e:
+                        print(f"Error in educational content generation: {str(e)}")
+                        return JSONResponse(
+                            status_code=500,
+                            content={"error": f"Educational content generation failed: {str(e)}"}
+                        )
 
             except Exception as e:
-                print(f"Error in generate_educational_content: {str(e)}")  # Add logging
                 return JSONResponse(
                     status_code=500,
                     content={"error": str(e)}
                 )
+
+    async def execute_research(self, crew, parameters):
+        # Extract parameters
+        industry = parameters.get("industry")
+        company_stage = parameters.get("company_stage")
+        geography = parameters.get("geography")
+        funding_stage = parameters.get("funding_stage")
+        product = parameters.get("product")
+
+        # Initialize research crew with parameters
+        crew.parameters = parameters
+
+        # Initialize services with API keys
+        extractor = UserPromptExtractor(crew.sambanova_key)
+        extracted_info = extractor.extract_lead_info(f"{industry} {company_stage} {geography} {funding_stage} {product}")
+
+        # Offload CPU-bound or time-consuming "execute_research" call 
+        # to a separate thread so it doesn't block the async event loop.
+        loop = asyncio.get_running_loop()
+        future = executor.submit(crew.execute_research, extracted_info)
+        result = await loop.run_in_executor(None, future.result)
+        # Alternatively:
+        # result = await loop.run_in_executor(executor, crew.execute_research, extracted_info)
+
+        return result
 
 def create_app():
     api = LeadGenerationAPI()

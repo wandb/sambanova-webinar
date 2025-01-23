@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 
 from .crews.edu_content_writer.edu_content_writer_crew import EduContentWriterCrew
 from .crews.edu_research.edu_research_crew import EducationalPlan, EduResearchCrew
+import json
 
 load_dotenv()
 
@@ -81,29 +82,13 @@ class SambaResearchFlow(Flow):
             
             sections_with_content.append(section_dict)
 
+            #dump the complete sections_with_content to a json file
+            with open('sections_with_content.json', 'w') as f:
+                json.dump(sections_with_content, f)
+
         return sections_with_content
 
-    @listen(generate_educational_content)
-    def save_to_markdown(self, content: List[str]) -> None:
-        """
-        Save the generated content to a markdown file.
-
-        Args:
-            content (List[str]): List of content sections to save.
-        """
-        output_dir = 'output'
-        os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
-
-        topic = self.input_variables.get('topic')
-        audience_level = self.input_variables.get('audience_level')
-        file_name = f'{topic}_{audience_level}.md'.replace(' ', '_')
-
-        output_path = os.path.join(output_dir, file_name)
-
-        with open(output_path, 'w') as f:
-            for section in content:
-                f.write(section)
-                f.write('\n\n')  # Add space between sections
+    
 
 
 def kickoff() -> None:

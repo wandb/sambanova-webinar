@@ -45,7 +45,7 @@ class EduContentWriterCrew:
         self.input_variables = {}
         self.sambanova_key = sambanova_key
         self.llm = LLM(
-            model="sambanova/Qwen2.5-72B-Instruct",
+            model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
             max_tokens=4096,
             api_key=self.sambanova_key

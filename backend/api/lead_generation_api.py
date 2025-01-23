@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional, Dict, Any, List
 
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -20,6 +21,7 @@ if parent_dir not in sys.path:
 # Services, Tools, etc.
 from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
+from backend.agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 
 # Create a global ThreadPoolExecutor if you want concurrency in a single worker
 # for CPU-heavy tasks (Pick a reasonable max_workers based on your environment).
@@ -27,6 +29,11 @@ executor = ThreadPoolExecutor(max_workers=2)
 
 class QueryRequest(BaseModel):
     prompt: str
+
+class EduContentRequest(BaseModel):
+    topic: str
+    audience_level: str = "intermediate"
+    additional_context: Optional[Dict[str, List[str]]] = None
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -109,9 +116,56 @@ class LeadGenerationAPI:
                     content={"error": str(e)}
                 )
 
+        @self.app.post("/api/edu-content")
+        async def generate_educational_content(request: Request, content_request: EduContentRequest):
+            # Extract API keys from headers
+            sambanova_key = request.headers.get("x-sambanova-key")
+            serper_key = request.headers.get("x-serper-key")
+
+            if not sambanova_key or not serper_key:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Missing required API keys"}
+                )
+
+            try:
+                # Initialize EduFlow with the API keys
+                edu_flow = SambaResearchFlow(
+                    sambanova_key=sambanova_key,
+                    serper_key=serper_key
+                )
+
+                # Convert additional_context focus areas to string if present
+                additional_context = None
+                if content_request.additional_context and "focus_areas" in content_request.additional_context:
+                    additional_context = ", ".join(content_request.additional_context["focus_areas"])
+                
+                # Set input variables
+                edu_flow.input_variables = {
+                    "topic": content_request.topic,
+                    "audience_level": content_request.audience_level,
+                    "additional_context": additional_context
+                }
+
+                # Execute flow
+                result = edu_flow.kickoff()
+
+                return JSONResponse(content={
+                    "topic": content_request.topic,
+                    "audience_level": content_request.audience_level,
+                    "sections": result
+                })
+
+            except Exception as e:
+                print(f"Error in generate_educational_content: {str(e)}")  # Add logging
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": str(e)}
+                )
+
 def create_app():
     api = LeadGenerationAPI()
-    return api.app
+    return api.app 
 
 if __name__ == "__main__":
     app = create_app()

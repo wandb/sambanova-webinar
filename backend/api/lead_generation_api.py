@@ -21,7 +21,7 @@ if parent_dir not in sys.path:
 # Services, Tools, etc.
 from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
-from backend.agent.samba_research_flow.samba_research_flow import SambaResearchFlow
+from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 
 # Create a global ThreadPoolExecutor if you want concurrency in a single worker
 # for CPU-heavy tasks (Pick a reasonable max_workers based on your environment).
@@ -117,7 +117,7 @@ class LeadGenerationAPI:
                 )
 
         @self.app.post("/api/edu-content")
-        async def generate_educational_content(request: Request, content_request: EduContentRequest):
+        def generate_educational_content(request: Request, content_request: EduContentRequest):
             # Extract API keys from headers
             sambanova_key = request.headers.get("x-sambanova-key")
             serper_key = request.headers.get("x-serper-key")

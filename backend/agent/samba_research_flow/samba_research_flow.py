@@ -13,8 +13,8 @@ from typing import List, Dict, Any
 from crewai.flow.flow import Flow, listen, start
 from dotenv import load_dotenv
 
-from crews.edu_content_writer.edu_content_writer_crew import EduContentWriterCrew
-from crews.edu_research.edu_research_crew import EducationalPlan, EduResearchCrew
+from .crews.edu_content_writer.edu_content_writer_crew import EduContentWriterCrew
+from .crews.edu_research.edu_research_crew import EducationalPlan, EduResearchCrew
 
 load_dotenv()
 
@@ -108,13 +108,13 @@ class SambaResearchFlow(Flow):
 
 def kickoff() -> None:
     """Initialize and start the educational content generation process."""
-    edu_flow = EduFlow()
+    edu_flow = SambaResearchFlow()
     edu_flow.kickoff()
 
 
 def plot() -> None:
     """Generate and display a visualization of the flow structure."""
-    edu_flow = EduFlow()
+    edu_flow = SambaResearchFlow()
     edu_flow.plot()
 
 
@@ -123,7 +123,7 @@ def test_flow() -> List[Dict]:
     Helper function to test the educational flow with predefined inputs.
     Returns the generated content sections.
     """
-    edu_flow = EduFlow(
+    edu_flow = SambaResearchFlow(
         sambanova_key="fake",
         serper_key="fake"
     )

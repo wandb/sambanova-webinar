@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { 
   ClipboardIcon, 
   BuildingOffice2Icon, 
@@ -18,6 +18,11 @@ const props = defineProps({
     required: true
   }
 })
+
+// Log when component receives new data
+watch(() => props.company, (newValue) => {
+  console.log('[CompanyResultCard] Received company data:', newValue)
+}, { immediate: true })
 
 const isExpanded = ref(false)
 

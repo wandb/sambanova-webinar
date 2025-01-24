@@ -173,11 +173,10 @@ const missingKeys = computed(() => {
 // Main search function
 async function performSearch() {
   try {
-    // Immediately notify parent to show spinner
-    // We don't know final route yet, so pass a generic "Determining route"
-    emit('searchStart', 'Determining route')
+    emit('searchStart')
+    searchType.value = null
 
-    // 1) First call - route detection
+    // 1) First call - route the query
     const routeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
@@ -189,23 +188,13 @@ async function performSearch() {
       }
     )
 
-    // The server route might return something like { type: "leads" or "research", parameters: {...} }
-    let detectedType = routeResp.data.type || ''
-
-    // Map "leads" -> "sales_leads", "research" -> "educational_content", etc.
-    if (detectedType === 'research') {
-      detectedType = 'educational_content'
-    } else if (detectedType === 'leads' || detectedType === 'outreach_leads') {
-      detectedType = 'sales_leads'
-    }
-
-    // Notify parent that the real type is known now
-    emit('searchStart', detectedType)
+    const detectedType = routeResp.data.type
+    searchType.value = detectedType
 
     // 2) Second call - execute with parameters
     const executeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/execute/${routeResp.data.type}`,
-      routeResp.data.parameters, 
+      routeResp.data.parameters,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -216,16 +205,13 @@ async function performSearch() {
       }
     )
 
-    // The final data is in executeResp.data
-    // We'll treat it as "results"
     emit('searchComplete', {
       type: detectedType,
-      query: searchQuery.value, // so the results can be saved with original query
+      query: searchQuery.value,
       results: executeResp.data
     })
 
   } catch (error) {
-    console.error('[SearchSection] performSearch error:', error)
     emit('searchError', error)
   }
 }

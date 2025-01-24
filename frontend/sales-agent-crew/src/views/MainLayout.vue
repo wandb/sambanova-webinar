@@ -25,6 +25,8 @@
           @openSettings="openSettings"
         />
 
+    
+
         <!-- Our "Search Complete" toast notification -->
         <SearchNotification
           :show="showSearchNotification"
@@ -48,27 +50,33 @@
         />
 
         <!-- RESULTS SECTION -->
-        <div v-if="!isLoading && results">
-          
-          <!-- If these are sales leads, show CompanyResultCard in a vertical list -->
-          <div v-if="queryType === 'sales_leads'">
-            <div class="space-y-4">
-              <CompanyResultCard
-                v-for="(company, index) in results"
-                :key="index"
-                :company="company"
-              />
-            </div>
-          </div>
+        <div v-if="hasResults" class="mt-6 space-y-6">
+          <div class="grid grid-cols-1 gap-6">
+            <!-- Sales Leads Results -->
+            <template v-if="queryType === 'sales_leads'">
+              <div v-for="(result, index) in results.results" :key="index" class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900">{{ result.company_name }}</h3>
+                    <p class="text-sm text-gray-600">{{ result.headquarters }}</p>
+                  </div>
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    {{ result.funding_status }}
+                  </span>
+                </div>
+                
+                <div class="mt-4 space-y-3">
+                  <p class="text-gray-700"><span class="font-medium">Key Contacts:</span> {{ result.key_contacts }}</p>
+                  <p class="text-gray-700"><span class="font-medium">Funding:</span> {{ result.funding_amount }}</p>
+                  <p class="text-gray-700"><span class="font-medium">Product:</span> {{ result.product }}</p>
+                </div>
+              </div>
+            </template>
 
-          <!-- If it's educational content, show a ResearchReport -->
-          <div v-else-if="queryType === 'educational_content'">
-            <div class="space-y-4">
-              <ResearchReport
-                :report="results"
-                @showFullReport="onShowFullReport"
-              />
-            </div>
+            <!-- Research Report Results -->
+            <template v-else>
+              <ResearchReport :report="results" />
+            </template>
           </div>
         </div>
 
@@ -116,6 +124,9 @@ const resultCount = ref(0)
 // Store
 const reportStore = useReportStore()
 
+// Add isDev ref
+const isDev = ref(import.meta.env.DEV)
+
 // On component mount, load any saved reports from localStorage
 onMounted(() => {
   reportStore.loadSavedReports()
@@ -136,10 +147,10 @@ let searchStartTimestamp = 0
 
 // Search start => show spinner
 function handleSearchStart(type) {
-  console.log('[MainLayout] searchStart => type:', type)
+  console.log('[MainLayout] Search started with type:', type)
+  queryType.value = type
   isLoading.value = true
-
-  // Record the start time
+  results.value = null
   searchStartTimestamp = performance.now()
 
   if (type === 'sales_leads') {
@@ -155,51 +166,15 @@ function handleSearchStart(type) {
 }
 
 // Search complete => hide spinner, store results, show notification
-function handleSearchComplete({ type, query, results: newResults }) {
-  console.log('[MainLayout] searchComplete => type:', type, 'results:', newResults)
-  
-  // Some APIs may return "research" instead of "educational_content".
-  // Bridge that difference here so the UI stays consistent:
-  if (type === 'research') {
-    type = 'educational_content'
-  }
-
-  
-
-  // Calculate how many seconds it took
-  const endTime = performance.now()
-  const elapsedMs = endTime - searchStartTimestamp
-  searchDuration.value = (elapsedMs / 1000).toFixed(2)
-
+function handleSearchComplete(searchResults) {
+  queryType.value = searchResults.type
+  results.value = searchResults.results
   isLoading.value = false
-  loadingMessage.value = ''
-  loadingSubMessage.value = ''
-  queryType.value = type
-  results.value = newResults
-
-  // Determine how many results
-  if (Array.isArray(newResults)) {
-    resultCount.value = newResults.length
-  } else {
-    // If it's not an array, fallback to 1 (e.g. single object)
-    resultCount.value = 1
-  }
-
-  // Show "search complete" notification briefly
-  showSearchNotification.value = true
-  setTimeout(() => {
-    showSearchNotification.value = false
-  }, 5000)
-
-  // Save the report if we got valid results
-  if (newResults && (type === 'educational_content' || type === 'sales_leads')) {
-    reportStore.saveReport(type, query, newResults)
-  }
 }
 
 // Search error => hide spinner, display error
 function handleSearchError(error) {
-  console.error('[MainLayout] searchError =>', error)
+  console.error('[MainLayout] Search error:', error)
   isLoading.value = false
   loadingMessage.value = ''
   loadingSubMessage.value = ''
@@ -233,6 +208,15 @@ function handleSavedReportSelect(savedReport) {
   selectedReport.value = null
   reportModalOpen.value = false
 }
+
+// Update computed property to handle both formats
+const hasResults = computed(() => {
+  if (queryType.value === 'sales_leads') {
+    return results.value?.results && Array.isArray(results.value.results) && results.value.results.length > 0
+  }
+  // For research reports, check direct array
+  return Array.isArray(results.value) && results.value.length > 0
+})
 </script>
 
 <style scoped>

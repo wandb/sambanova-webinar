@@ -130,7 +130,7 @@ function downloadPDF() {
     doc.text(`Why Important: ${chapter.why_important || ''}`, 20, yOffset)
     yOffset += 10
 
-    // Entire generated content
+    // Content
     const lines = doc.splitTextToSize(chapter.generated_content || '', 170)
     doc.text(lines, 20, yOffset + 5)
     yOffset += (lines.length * 7) + 15

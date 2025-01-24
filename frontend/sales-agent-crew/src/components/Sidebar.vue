@@ -74,7 +74,9 @@
       </div>
 
       <!-- Saved Reports List -->
-      <div class="overflow-y-auto h-[calc(100%-5rem)]">
+      <div 
+        class="overflow-y-auto max-h-[calc(100vh-8rem)]"
+      >
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
@@ -267,5 +269,18 @@ function clearAllConfirm() {
 button[title='Expand Sidebar'],
 button[title='Collapse Sidebar'] {
   z-index: 9999;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cccccc;
+  border-radius: 9999px;
 }
 </style>

@@ -6,16 +6,17 @@
     <Sidebar @selectReport="handleSavedReportSelect" />
 
     <!-- 2) MAIN COLUMN -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
 
       <!-- PAGE HEADER -->
       <Header 
         @keysUpdated="handleKeysUpdated"
         ref="headerRef"
+        class="flex-none"
       />
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="flex-grow flex flex-col p-4 space-y-4">
+      <main class="flex-grow flex flex-col p-4 space-y-4 overflow-y-auto">
 
         <!-- SearchSection: triggers search events -->
         <SearchSection 

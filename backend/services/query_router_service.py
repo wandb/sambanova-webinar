@@ -12,20 +12,26 @@ class QueryRouterService:
         self.sambanova_key = sambanova_key
         self.api_url = "https://api.sambanova.ai/v1/chat/completions"
         
-        # Keywords that suggest educational content
+        # Keywords that suggest educational content - expanded
         self.edu_keywords = [
             "explain", "guide", "learn", "teach", "understand", "what is",
             "how does", "tutorial", "course", "education", "training",
             "concepts", "fundamentals", "basics", "advanced", "intermediate",
-            "beginner", "introduction", "deep dive", "overview", "study"
+            "beginner", "introduction", "deep dive", "overview", "study",
+            # Added research/technical keywords
+            "technology", "architecture", "design", "implementation",
+            "analysis", "comparison", "performance", "methodology",
+            "framework", "system", "protocol", "algorithm", "mechanism",
+            "theory", "principle", "structure", "process"
         ]
         
-        # Keywords that suggest sales leads
+        # Keywords that suggest sales leads - made more specific
         self.sales_keywords = [
-            "find", "search", "companies", "startups", "leads", "research",
+            "find", "search", "companies", "startups", "leads", "vendors",
             "identify", "discover", "list", "funding", "funded", "investors",
             "market research", "competitors", "industry", "geography",
-            "series", "seed", "venture", "investment"
+            "series", "seed", "venture", "investment", "firm", "corporation",
+            "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
     def _detect_query_type(self, query: str) -> str:
@@ -36,7 +42,8 @@ class QueryRouterService:
         edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         
-        return "educational_content" if edu_score > sales_score else "sales_leads"
+        # Bias towards educational content when scores are equal or no keywords found
+        return "educational_content" if edu_score >= sales_score else "sales_leads"
 
     def _call_llm(self, system_message: str, user_message: str) -> str:
         """
@@ -135,6 +142,10 @@ class QueryRouterService:
         You are a query routing expert that categorizes queries and extracts structured information.
         You must ALWAYS return a valid JSON object with 'type' and 'parameters'.
         
+        Important rules:
+        1. If a query is purely about a technical topic or concept without company/business context, treat it as educational_content
+        2. Only categorize as sales_leads if there's a clear intention to find companies, products, or business opportunities
+        
         Examples:
         
         Query: "Find AI startups in Boston"
@@ -149,35 +160,45 @@ class QueryRouterService:
             }
         }
         
-        Query: "Explain quantum computing for beginners"
+        Query: "High Bandwidth Memory and SRAM"
         {
             "type": "educational_content",
             "parameters": {
-                "topic": "quantum computing",
-                "audience_level": "beginner",
-                "focus_areas": ["basic principles", "quantum bits", "quantum gates"]
+                "topic": "High Bandwidth Memory and SRAM technologies",
+                "audience_level": "intermediate",
+                "focus_areas": ["architecture comparison", "performance characteristics", "implementation details"]
             }
         }
         
-        Query: "Create an advanced guide about blockchain"
+        Query: "Quantum Computing Architecture"
         {
             "type": "educational_content",
             "parameters": {
-                "topic": "blockchain",
-                "audience_level": "advanced",
-                "focus_areas": ["consensus mechanisms", "cryptography", "distributed systems"]
+                "topic": "Quantum Computing Architecture",
+                "audience_level": "intermediate",
+                "focus_areas": ["system design", "quantum principles", "hardware implementation"]
             }
         }
         
-        Query: "Research Series B cybersecurity companies in Israel"
+        Query: "RISC-V processor manufacturers in Asia"
         {
             "type": "sales_leads",
             "parameters": {
-                "industry": "cybersecurity",
+                "industry": "semiconductor",
                 "company_stage": "",
-                "geography": "Israel",
-                "funding_stage": "Series B",
-                "product": ""
+                "geography": "Asia",
+                "funding_stage": "",
+                "product": "RISC-V processors"
+            }
+        }
+        
+        Query: "Neural Network Accelerators"
+        {
+            "type": "educational_content",
+            "parameters": {
+                "topic": "Neural Network Accelerators",
+                "audience_level": "intermediate",
+                "focus_areas": ["hardware architecture", "optimization techniques", "performance analysis"]
             }
         }
         """

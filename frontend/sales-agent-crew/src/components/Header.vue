@@ -11,7 +11,7 @@
           />
         </div>
         <h1 class="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight">
-          Samba Sales Co-Pilot
+          Samba Co-Pilot
         </h1>
       </div>
 

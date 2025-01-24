@@ -6,35 +6,56 @@ export const useReportStore = defineStore('reportStore', {
   }),
   actions: {
     saveReport(type, query, results) {
-      const report = {
-        id: Date.now(),
-        type,                   // 'educational_content' or 'sales_leads'
-        query,                  // The user's search query
-        timestamp: new Date().toISOString(),
-        results                 // The actual report / leads data
+      try {
+        const report = {
+          id: Date.now(),
+          type,                   // 'educational_content' or 'sales_leads'
+          query,                  // The user's search query
+          timestamp: new Date().toISOString(),
+          results                 // The actual report / leads data
+        }
+        
+        // Add to the start of the array
+        this.savedReports.unshift(report)
+        
+        // Persist to localStorage
+        this.persistReports()
+        console.log('Report saved successfully:', report.id)
+      } catch (error) {
+        console.error('Error saving report:', error)
       }
-      
-      // Add to the start of the array
-      this.savedReports.unshift(report)
-      
-      // Persist to localStorage
-      this.persistReports()
     },
 
     loadSavedReports() {
-      const saved = localStorage.getItem('savedReports')
-      if (saved) {
-        this.savedReports = JSON.parse(saved)
+      try {
+        const saved = localStorage.getItem('savedReports')
+        if (saved) {
+          this.savedReports = JSON.parse(saved)
+          console.log('Loaded reports:', this.savedReports.length)
+        }
+      } catch (error) {
+        console.error('Error loading saved reports:', error)
+        this.savedReports = []
       }
     },
 
     persistReports() {
-      localStorage.setItem('savedReports', JSON.stringify(this.savedReports))
+      try {
+        localStorage.setItem('savedReports', JSON.stringify(this.savedReports))
+        console.log('Reports persisted to localStorage')
+      } catch (error) {
+        console.error('Error persisting reports:', error)
+      }
     },
 
     deleteReport(reportId) {
-      this.savedReports = this.savedReports.filter(r => r.id !== reportId)
-      this.persistReports()
+      try {
+        this.savedReports = this.savedReports.filter(r => r.id !== reportId)
+        this.persistReports()
+        console.log('Report deleted:', reportId)
+      } catch (error) {
+        console.error('Error deleting report:', error)
+      }
     }
   }
 })

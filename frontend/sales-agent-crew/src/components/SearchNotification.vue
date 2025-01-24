@@ -38,9 +38,35 @@
 </template>
 
 <script setup>
-defineProps({
-  show: Boolean,
-  time: String,
-  resultCount: Number
+import { watch } from 'vue'
+
+const props = defineProps({
+  show: {
+    type: Boolean,
+    required: true
+  },
+  time: {
+    type: String,
+    required: true
+  },
+  resultCount: {
+    type: Number,
+    required: true
+  }
 })
+
+// Add watcher for props
+watch(
+  () => props.show,
+  (newValue) => {
+    console.log('[SearchNotification] Show status changed:', newValue)
+  }
+)
+
+watch(
+  () => props.resultCount,
+  (newValue) => {
+    console.log('[SearchNotification] Result count changed:', newValue)
+  }
+)
 </script>

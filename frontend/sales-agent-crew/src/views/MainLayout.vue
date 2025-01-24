@@ -19,6 +19,8 @@
 
         <!-- SearchSection: triggers search events -->
         <SearchSection 
+          :keysUpdated="keysUpdateCounter"
+          :isLoading="isLoading"
           @searchStart="handleSearchStart"
           @searchComplete="handleSearchComplete"
           @searchError="handleSearchError"
@@ -29,9 +31,9 @@
 
         <!-- Our "Search Complete" toast notification -->
         <SearchNotification
-          :show="showSearchNotification"
-          :time="searchDuration"
-          :result-count="resultCount"
+          :show="showNotification"
+          :time="searchTime"
+          :resultCount="resultCount"
         />
 
         <!-- LOADING SPINNER: shown whenever isLoading is true -->
@@ -45,8 +47,8 @@
         <!-- ERROR MODAL -->
         <ErrorModal
           :show="showError"
-          :error-message="errorMessage"
-          @close="closeError"
+          :errorMessage="errorMessage"
+          @close="showError = false"
         />
 
         <!-- RESULTS SECTION -->
@@ -54,23 +56,11 @@
           <div class="grid grid-cols-1 gap-6">
             <!-- Sales Leads Results -->
             <template v-if="queryType === 'sales_leads'">
-              <div v-for="(result, index) in results.results" :key="index" class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <h3 class="text-xl font-semibold text-gray-900">{{ result.company_name }}</h3>
-                    <p class="text-sm text-gray-600">{{ result.headquarters }}</p>
-                  </div>
-                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    {{ result.funding_status }}
-                  </span>
-                </div>
-                
-                <div class="mt-4 space-y-3">
-                  <p class="text-gray-700"><span class="font-medium">Key Contacts:</span> {{ result.key_contacts }}</p>
-                  <p class="text-gray-700"><span class="font-medium">Funding:</span> {{ result.funding_amount }}</p>
-                  <p class="text-gray-700"><span class="font-medium">Product:</span> {{ result.product }}</p>
-                </div>
-              </div>
+              <CompanyResultCard 
+                v-for="(result, index) in results.results" 
+                :key="index"
+                :company="result"
+              />
             </template>
 
             <!-- Research Report Results -->
@@ -117,8 +107,8 @@ const selectedReport = ref(null)
 const reportModalOpen = ref(false)
 
 // For the "Search Complete" notification:
-const showSearchNotification = ref(false)
-const searchDuration = ref('0.0')
+const showNotification = ref(false)
+const searchTime = ref('0.0')
 const resultCount = ref(0)
 
 // Store

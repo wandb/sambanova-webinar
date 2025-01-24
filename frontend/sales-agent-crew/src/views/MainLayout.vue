@@ -129,19 +129,16 @@ function handleKeysUpdated() {
   console.log('[MainLayout] keys updated')
 }
 
-// Search flow timing
+// Track time for the search
 let searchStartTimestamp = 0
 
 // ----------------------
-// NEW: sub-message cycling
+// Sub-message cycling
 // ----------------------
 const subMessageInterval = ref(null)
 const subMessageIndex = ref(0)
 const currentSubMessages = ref([])
 
-/**
- * Clears any sub-message interval if running.
- */
 function clearSubMessageInterval() {
   if (subMessageInterval.value) {
     clearInterval(subMessageInterval.value)
@@ -151,9 +148,6 @@ function clearSubMessageInterval() {
   currentSubMessages.value = []
 }
 
-/**
- * Cycles through the given messages, updating loadingSubMessage every 2 seconds.
- */
 function startSubMessageCycle(messages) {
   clearSubMessageInterval()
   if (!messages || messages.length === 0) {
@@ -162,7 +156,6 @@ function startSubMessageCycle(messages) {
   }
 
   currentSubMessages.value = messages
-  // Set the first sub-message immediately
   loadingSubMessage.value = messages[0]
   subMessageIndex.value = 1
 
@@ -189,11 +182,10 @@ function handleSearchStart(type) {
   searchStartTimestamp = performance.now()
 }
 
-// Watch changes to queryType => update main spinner message
+// Watch changes to queryType => update main spinner messages
 watch(queryType, (newVal, oldVal) => {
   console.log('[MainLayout] queryType changed from', oldVal, 'to', newVal)
   
-  // Whenever queryType changes, reset interval/cycle
   clearSubMessageInterval()
 
   switch (newVal) {
@@ -204,7 +196,6 @@ watch(queryType, (newVal, oldVal) => {
 
     case 'sales_leads':
       loadingMessage.value = 'Sales Leads Query...'
-      // Example sub-messages for sales leads
       startSubMessageCycle([
         'Searching for companies...',
         'Extracting data...',
@@ -214,7 +205,6 @@ watch(queryType, (newVal, oldVal) => {
 
     case 'educational_content':
       loadingMessage.value = 'Research Generation...'
-      // Example sub-messages for research
       startSubMessageCycle([
         'Searching for topics...',
         'Creating content plan...',
@@ -223,31 +213,38 @@ watch(queryType, (newVal, oldVal) => {
       break
 
     default:
-      // Could be "educational_content", or anything else
       loadingMessage.value = 'Determining route...'
       loadingSubMessage.value = ''
       break
   }
 })
 
-// Search complete => hide spinner, store results
+// Search complete => hide spinner, store results, show notification briefly
 function handleSearchComplete(searchResults) {
   console.log('[MainLayout] handleSearchComplete =>', searchResults.type)
   queryType.value = searchResults.type
   results.value = searchResults.results
 
-  // Once we have final results, turn off loading
+  // Turn off spinner
   isLoading.value = false
-  
-  // Example of showing a notification or stats:
+
+  // Show a notification
   const elapsed = (performance.now() - searchStartTimestamp) / 1000
   searchTime.value = elapsed.toFixed(1)
+
+  // If results is an array (research) or object with 'results' array (sales_leads)
   if (Array.isArray(searchResults.results)) {
     resultCount.value = searchResults.results.length
   } else if (searchResults.results && searchResults.results.results) {
     resultCount.value = searchResults.results.results.length
   }
+
   showNotification.value = true
+
+  // --- 5-SECOND AUTO-HIDE FOR TOAST ---
+  setTimeout(() => {
+    showNotification.value = false
+  }, 5000)
 }
 
 // Search error => hide spinner, display error
@@ -287,12 +284,12 @@ function handleSavedReportSelect(savedReport) {
   reportModalOpen.value = false
 }
 
-// Update computed property to handle both formats
+// Check if we have results to display
 const hasResults = computed(() => {
   if (queryType.value === 'sales_leads') {
     return results.value?.results && Array.isArray(results.value.results) && results.value.results.length > 0
   }
-  // For research or other queries, check if it's an array
+  // For research or other content, check if it's an array
   return Array.isArray(results.value) && results.value.length > 0
 })
 </script>

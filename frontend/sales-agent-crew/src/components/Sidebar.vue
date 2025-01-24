@@ -23,12 +23,8 @@
     >
       <!-- Header with Filter and Bulk Actions -->
       <div class="p-4 border-b border-gray-200 space-y-3">
-        <div 
-          :class="[
-            'flex items-center justify-between',
-            isCollapsed ? 'flex-col space-y-2' : ''
-          ]"
-        >
+        <!-- Saved Searches title and filter on a new line -->
+        <div class="space-y-2">
           <h2 
             :class="[
               'font-semibold text-gray-900 whitespace-nowrap flex items-center',
@@ -38,7 +34,6 @@
             <MagnifyingGlassIcon class="w-5 h-5 mr-2" />
             <span :class="{ 'hidden': isCollapsed }">Saved Searches</span>
           </h2>
-
           <!-- Filter Dropdown -->
           <div v-if="!isCollapsed" class="flex items-center space-x-2">
             <label for="filterType" class="text-sm text-gray-600">Filter:</label>

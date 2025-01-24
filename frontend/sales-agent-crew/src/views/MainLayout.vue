@@ -212,7 +212,7 @@ watch(queryType, (newVal, oldVal) => {
       ])
       break
 
-    case 'research':
+    case 'educational_content':
       loadingMessage.value = 'Research Generation...'
       // Example sub-messages for research
       startSubMessageCycle([

@@ -1,5 +1,6 @@
 // main.js
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import './style.css'
 import App from './App.vue'
 import { clerkPlugin } from '@clerk/vue'
@@ -16,6 +17,11 @@ if (!PUBLISHABLE_KEY) {
 
 // Create and mount the app
 const app = createApp(App)
+
+// Create a Pinia instance
+const pinia = createPinia()
+
 app.use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY })
+app.use(pinia) // Register Pinia
 app.use(router)
 app.mount('#app')

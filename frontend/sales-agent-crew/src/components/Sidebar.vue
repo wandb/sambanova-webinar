@@ -1,128 +1,70 @@
 <template>
-  <div class="relative flex h-screen">
-    <!-- Collapse Button -->
-    <button 
+  <div class="relative h-full">
+    <!-- Toggle collapse button -->
+    <button
       @click="isCollapsed = !isCollapsed"
-      class="absolute -right-3 top-4 z-20 bg-white rounded-full p-1 shadow-md border border-gray-200"
+      class="absolute -right-3 top-4 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition"
+      :title="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
     >
-      <svg 
-        class="w-4 h-4 text-gray-600 transform transition-transform"
-        :class="{ 'rotate-180': isCollapsed }"
-        fill="none" 
-        stroke="currentColor" 
-        viewBox="0 0 24 24"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
+      <ChevronLeftIcon
+        :class="[
+          'h-4 w-4 text-gray-600 transition-transform duration-300',
+          isCollapsed ? 'rotate-180' : ''
+        ]"
+      />
     </button>
 
-    <!-- Sidebar Content -->
-    <div 
-      class="bg-white border-r border-gray-200 flex flex-col transition-all duration-300 h-full"
-      :class="{ 'w-64': !isCollapsed, 'w-0': isCollapsed }"
+    <!-- Sidebar Container -->
+    <div
+      :class="[
+        'h-full bg-white shadow-lg transition-all duration-300 overflow-hidden',
+        isCollapsed ? 'w-16' : 'w-64'
+      ]"
     >
-      <!-- Fixed Header with Actions -->
-      <div class="p-4 border-b border-gray-200 flex-shrink-0" v-show="!isCollapsed">
-        <div class="flex justify-between items-center mb-2">
-          <h2 class="text-lg font-semibold text-gray-900">Search History</h2>
-          <div class="flex space-x-2">
-            <button
-              @click="exportAllChats"
-              class="text-gray-600 hover:text-gray-900"
-              title="Export All"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </button>
-            <button
-              @click="confirmClearAll"
-              class="text-gray-600 hover:text-red-600"
-              title="Clear All"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
+      <!-- Header -->
+      <div class="p-4 border-b border-gray-200">
+        <h2 
+          :class="[
+            'font-semibold text-gray-900 whitespace-nowrap flex items-center',
+            isCollapsed ? 'justify-center' : ''
+          ]"
+        >
+          <MagnifyingGlassIcon class="w-5 h-5 mr-2" />
+          <span :class="{ 'hidden': isCollapsed }">Saved Searches</span>
+        </h2>
       </div>
-      
-      <!-- Scrollable History -->
-      <div 
-        class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400"
-        v-show="!isCollapsed"
-      >
-        <div class="p-4 space-y-3">
-          <div
-            v-for="(search, index) in searchHistory"
-            :key="index"
-            class="group relative bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors"
-          >
-            <!-- Search Content -->
-            <div class="pr-8">
-              <div 
-                class="text-sm font-medium text-gray-900 break-words"
-                style="word-break: break-word;"
-              >
-                {{ search.query }}
-              </div>
-              <div class="text-xs text-gray-500 mt-1">
-                <span class="capitalize">{{ search.type || 'Lead Generation' }}</span> • 
-                {{ new Date(search.timestamp).toLocaleString() }}
-              </div>
-            </div>
 
-            <!-- Actions (Only visible on hover) -->
-            <div class="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-              <button
-                @click.stop="exportSearch(search)"
-                class="p-1 text-gray-400 hover:text-gray-600"
-                title="Export"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </button>
-              <button
-                @click.stop="deleteSearch(index)"
-                class="p-1 text-gray-400 hover:text-red-600"
-                title="Delete"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Clickable Area for Loading Search -->
-            <div 
-              class="absolute inset-0 cursor-pointer z-0"
-              @click="loadSearch(search)"
-            ></div>
+      <!-- Saved Reports List -->
+      <div class="overflow-y-auto h-[calc(100%-4rem)]">
+        <div 
+          v-for="report in reportStore.savedReports" 
+          :key="report.id"
+          @click="selectReport(report)"
+          class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
+          :class="{ 'text-center': isCollapsed }"
+        >
+          <!-- Collapsed View -->
+          <div v-if="isCollapsed" class="flex flex-col items-center">
+            <DocumentTextIcon class="w-6 h-6 text-gray-600" />
+            <span class="text-xs mt-1">{{ formatTime(report.timestamp) }}</span>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Confirmation Modal -->
-    <div v-if="showConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white rounded-lg p-6 max-w-sm mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Clear All History?</h3>
-        <p class="text-gray-600 mb-4">This action cannot be undone. Are you sure you want to clear all search history?</p>
-        <div class="flex justify-end space-x-3">
-          <button
-            @click="showConfirmModal = false"
-            class="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            Cancel
-          </button>
-          <button
-            @click="clearAllHistory"
-            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Clear All
-          </button>
+          <!-- Expanded View -->
+          <div v-else class="space-y-1">
+            <div class="font-medium text-gray-900 truncate">
+              {{ report.query }}
+            </div>
+            <div class="flex items-center justify-between text-sm text-gray-500">
+              <span class="flex items-center">
+                <component 
+                  :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
+                  class="w-4 h-4 mr-1"
+                />
+                {{ formatType(report.type) }}
+              </span>
+              <span>{{ formatDate(report.timestamp) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -130,91 +72,44 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useAuth } from '@clerk/vue'
+import { ref } from 'vue'
+import { useReportStore } from '../stores/reportStore'
+import {
+  ChevronLeftIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+  BookOpenIcon,
+  UserGroupIcon
+} from '@heroicons/vue/24/outline'
 
-const { userId } = useAuth()
-const searchHistory = ref([])
+const reportStore = useReportStore()
 const isCollapsed = ref(false)
-const showConfirmModal = ref(false)
+const emit = defineEmits(['selectReport'])
 
-const loadSearch = (search) => {
-  emit('loadSearch', search)
+function selectReport(report) {
+  emit('selectReport', {
+    type: report.type,
+    query: report.query,
+    results: report.results
+  })
 }
 
-// Load history from localStorage
-onMounted(() => {
-  const userHistory = localStorage.getItem(`search-history-${userId}`)
-  if (userHistory) {
-    searchHistory.value = JSON.parse(userHistory)
-  }
-})
-
-// Delete single search
-const deleteSearch = (index) => {
-  searchHistory.value.splice(index, 1)
-  saveHistory()
+function formatType(type) {
+  return type === 'educational_content' ? 'Research' : 'Sales Leads'
 }
 
-// Clear all history with confirmation
-const confirmClearAll = () => {
-  showConfirmModal.value = true
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleDateString()
 }
 
-const clearAllHistory = () => {
-  searchHistory.value = []
-  saveHistory()
-  showConfirmModal.value = false
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
+</script>
 
-// Export functions
-const exportSearch = (search) => {
-  const blob = new Blob([JSON.stringify(search, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `search-${new Date(search.timestamp).toISOString()}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+<style scoped>
+/* Ensure the toggle button remains clickable */
+button[title='Toggle Sidebar'] {
+  z-index: 9999;
 }
-
-const exportAllChats = () => {
-  const blob = new Blob([JSON.stringify(searchHistory.value, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `all-searches-${new Date().toISOString()}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
-// Save history to localStorage
-const saveHistory = () => {
-  localStorage.setItem(
-    `search-history-${userId}`, 
-    JSON.stringify(searchHistory.value)
-  )
-}
-
-const emit = defineEmits(['loadSearch'])
-
-// Expose method to add new searches
-defineExpose({
-  addSearch: (query, results, expandedState, type) => {
-    const newSearch = {
-      query,
-      results,
-      expandedState,
-      type,
-      timestamp: Date.now()
-    }
-    searchHistory.value.unshift(newSearch)
-    searchHistory.value = searchHistory.value.slice(0, 50)
-    saveHistory()
-  }
-})
-</script> 
+</style> 

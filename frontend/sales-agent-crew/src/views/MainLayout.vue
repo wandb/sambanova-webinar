@@ -1,28 +1,14 @@
 <template>
   <!-- Outer container uses flex-row so the sidebar and main area appear side-by-side -->
-  <div class="min-h-screen flex flex-row">
+  <div class="min-h-screen flex">
     
     <!-- 1) SIDEBAR -->
-    <aside
-      class="w-64 bg-gray-50 border-r border-gray-200 p-6 hidden md:block"
-    >
-      <!-- Replace with your actual sidebar content or component -->
-      <h2 class="text-xl font-bold mb-4">My Sidebar</h2>
-      <nav class="space-y-2">
-        <a href="#" class="block py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md px-2">
-          Dashboard
-        </a>
-        <a href="#" class="block py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md px-2">
-          Leads
-        </a>
-        <a href="#" class="block py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md px-2">
-          Reports
-        </a>
-      </nav>
-    </aside>
+    <Sidebar
+      @selectReport="handleSavedReportSelect"
+    />
 
     <!-- 2) MAIN COLUMN -->
-    <div class="flex flex-col w-full">
+    <div class="flex-1 flex flex-col">
 
       <!-- PAGE HEADER -->
       <Header 
@@ -93,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Header from '@/components/Header.vue'
 import SearchSection from '@/components/SearchSection.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -101,6 +87,8 @@ import CompanyResultCard from '@/components/CompanyResultCard.vue'
 import ResearchReport from '@/components/ResearchReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
+import { useReportStore } from '@/stores/reportStore'
+import Sidebar from '@/components/Sidebar.vue'
 
 // Reactive state
 const isLoading = ref(false)
@@ -112,6 +100,17 @@ const queryType = ref('')
 const results = ref(null)
 const selectedReport = ref(null)
 const reportModalOpen = ref(false)
+
+// Inside script setup:
+const reportStore = useReportStore()
+
+// Load saved reports when component mounts
+onMounted(() => {
+  reportStore.loadSavedReports()
+})
+
+// Access saved reports
+const savedReports = computed(() => reportStore.savedReports)
 
 // Called by Header when user updates keys
 function handleKeysUpdated() {
@@ -135,13 +134,18 @@ function handleSearchStart(type) {
 }
 
 // Search complete => hide spinner, store results
-function handleSearchComplete({ type, results: newResults }) {
+function handleSearchComplete({ type, query, results: newResults }) {
   console.log('[MainLayout] searchComplete => type:', type, 'results:', newResults)
   isLoading.value = false
   loadingMessage.value = ''
   loadingSubMessage.value = ''
   queryType.value = type
   results.value = newResults
+
+  // Save the report if we got valid results
+  if (newResults && (type === 'educational_content' || type === 'sales_leads')) {
+    reportStore.saveReport(type, query, newResults)
+  }
 }
 
 // Search error => hide spinner, display error
@@ -173,6 +177,13 @@ function openSettings() {
   // If you want to actually open it:
   // this.$refs.headerRef.openSettings()   <-- if using Options API
   // or headerRef.value.openSettings() if using <script setup> with a template ref
+}
+
+// Add this function to handle saved report selection
+function handleSavedReportSelect({ type, query, results }) {
+  queryType.value = type
+  results.value = results
+  // You might want to update other state as needed
 }
 </script>
 

@@ -1,6 +1,6 @@
 <template>
-  <TransitionRoot appear :show="isOpen" as="template">
-    <Dialog as="div" @close="closeModal" class="relative z-50">
+  <TransitionRoot appear :show="open" as="template">
+    <Dialog as="div" @close="$emit('close')" class="relative z-50">
       <TransitionChild
         enter="ease-out duration-300"
         enter-from="opacity-0"
@@ -23,56 +23,57 @@
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel class="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-              <!-- Header -->
-              <DialogTitle as="h3" class="text-2xl font-bold leading-6 text-gray-900 mb-4">
-                {{ report.title }}
+              <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 mb-4">
+                {{ reportData.title }}
               </DialogTitle>
 
-              <!-- Content -->
               <div class="mt-4 space-y-6 max-h-[70vh] overflow-y-auto">
-                <!-- High Level Goal -->
-                <div>
-                  <h4 class="text-lg font-semibold text-gray-900">High Level Goal</h4>
-                  <p class="mt-2 text-gray-600">{{ report.high_level_goal }}</p>
-                </div>
+                <!-- Iterate through all sections -->
+                <div v-for="(section, index) in reportData" :key="index" class="mb-8">
+                  <h2 class="text-xl font-bold text-gray-900 mb-4">{{ section.title }}</h2>
+                  
+                  <!-- High Level Goal -->
+                  <div class="mb-4">
+                    <h3 class="font-semibold text-gray-800">High Level Goal</h3>
+                    <p class="text-gray-600">{{ section.high_level_goal }}</p>
+                  </div>
 
-                <!-- Why Important -->
-                <div>
-                  <h4 class="text-lg font-semibold text-gray-900">Why This Matters</h4>
-                  <p class="mt-2 text-gray-600">{{ report.why_important }}</p>
-                </div>
+                  <!-- Why Important -->
+                  <div class="mb-4">
+                    <h3 class="font-semibold text-gray-800">Why Important</h3>
+                    <p class="text-gray-600">{{ section.why_important }}</p>
+                  </div>
 
-                <!-- Sources -->
-                <div>
-                  <h4 class="text-lg font-semibold text-gray-900">Sources</h4>
-                  <ul class="mt-2 space-y-1">
-                    <li v-for="(source, index) in report.sources" :key="index">
-                      <a :href="source" target="_blank" class="text-primary-600 hover:text-primary-700">
-                        {{ source }}
-                      </a>
-                    </li>
-                  </ul>
-                </div>
+                  <!-- Content -->
+                  <div class="mb-4">
+                    <h3 class="font-semibold text-gray-800">Content</h3>
+                    <div class="prose prose-sm max-w-none" v-html="formatMarkdown(section.generated_content)"></div>
+                  </div>
 
-                <!-- Content -->
-                <div>
-                  <h4 class="text-lg font-semibold text-gray-900">Content</h4>
-                  <div class="mt-2 prose max-w-none" v-html="formattedContent"></div>
+                  <!-- Sources -->
+                  <div class="mb-4">
+                    <h3 class="font-semibold text-gray-800">Sources</h3>
+                    <ul class="list-disc pl-5">
+                      <li v-for="(source, sourceIndex) in section.sources" 
+                          :key="sourceIndex"
+                          class="text-blue-600 hover:underline">
+                        <a :href="source" target="_blank">{{ source }}</a>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <!-- Section divider -->
+                  <div v-if="index < reportData.length - 1" class="border-t border-gray-200 my-6"></div>
                 </div>
               </div>
 
-              <!-- Actions -->
-              <div class="mt-6 flex justify-end space-x-4">
+              <!-- Close button -->
+              <div class="mt-6 flex justify-end">
                 <button
-                  @click="downloadPDF"
-                  class="inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                  @click="$emit('close')"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Download PDF
-                </button>
-                <button
-                  @click="closeModal"
-                  class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
+                  <XMarkIcon class="w-5 h-5 mr-2" />
                   Close
                 </button>
               </div>
@@ -85,67 +86,46 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue'
-import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import { XMarkIcon, DocumentTextIcon, LinkIcon, LightBulbIcon, AdjustmentsHorizontalIcon as TargetIcon } from '@heroicons/vue/24/outline'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
-const props = defineProps({
-  isOpen: Boolean,
-  report: {
+defineProps({
+  open: Boolean,
+  reportData: {
     type: Object,
     required: true
   }
 })
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
-const closeModal = () => {
-  emit('close')
+const formatMarkdown = (content) => {
+  if (!content) return ''
+  const rawHtml = marked(content)
+  return DOMPurify.sanitize(rawHtml)
+}
+</script>
+
+<style scoped>
+:deep(.prose) {
+  @apply text-gray-600;
 }
 
-const formattedContent = computed(() => {
-  // Add markdown/HTML formatting logic here
-  return props.report.generated_content
-})
-
-const downloadPDF = () => {
-  const doc = new jsPDF()
-  
-  // Add custom font
-  doc.setFont('helvetica', 'normal')
-  
-  // Title
-  doc.setFontSize(24)
-  doc.text(props.report.title, 20, 20)
-  
-  // High Level Goal
-  doc.setFontSize(16)
-  doc.text('High Level Goal', 20, 40)
-  doc.setFontSize(12)
-  doc.text(props.report.high_level_goal, 20, 50)
-  
-  // Why Important
-  doc.setFontSize(16)
-  doc.text('Why This Matters', 20, 70)
-  doc.setFontSize(12)
-  doc.text(props.report.why_important, 20, 80)
-  
-  // Sources
-  doc.setFontSize(16)
-  doc.text('Sources', 20, 100)
-  doc.setFontSize(12)
-  props.report.sources.forEach((source, index) => {
-    doc.text(source, 20, 110 + (index * 10))
-  })
-  
-  // Content
-  doc.setFontSize(16)
-  doc.text('Content', 20, 140)
-  doc.setFontSize(12)
-  doc.text(props.report.generated_content, 20, 150)
-  
-  // Download
-  doc.save(`${props.report.title.toLowerCase().replace(/\s+/g, '_')}.pdf`)
+:deep(.prose h1), :deep(.prose h2), :deep(.prose h3) {
+  @apply text-gray-900 font-semibold mt-4 mb-2;
 }
-</script> 
+
+:deep(.prose p) {
+  @apply mb-4;
+}
+
+:deep(.prose ul) {
+  @apply list-disc list-inside mb-4;
+}
+
+:deep(.prose a) {
+  @apply text-blue-600 hover:underline;
+}
+</style> 

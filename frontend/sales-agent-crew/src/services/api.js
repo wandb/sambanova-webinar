@@ -13,26 +13,68 @@ const api = axios.create({
   }
 })
 
-export const generateLeads = async (prompt, keys) => {
-  try {
-    if (!keys?.sambanovaKey || !keys?.exaKey) {
-      throw new Error('API keys are required')
-    }
+/**
+ * Unified query endpoint that handles both sales leads and research
+ */
+export const unifiedQuery = async (query, apiKeys) => {
+  const response = await fetch('/api/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-SambaNova-Key': apiKeys.sambanovaKey,
+      'X-Exa-Key': apiKeys.exaKey,
+      'X-Serper-Key': apiKeys.serperKey
+    },
+    body: JSON.stringify({ query })
+  })
 
-    const response = await api.post('/generate-leads', 
-      { prompt },
-      {
-        headers: {
-          'x-sambanova-key': keys.sambanovaKey,
-          'x-exa-key': keys.exaKey
-        }
-      }
-    )
-    return response.data
-  } catch (error) {
-    console.error('API error:', error)
-    throw error
+  if (!response.ok) {
+    throw new Error('Failed to fetch results')
   }
+
+  return response.json()
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+export const generateLeads = async (query, apiKeys) => {
+  const response = await unifiedQuery(query, apiKeys)
+  if (response.type !== 'sales_leads') {
+    throw new Error('Query was not identified as a sales lead request')
+  }
+  return response.results
+}
+
+/**
+ * Generate research based on query
+ */
+export const generateResearch = async (query, apiKeys) => {
+  const response = await unifiedQuery(query, apiKeys)
+  if (response.type !== 'research') {
+    throw new Error('Query was not identified as a research request')
+  }
+  return response.results
+}
+
+/**
+ * Generate outreach content based on research/leads
+ */
+export const generateOutreach = async (data, apiKeys) => {
+  const response = await fetch('/api/outreach', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-SambaNova-Key': apiKeys.sambanovaKey
+    },
+    body: JSON.stringify(data)
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to generate outreach content')
+  }
+
+  return response.json()
 }
 
 export default api

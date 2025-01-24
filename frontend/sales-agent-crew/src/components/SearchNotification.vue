@@ -16,8 +16,7 @@
                         <p class="text-sm font-bold text-gray-900">Search Complete! 🎉</p>
                         <p class="mt-1 text-sm font-semibold text-gray-600">
                             Your SambaNova Powered Sales Agent has researched and generated outreach for {{ resultCount
-                            }} {{ resultCount === 1 ? 'result' : 'results' }} in {{ time }} seconds. All powered by our
-                            Lightening Fast SambaNova Agentic Cloud!
+                            }} {{ resultCount === 1 ? 'result' : 'results' }} in {{ time }} seconds using SambaNova, Exa, and Serper AI.
                         </p>
                     </div>
                 </div>

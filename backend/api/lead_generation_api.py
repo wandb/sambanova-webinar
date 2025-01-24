@@ -70,6 +70,12 @@ class LeadGenerationAPI:
             serper_key = request.headers.get("x-serper-key")
             exa_key = request.headers.get("x-exa-key")
 
+            # Debug logging
+            print(f"Received headers: {dict(request.headers)}")
+            print(f"SambaNova Key present: {bool(sambanova_key)}")
+            print(f"Serper Key present: {bool(serper_key)}")
+            print(f"Exa Key present: {bool(exa_key)}")
+
             if not sambanova_key:
                 return JSONResponse(
                     status_code=401,
@@ -129,6 +135,7 @@ class LeadGenerationAPI:
                         )
 
             except Exception as e:
+                print(f"Error processing query: {str(e)}")
                 return JSONResponse(
                     status_code=500,
                     content={"error": str(e)}

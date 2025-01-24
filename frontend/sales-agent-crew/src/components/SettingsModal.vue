@@ -91,7 +91,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Exa API Key
               <a 
-                href="https://exa.example.com/get-key"
+                href="https://exa.ai/"
                 target="_blank"
                 class="text-primary-600 hover:text-primary-700 ml-2 text-sm"
               >
@@ -145,6 +145,49 @@
               </button>
             </div>
           </div>
+
+          <!-- Serper API Key -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Serper API Key
+              <a 
+                href="https://serper.dev/"
+                target="_blank"
+                class="text-primary-600 hover:text-primary-700 ml-2 text-sm"
+              >
+                Get Key →
+              </a>
+            </label>
+            <div class="relative">
+              <input
+                v-model="serperKey"
+                :type="serperKeyVisible ? 'text' : 'password'"
+                placeholder="Enter your Serper API Key"
+                class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500 pr-10"
+              />
+              <button 
+                @click="toggleSerperKeyVisibility"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                <!-- Eye icon -->
+              </button>
+            </div>
+            <!-- Add Save and Clear Buttons for Serper -->
+            <div class="flex justify-end space-x-2 mt-2">
+              <button 
+                @click="clearSerperKey"
+                class="px-3 py-1 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none"
+              >
+                Clear Key
+              </button>
+              <button 
+                @click="saveSerperKey"
+                class="px-3 py-1 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -159,12 +202,14 @@ import { encryptKey, decryptKey } from '../utils/encryption'
 const isOpen = ref(false)
 const sambanovaKey = ref('')
 const exaKey = ref('')
+const serperKey = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
 // Key visibility controls
 const sambanovaKeyVisible = ref(false)
 const exaKeyVisible = ref(false)
+const serperKeyVisible = ref(false)
 
 const { userId } = useAuth()
 
@@ -180,12 +225,16 @@ const loadKeys = async () => {
   try {
     const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
     const savedExaKey = localStorage.getItem(`exa_key_${userId}`)
+    const savedSerperKey = localStorage.getItem(`serper_key_${userId}`)
 
     sambanovaKey.value = savedSambanovaKey
       ? await decryptKey(savedSambanovaKey)
       : ''
     exaKey.value = savedExaKey
       ? await decryptKey(savedExaKey)
+      : ''
+    serperKey.value = savedSerperKey
+      ? await decryptKey(savedSerperKey)
       : ''
   } catch (error) {
     console.error('Failed to load keys:', error)
@@ -246,6 +295,32 @@ const clearExaKey = () => {
   clearMessagesAfterDelay()
 }
 
+const saveSerperKey = async () => {
+  try {
+    if (!serperKey.value) {
+      errorMessage.value = 'Serper API key cannot be empty!'
+      return
+    }
+    const encryptedKey = await encryptKey(serperKey.value)
+    localStorage.setItem(`serper_key_${userId}`, encryptedKey)
+    successMessage.value = 'Serper API key saved successfully!'
+    emit('keysUpdated')
+  } catch (error) {
+    console.error('Failed to save Serper key:', error)
+    errorMessage.value = 'Failed to save Serper API key'
+  } finally {
+    clearMessagesAfterDelay()
+  }
+}
+
+const clearSerperKey = () => {
+  localStorage.removeItem(`serper_key_${userId}`)
+  serperKey.value = ''
+  successMessage.value = 'Serper API key cleared successfully!'
+  emit('keysUpdated')
+  clearMessagesAfterDelay()
+}
+
 // Toggle key visibility
 const toggleSambanovaKeyVisibility = () => {
   sambanovaKeyVisible.value = !sambanovaKeyVisible.value
@@ -253,6 +328,10 @@ const toggleSambanovaKeyVisibility = () => {
 
 const toggleExaKeyVisibility = () => {
   exaKeyVisible.value = !exaKeyVisible.value
+}
+
+const toggleSerperKeyVisibility = () => {
+  serperKeyVisible.value = !serperKeyVisible.value
 }
 
 const close = () => {
@@ -275,6 +354,7 @@ defineExpose({
   getKeys: () => ({
     sambanovaKey: sambanovaKey.value,
     exaKey: exaKey.value,
+    serperKey: serperKey.value
   }),
 })
 </script> 

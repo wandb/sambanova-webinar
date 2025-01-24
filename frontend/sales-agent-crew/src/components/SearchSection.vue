@@ -4,32 +4,36 @@
     <div v-if="missingKeys.length > 0" class="mb-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
       <div class="flex">
         <svg class="h-6 w-6 text-yellow-600 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 110-16 8 8 0 010 16zm1-13a1 1 0 10-2 0v4a1 1 0 102 0V5zm0 6a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd" />
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
         </svg>
         <div>
-          <p class="font-medium text-yellow-800">
-            Missing API Key(s): {{ missingKeys.join(', ') }}.
-            Please set them in the
-            <button
-              @click="$emit('openSettings')"
-              class="underline text-blue-600 hover:text-blue-800"
+          <p class="text-yellow-700">
+            Please set up your {{ missingKeys.join(', ') }} API key{{ missingKeys.length > 1 ? 's' : '' }} in the 
+            <button 
+              @click="openSettings"
+              class="text-yellow-800 underline hover:text-yellow-900 font-medium"
             >
               settings
-            </button>.
+            </button>
           </p>
         </div>
       </div>
     </div>
 
+    <!-- Search Type Indicator (shows after search starts) -->
+    <div v-if="searchType" class="mb-4 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">
+      Performing {{ searchType === 'sales_leads' ? 'Sales Lead Research' : 'Educational Content Research' }}...
+    </div>
+
+    <!-- Search Input Area -->
     <div class="flex items-center space-x-4">
       <div class="relative flex-1">
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Example: Generate leads for retail startups in California interested in AI"
-          class="block w-full pl-5 pr-12 py-4 text-base rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
-          @keyup.enter="handleSearch"
-          :disabled="isLoading || isRecording"
+          placeholder="Enter your search query..."
+          class="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          :disabled="isLoading"
         />
         
         <!-- Voice Input Button -->
@@ -59,12 +63,14 @@
           </svg>
         </button>
       </div>
+      
       <button
-        @click="handleSearch"
-        :disabled="isLoading || isRecording"
-        class="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50"
+        @click="performSearch"
+        :disabled="isLoading || !searchQuery.trim()"
+        class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
       >
-        {{ isLoading ? 'Searching...' : 'Search' }}
+        <span v-if="!isLoading">Search</span>
+        <span v-else>Searching...</span>
       </button>
     </div>
     
@@ -87,6 +93,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
+import axios from 'axios'
 
 const props = defineProps({
   keysUpdated: {
@@ -99,7 +106,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['search', 'openSettings'])
+const emit = defineEmits(['searchComplete', 'searchStarted', 'openSettings'])
 const searchQuery = ref('')
 const isRecording = ref(false)
 const mediaRecorder = ref(null)
@@ -107,64 +114,112 @@ const audioChunks = ref([])
 const { userId } = useAuth()
 const sambanovaKey = ref(null)
 const exaKey = ref(null)
+const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
+const searchType = ref(null)
+const isLoading = ref(false)
+const searchResults = ref(null)
 
-// Load API keys
-const loadKeys = async () => {
-  try {
-    const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-    const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
-    if (encryptedSambanovaKey) {
-      sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
-    } else {
-      sambanovaKey.value = null
-    }
-    if (encryptedExaKey) {
-      exaKey.value = await decryptKey(encryptedExaKey)
-    } else {
-      exaKey.value = null
-    }
-  } catch (error) {
-    console.error('Failed to load API keys:', error)
+const searchTypeLabel = computed(() => {
+  switch (searchType.value) {
+    case 'research': return 'Market Research'
+    case 'leads': return 'Lead Generation'
+    case 'outreach': return 'Email Outreach'
+    case 'sales_leads': return 'Sales Lead Research'
+    default: return ''
   }
-}
+})
 
-// Load API keys on mount
+// Add immediate loading of keys when component mounts
 onMounted(async () => {
   await loadKeys()
 })
 
-// Watch for changes to keysUpdated prop
-watch(
-  () => props.keysUpdated,
-  async () => {
-    await loadKeys()
+// Update loadKeys function to properly decrypt
+const loadKeys = async () => {
+  try {
+    const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+    const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
+    const encryptedSerperKey = localStorage.getItem(`serper_key_${userId}`)
+    
+    if (encryptedSambanovaKey) {
+      sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
+    }
+    if (encryptedExaKey) {
+      exaKey.value = await decryptKey(encryptedExaKey)
+    }
+    if (encryptedSerperKey) {
+      serperKey.value = await decryptKey(encryptedSerperKey)
+    }
+  } catch (error) {
+    console.error('Error loading keys:', error)
+    errorMessage.value = 'Error loading API keys'
+    showErrorModal.value = true
   }
-)
+}
 
+// Compute missing keys
 const missingKeys = computed(() => {
   const missing = []
-  if (!sambanovaKey.value) {
-    missing.push('SambaNova')
-  }
-  if (!exaKey.value) {
-    missing.push('Exa')
-  }
+  if (!sambanovaKey.value) missing.push('SambaNova')
+  if (!exaKey.value) missing.push('Exa')
+  if (!serperKey.value) missing.push('Serper')
   return missing
 })
 
-const handleSearch = () => {
-  if (!searchQuery.value.trim()) return
+// Watch for keysUpdated prop changes
+watch(() => props.keysUpdated, async () => {
+  await loadKeys()
+}, { immediate: true })
 
-  if (missingKeys.value.length > 0) {
-    errorMessage.value = `Missing API Key(s): ${missingKeys.value.join(', ')}. Please set them in the settings.`
+const performSearch = async () => {
+  try {
+    // Get API keys from localStorage
+    const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+    const serperKey = localStorage.getItem(`serper_key_${userId}`)
+    const exaKey = localStorage.getItem(`exa_key_${userId}`)
+
+    // Decrypt keys if they exist
+    const decryptedSambanovaKey = sambanovaKey ? await decryptKey(sambanovaKey) : null
+    const decryptedSerperKey = serperKey ? await decryptKey(serperKey) : null
+    const decryptedExaKey = exaKey ? await decryptKey(exaKey) : null
+
+    if (!decryptedSambanovaKey) {
+      throw new Error('SambaNova API key is required')
+    }
+
+    console.log('Making API request to:', import.meta.env.VITE_API_URL)
+    
+    // Make API request with proper URL and headers
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/query`, 
+      { query: searchQuery.value },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-sambanova-key': decryptedSambanovaKey,
+          'x-serper-key': decryptedSerperKey || '',
+          'x-exa-key': decryptedExaKey || ''
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || 'Search failed')
+    }
+
+    const data = await response.json()
+    searchResults.value = data
+    emit('searchComplete', { results: data, type: searchType.value })
+  } catch (error) {
+    console.error('Search error:', error)
+    errorMessage.value = error.message || 'Search failed. Please try again.'
     showErrorModal.value = true
-    return
+    emit('searchComplete', { results: null, type: searchType.value })
+  } finally {
+    isLoading.value = false
   }
-
-  errorMessage.value = ''
-  emit('search', searchQuery.value)
 }
 
 const toggleRecording = async () => {
@@ -326,7 +381,7 @@ const transcribeAudio = async (audioBlob) => {
     // Update search query and trigger search
     searchQuery.value = cleanedText.trim()
     if (searchQuery.value) {
-      handleSearch()
+      performSearch()
     }
 
   } catch (error) {
@@ -364,5 +419,9 @@ function cleanTranscription(transcribedText) {
   }
 
   return cleanedText;
+}
+
+const openSettings = () => {
+  emit('openSettings')
 }
 </script>

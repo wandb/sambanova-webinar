@@ -15,54 +15,56 @@
             <!-- Search Section (Fixed) -->
             <div class="sticky top-0 z-10 bg-gray-50 pt-4 pb-2">
               <SearchSection 
-                :keys-updated="keysUpdated"
-                :isLoading="isLoading"
-                @search="handleSearch" 
-                @openSettings="openSettings"
+                :keysUpdated="keysUpdateCounter"
+                @searchStarted="handleSearchStart"
+                @searchComplete="handleSearchComplete"
+                @searchError="handleSearchError"
+                @openSettings="openSettingsModal"
               />
             </div>
 
-            <!-- Scrollable Results -->
-            <div class="mt-4">
-              <!-- Loading Progress Bar -->
-              <div v-if="isLoading" class="mt-8">
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-3">
-                      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                      <h3 class="text-lg font-semibold text-gray-900">{{ currentLoadingMessage }}</h3>
-                    </div>
-                    <span class="text-sm text-gray-500">Please wait</span>
-                  </div>
-
-                  <div class="w-full bg-primary-600 h-2 rounded-full animate-pulse"></div>
-                  
-                  <div class="text-sm text-gray-500">
-                    <span>This may take a few moments</span>
-                  </div>
-                </div>
+            <!-- Loading State -->
+            <div v-if="isLoading && !results" class="mt-8">
+              <!-- Generate Sales Loading -->
+              <div v-if="searchType === 'generate_sales'" class="space-y-4">
+                <LoadingSpinner message="Searching for companies..." v-if="loadingStep === 1" />
+                <LoadingSpinner message="Analyzing company data..." v-if="loadingStep === 2" />
+                <LoadingSpinner message="Generating sales opportunities..." v-if="loadingStep === 3" />
+                <LoadingSpinner message="Creating personalized outreach..." v-if="loadingStep === 4" />
               </div>
-
-              <!-- Debug Info (hidden) -->
-              <div class="hidden">
-                isLoading: {{ isLoading }}
-                results length: {{ results.length }}
+              
+              <!-- Research Report Loading -->
+              <div v-if="searchType === 'research_report'" class="space-y-4">
+                <LoadingSpinner message="Planning research content..." v-if="loadingStep === 1" />
+                <LoadingSpinner message="Gathering industry data..." v-if="loadingStep === 2" />
+                <LoadingSpinner message="Analyzing market trends..." v-if="loadingStep === 3" />
+                <LoadingSpinner message="Writing research report..." v-if="loadingStep === 4" />
               </div>
+            </div>
 
-              <!-- Results Section -->
-              <div v-if="!isLoading && results.length > 0" class="mt-8 space-y-4">
-                <CompanyResultCard 
-                  v-for="(result, index) in results" 
-                  :key="index" 
-                  :company="result" 
+            <!-- Results Section -->
+            <div v-if="results" class="mt-8">
+              <!-- Research Report -->
+              <ResearchReport
+                v-if="currentSearchType === 'educational_content'"
+                :report="results"
+                @showFullReport="showFullReportModal = true"
+              />
+              
+              <!-- Sales Leads -->
+              <div v-else-if="currentSearchType === 'sales_leads'" class="space-y-4">
+                <CompanyResultCard
+                  v-for="(company, index) in results.companies"
+                  :key="index"
+                  :company="company"
                 />
               </div>
+            </div>
 
-              <!-- No Results Message -->
-              <div v-if="!isLoading && results.length === 0" class="mt-8">
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
-                  <p class="text-gray-600">No results found. Try modifying your search query.</p>
-                </div>
+            <!-- No Results Message -->
+            <div v-if="!isLoading && results.length === 0" class="mt-8">
+              <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
+                <p class="text-gray-600">No results found. Try modifying your search query.</p>
               </div>
             </div>
           </div>
@@ -73,27 +75,51 @@
       <SearchNotification
         :show="showCompletion"
         :time="(executionTime / 1000).toFixed(1)"
-        :result-count="results.length"
+        :result-count="resultsCount"
       />
     </div>
   </div>
 
   <!-- Settings Modal -->
   <SettingsModal ref="settingsModalRef" />
+
+  <!-- Error Modal -->
+  <ErrorModal 
+    :show="showError"
+    :error-message="errorMessage"
+    @close="showError = false"
+  />
+
+  <!-- Full Report Modal -->
+  <FullReportModal
+    v-if="showFullReportModal"
+    :isOpen="showFullReportModal"
+    :report="currentReport"
+    @close="showFullReportModal = false"
+  />
 </template>
 
 <script setup>
-import { ref, onUnmounted, computed } from 'vue'
+import { ref, onUnmounted, computed, onMounted, watch } from 'vue'
 import Header from '../components/Header.vue'
 import SearchSection from '../components/SearchSection.vue'
 import SearchNotification from '../components/SearchNotification.vue'
 import Sidebar from '../components/Sidebar.vue'
-import { generateLeads } from '../services/api'
+import { generateLeads, generateResearch, generateOutreach } from '../services/api'
 import SettingsModal from '../components/SettingsModal.vue'
 import CompanyResultCard from '../components/CompanyResultCard.vue'
 import { useAuth } from '@clerk/vue'
+import ResearchReport from '../components/ResearchReport.vue'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
+import ErrorModal from '../components/ErrorModal.vue'
+import FullReportModal from '../components/FullReportModal.vue'
+import axios from 'axios'
 
-const results = ref([])
+// Rename to "results" so we match the template usage
+const results = ref({
+  companies: [],
+  report: null
+})
 const expandedItems = ref({})
 const copySuccess = ref({})
 const isLoading = ref(false)
@@ -101,128 +127,192 @@ const currentLoadingMessage = ref('')
 const showCompletion = ref(false)
 const executionTime = ref(0)
 const searchStartTime = ref(0)
-let loadingInterval
+let loadingInterval = null
 const sidebarRef = ref(null)
 const errorMessage = ref('')
 const settingsModalRef = ref(null)
-const { userId } = useAuth()
+const { userId, isSignedIn } = useAuth()
 const headerRef = ref(null)
+const currentSearchType = ref(null)
+const showFullReportModal = ref(false)
+const showNotification = ref(false)
+const searchTime = ref('')
+const showError = ref(false)
+const keysUpdateCounter = ref(0)
+const loadingStep = ref(0)
+const searchType = ref(null)
+const currentReport = ref(null)
 
+// Example loading messages
 const loadingMessages = [
   'Fetching company details',
   'Analyzing market trends',
   'Preparing outreach emails'
 ]
 
-const startLoadingMessages = () => {
-  let index = 0
-  currentLoadingMessage.value = loadingMessages[0]
-  loadingInterval = setInterval(() => {
-    index = (index + 1) % loadingMessages.length
-    currentLoadingMessage.value = loadingMessages[index]
-  }, 2000)
-}
-
-const stopLoadingMessages = () => {
-  clearInterval(loadingInterval)
-  currentLoadingMessage.value = ''
-}
-
-const handleSearch = async (query) => {
-  isLoading.value = true
-  errorMessage.value = ''
-  searchStartTime.value = Date.now()
-  startLoadingMessages()
+const handleSearchComplete = ({ results: newResults, type }) => {
+  console.log('[MainLayout] handleSearchComplete => type:', type)
+  console.log('[MainLayout] newResults:', newResults)
   
-  try {
-    const keys = settingsModalRef.value?.getKeys()
-    const sambanovaKey = keys?.sambanovaKey
-    const exaKey = keys?.exaKey
+  // Clear any existing loading interval
+  if (loadingInterval) {
+    clearInterval(loadingInterval)
+    loadingInterval = null
+  }
+  
+  isLoading.value = false
+  loadingStep.value = 0
+  
+  // Safely handle null results
+  if (newResults) {
+    results.value = newResults
+    console.log('[MainLayout] results updated:', results.value)
+  } else {
+    results.value = {
+      companies: [],
+      report: null
+    }
+  }
+}
 
-    if (!sambanovaKey || !exaKey) {
-      throw new Error('Missing API keys')
+const handleSearchStart = async (type) => {
+  console.log('[MainLayout] handleSearchStart fired with type:', type)
+  results.value = {
+    companies: [],
+    report: null
+  }
+  startLoadingMessages(type)
+  searchType.value = type
+
+  try {
+    // Get API keys from localStorage
+    const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
+    const serperKey = localStorage.getItem(`serper_key_${userId}`)
+    const exaKey = localStorage.getItem(`exa_key_${userId}`)
+
+    // Decrypt keys if they exist
+    const decryptedSambanovaKey = sambanovaKey ? await decryptKey(sambanovaKey) : null
+    const decryptedSerperKey = serperKey ? await decryptKey(serperKey) : null
+    const decryptedExaKey = exaKey ? await decryptKey(exaKey) : null
+
+    if (!decryptedSambanovaKey) {
+      throw new Error('SambaNova API key is required')
     }
 
-    const searchResults = await generateLeads(query, { sambanovaKey, exaKey })
-    results.value = searchResults
-    
-    // Calculate execution time
-    executionTime.value = Date.now() - searchStartTime.value
-    
-    // Show completion notification
-    showCompletion.value = true
-    setTimeout(() => {
-      showCompletion.value = false
-    }, 3000)
-
-    // Save to search history
-    // Get the current expanded state for all results
-    const expandedState = Object.fromEntries(
-      searchResults.map((_, index) => [index, expandedItems.value[index] || false])
+    // Make API request with headers
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/query`, 
+      { query: searchQuery.value },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-sambanova-key': decryptedSambanovaKey,
+          'x-serper-key': decryptedSerperKey || '',
+          'x-exa-key': decryptedExaKey || ''
+        }
+      }
     )
-    
-    // Add to sidebar history
-    sidebarRef.value?.addSearch(query, searchResults, expandedState)
 
-  } catch (error) {
-    console.error('Search error:', error)
-    errorMessage.value = error.message || 'An error occurred during search'
-  } finally {
+    console.log('[MainLayout] API Response:', response.data)
+    results.value = response.data
     isLoading.value = false
-    stopLoadingMessages()
-  }
-}
+    clearInterval(loadingInterval)
 
-const toggleExpand = (index) => {
-  expandedItems.value[index] = !expandedItems.value[index]
-}
-
-const copyToClipboard = async (text, index) => {
-  try {
-    await navigator.clipboard.writeText(text)
-    copySuccess.value[index] = true
-    setTimeout(() => {
-      copySuccess.value[index] = false
-    }, 2000)
   } catch (error) {
-    console.error('Failed to copy:', error)
+    console.error('[MainLayout] Error:', error)
+    isLoading.value = false
+    clearInterval(loadingInterval)
+    
+    // Show error modal with specific message
+    const errorMessage = error.response?.data?.error || error.message || 'An unexpected error occurred'
+    showError(errorMessage)
   }
 }
 
-// Update handleLoadSearch to restore expanded state
-const handleLoadSearch = (search) => {
-  results.value = search.results
-  expandedItems.value = search.expandedState || 
-    Object.fromEntries(search.results.map((_, index) => [index, false]))
+const startLoadingMessages = (type) => {
+  console.log('[MainLayout] startLoadingMessages with type:', type)
+  isLoading.value = true
+  searchType.value = type
+  loadingStep.value = 1
   
-  // Scroll to top of results
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Clear any existing interval
+  if (loadingInterval) {
+    clearInterval(loadingInterval)
+  }
+  
+  // Start new loading interval
+  loadingInterval = setInterval(() => {
+    if (loadingStep.value < 4) {
+      loadingStep.value++
+    } else {
+      clearInterval(loadingInterval)
+    }
+  }, 3000)
 }
 
-const getKeys = () => {
-  // Now using localStorage
-  const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-  const exaKey = localStorage.getItem(`exa_key_${userId}`)
-  return { sambanovaKey, exaKey }
-}
-
+// Clean up interval on component unmount
 onUnmounted(() => {
-  stopLoadingMessages()
+  if (loadingInterval) {
+    clearInterval(loadingInterval)
+  }
 })
 
-// **Line 22**: Define the reactive keysUpdated variable
-const keysUpdated = ref(0)
-
-// **Line 50**: Handle the keysUpdated event
-const onKeysUpdated = () => {
-  keysUpdated.value = Date.now()
+// If search errors out
+const handleSearchError = (error) => {
+  console.log('[MainLayout] handleSearchError =>', error)
+  isLoading.value = false
+  errorMessage.value = error
+  showError.value = true
 }
 
-const openSettings = () => {
-  if (headerRef.value && headerRef.value.openSettings) {
-    headerRef.value.openSettings()
-  } else {
-    console.error('Header component is not available.')
+// Possibly triggered from the sidebar
+const handleLoadSearch = (searchItem) => {
+  console.log('[MainLayout] handleLoadSearch =>', searchItem)
+  // Do something with searchItem
+}
+
+// keysUpdated logic
+const onKeysUpdated = () => {
+  keysUpdateCounter.value++ // Increment counter to trigger reactivity
+}
+
+// For debugging results length
+const resultsCount = computed(() => {
+  // In a "sales_leads" scenario, results might be { companies: [ ... ] }
+  if (Array.isArray(results.value?.companies)) {
+    return results.value.companies.length
   }
+  // If "educational_content," results might be an entire object with different shape
+  return 0
+})
+
+// Optional: log to see changes
+watch(
+  () => results.value,
+  (val) => {
+    console.log('[MainLayout] results changed:', val)
+  },
+  { deep: true }
+)
+
+onMounted(() => {
+  // Example: check if user is signed in
+  if (!isSignedIn) {
+    console.warn('[MainLayout] user not signed in')
+    // Possibly redirect or show a sign-in screen
+  }
+})
+
+const openSettingsModal = () => {
+  headerRef.value.openSettings()
+}
+
+const openFullReport = (report) => {
+  currentReport.value = report
+  showFullReportModal.value = true
+}
+
+const closeFullReport = () => {
+  showFullReportModal.value = false
+  currentReport.value = null
 }
 </script>

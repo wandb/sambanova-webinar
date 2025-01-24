@@ -68,6 +68,7 @@
                 {{ search.query }}
               </div>
               <div class="text-xs text-gray-500 mt-1">
+                <span class="capitalize">{{ search.type || 'Lead Generation' }}</span> • 
                 {{ new Date(search.timestamp).toLocaleString() }}
               </div>
             </div>
@@ -203,15 +204,16 @@ const emit = defineEmits(['loadSearch'])
 
 // Expose method to add new searches
 defineExpose({
-  addSearch: (query, results, expandedState) => {
+  addSearch: (query, results, expandedState, type) => {
     const newSearch = {
       query,
       results,
       expandedState,
+      type,
       timestamp: Date.now()
     }
     searchHistory.value.unshift(newSearch)
-    searchHistory.value = searchHistory.value.slice(0, 50) // Keep only last 50 searches
+    searchHistory.value = searchHistory.value.slice(0, 50)
     saveHistory()
   }
 })

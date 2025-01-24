@@ -86,7 +86,8 @@
             <div v-if="isCollapsed" class="flex flex-col items-center w-full">
               <component 
                 :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
-                class="w-6 h-6 text-gray-600 mb-1"
+                :class="['w-6', 'h-6', reportTextColor(report.type)]"
+                class="mb-1"
               />
               <span class="text-xs text-gray-500">
                 {{ formatDate(report.timestamp) }}
@@ -98,19 +99,21 @@
 
             <!-- Expanded View -->
             <div v-else class="space-y-1 w-full pr-2">
-              <div 
-                class="font-medium break-words"
-                :class="reportTextColor(report.type)"
-              >
+              <!-- Query text is now black -->
+              <div class="font-medium break-words text-black">
                 {{ capitalizeFirstLetter(report.query) }}
               </div>
               <div class="flex items-center justify-between text-sm text-gray-500">
                 <span class="flex items-center space-x-1">
+                  <!-- Icon gets color styling -->
                   <component 
                     :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
-                    class="w-4 h-4"
+                    :class="['w-4', 'h-4', reportTextColor(report.type)]"
                   />
-                  <span>{{ formatType(report.type) }}</span>
+                  <!-- Type label gets color styling -->
+                  <span :class="reportTextColor(report.type)">
+                    {{ formatType(report.type) }}
+                  </span>
                 </span>
                 <span>
                   {{ formatDate(report.timestamp) }} 

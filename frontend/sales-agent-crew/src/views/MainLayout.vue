@@ -144,10 +144,10 @@ function handleSearchStart(type) {
   results.value = null
   searchStartTimestamp = performance.now()
 
-  if (type === 'sales_leads') {
+  if (queryType.value === 'sales_leads') {
     loadingMessage.value = 'Searching for leads...'
     loadingSubMessage.value = 'This may take a moment'
-  } else if (type === 'educational_content') {
+  } else if (queryType.value === 'educational_content') {
     loadingMessage.value = 'Generating educational material...'
     loadingSubMessage.value = 'Researching and compiling info...'
   } else {

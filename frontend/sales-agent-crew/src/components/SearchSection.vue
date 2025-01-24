@@ -24,10 +24,10 @@
       </div>
     </div>
 
-    <!-- Search Type Indicator (shows after search starts) -->
+    <!-- Search Type Indicator (shows after search starts)
     <div v-if="searchType" class="mb-4 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">
       Performing {{ searchType === 'sales_leads' ? 'Sales Lead Research' : 'Educational Content Research' }}...
-    </div>
+    </div> -->
 
     <!-- Search Input Area -->
     <div class="flex items-center space-x-4">

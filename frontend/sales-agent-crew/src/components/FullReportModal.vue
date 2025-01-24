@@ -26,7 +26,6 @@
               class="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
               <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 mb-6">
-                Complete Report
               </DialogTitle>
 
               <div class="mt-4 space-y-8 max-h-[70vh] overflow-y-auto px-2">

@@ -25,67 +25,39 @@
             <DialogPanel
               class="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
-              <!-- Modal Title (if needed) -->
-              <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 mb-4">
-                {{ reportData.title || 'Detailed Report' }}
+              <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 mb-6">
+                Complete Report
               </DialogTitle>
 
-              <div class="mt-4 space-y-6 max-h-[70vh] overflow-y-auto">
-                <!-- If reportData is an array of sections: -->
+              <div class="mt-4 space-y-8 max-h-[70vh] overflow-y-auto px-2">
                 <div
                   v-for="(section, index) in reportData"
                   :key="index"
                   class="mb-8"
                 >
                   <!-- Section Title -->
-                  <h2 class="text-xl font-bold text-gray-900 mb-4">
+                  <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <BookOpenIcon class="w-5 h-5 text-primary-600 mr-2" />
                     {{ section.title }}
                   </h2>
 
-                  <!-- High Level Goal -->
-                  <div class="mb-4">
-                    <h3 class="font-semibold text-gray-800">High Level Goal</h3>
-                    <p class="text-gray-600">
-                      {{ section.high_level_goal }}
-                    </p>
-                  </div>
+                  <!-- Content with enhanced markdown styling -->
+                  <div 
+                    class="prose prose-lg max-w-none"
+                    v-html="formatMarkdown(section.generated_content)"
+                  ></div>
 
-                  <!-- Why Important -->
-                  <div class="mb-4">
-                    <h3 class="font-semibold text-gray-800">Why Important</h3>
-                    <p class="text-gray-600">
-                      {{ section.why_important }}
-                    </p>
-                  </div>
-
-                  <!-- Rendered Markdown Content -->
-                  <div class="mb-4">
-                    <h3 class="font-semibold text-gray-800">Content</h3>
-                    <div
-                      class="prose prose-sm max-w-none"
-                      v-html="formatMarkdown(section.generated_content)"
-                    ></div>
-                  </div>
-
-                  <!-- Sources -->
-                  <div class="mb-4">
-                    <h3 class="font-semibold text-gray-800">Sources</h3>
-                    <ul class="list-disc pl-5">
-                      <li
-                        v-for="(source, sourceIndex) in section.sources"
-                        :key="sourceIndex"
-                        class="text-blue-600 hover:underline"
-                      >
-                        <a :href="source" target="_blank">{{ source }}</a>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <!-- Section divider -->
+                  <!-- Elegant divider -->
                   <div
                     v-if="index < reportData.length - 1"
-                    class="border-t border-gray-200 my-6"
-                  ></div>
+                    class="my-8 flex items-center justify-center"
+                  >
+                    <div class="border-t border-gray-200 w-full" />
+                    <div class="mx-4">
+                      <DocumentTextIcon class="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div class="border-t border-gray-200 w-full" />
+                  </div>
                 </div>
               </div>
 
@@ -115,14 +87,14 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
-import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { XMarkIcon, BookOpenIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 defineProps({
   open: Boolean,
   reportData: {
-    type: [Object, Array],
+    type: Array,
     required: true
   }
 })
@@ -142,18 +114,66 @@ const formatMarkdown = (content) => {
 }
 
 :deep(.prose h1), :deep(.prose h2), :deep(.prose h3) {
-  @apply text-gray-900 font-semibold mt-4 mb-2;
+  @apply text-gray-900 font-semibold mt-6 mb-4;
+}
+
+:deep(.prose h1) {
+  @apply text-2xl;
+}
+
+:deep(.prose h2) {
+  @apply text-xl;
+}
+
+:deep(.prose h3) {
+  @apply text-lg;
 }
 
 :deep(.prose p) {
-  @apply mb-4;
+  @apply mb-4 leading-relaxed;
 }
 
 :deep(.prose ul) {
-  @apply list-disc list-inside mb-4;
+  @apply list-disc list-inside mb-4 space-y-2;
+}
+
+:deep(.prose ol) {
+  @apply list-decimal list-inside mb-4 space-y-2;
+}
+
+:deep(.prose li) {
+  @apply text-gray-700;
 }
 
 :deep(.prose a) {
   @apply text-blue-600 hover:underline;
+}
+
+:deep(.prose code) {
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+:deep(.prose pre) {
+  @apply bg-gray-100 p-4 rounded-lg overflow-x-auto my-4;
+}
+
+:deep(.prose blockquote) {
+  @apply border-l-4 border-gray-200 pl-4 italic my-4;
+}
+
+:deep(.prose strong) {
+  @apply font-semibold text-gray-900;
+}
+
+:deep(.prose img) {
+  @apply rounded-lg my-4;
+}
+
+:deep(.prose table) {
+  @apply w-full my-4;
+}
+
+:deep(.prose td), :deep(.prose th) {
+  @apply border p-2;
 }
 </style>

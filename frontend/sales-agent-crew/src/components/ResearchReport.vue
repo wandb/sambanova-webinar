@@ -54,25 +54,32 @@
     <!-- Actions -->
     <div class="flex justify-end space-x-4 mt-6">
       <button
+        @click="showFullReport"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+      >
+        <DocumentTextIcon class="w-5 h-5 mr-2" />
+        View Full Report
+      </button>
+      <button
         @click="downloadPDF"
         class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
       >
         <ArrowDownTrayIcon class="w-5 h-5 mr-2" />
         Download PDF
       </button>
-      <button
-        @click="$emit('showFullReport', report)"
-        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-      >
-        <DocumentMagnifyingGlassIcon class="w-5 h-5 mr-2" />
-        View Full Report
-      </button>
     </div>
+
+    <!-- Full Report Modal -->
+    <FullReportModal
+      :open="isFullReportOpen"
+      :reportData="report"
+      @close="isFullReportOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { jsPDF } from 'jspdf'
@@ -82,8 +89,10 @@ import {
   DocumentMagnifyingGlassIcon,
   BookOpenIcon,
   FlagIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  DocumentTextIcon
 } from '@heroicons/vue/24/outline'
+import FullReportModal from './FullReportModal.vue'
 
 const props = defineProps({
   report: {
@@ -94,6 +103,19 @@ const props = defineProps({
 
 // Track which chapters are expanded
 const expandedChapters = ref({})
+
+// Format the report data for the modal
+const formattedReport = computed(() => {
+  return props.report.map(chapter => ({
+    title: chapter.title,
+    content: chapter.generated_content,
+    sources: chapter.sources || [],
+    metadata: {
+      high_level_goal: chapter.high_level_goal,
+      why_important: chapter.why_important
+    }
+  }))
+})
 
 // Toggle a given chapter by index
 function toggleChapter(index) {
@@ -137,6 +159,12 @@ function downloadPDF() {
   })
 
   doc.save('research_report.pdf')
+}
+
+const isFullReportOpen = ref(false)
+
+const showFullReport = () => {
+  isFullReportOpen.value = true
 }
 
 // Initialize with first chapter expanded

@@ -18,7 +18,7 @@
       <!-- MAIN CONTENT WRAPPER -->
       <main class="flex-grow flex flex-col p-4 space-y-4 overflow-y-auto">
 
-        <!-- SearchSection: triggers search events -->
+        <!-- SearchSection: triggers search events, note :keysUpdated -->
         <SearchSection 
           :keysUpdated="keysUpdateCounter"
           :isLoading="isLoading"
@@ -110,10 +110,12 @@ const showNotification = ref(false)
 const searchTime = ref('0.0')
 const resultCount = ref(0)
 
+// NEW: track how many times keys have changed
+const keysUpdateCounter = ref(0)
+
 // Store
 const reportStore = useReportStore()
 
-// isDev
 const isDev = ref(import.meta.env.DEV)
 
 // On component mount, load any saved reports from localStorage
@@ -121,20 +123,17 @@ onMounted(() => {
   reportStore.loadSavedReports()
 })
 
-// Access saved reports if needed
-const savedReports = computed(() => reportStore.savedReports)
-
 // Called by Header when user updates keys
 function handleKeysUpdated() {
   console.log('[MainLayout] keys updated')
+  // Increment the counter => triggers watchers in child components
+  keysUpdateCounter.value++
 }
 
 // Track time for the search
 let searchStartTimestamp = 0
 
-// ----------------------
 // Sub-message cycling
-// ----------------------
 const subMessageInterval = ref(null)
 const subMessageIndex = ref(0)
 const currentSubMessages = ref([])
@@ -219,7 +218,7 @@ watch(queryType, (newVal, oldVal) => {
   }
 })
 
-// Search complete => hide spinner, store results, show notification briefly
+// Search complete => hide spinner, store results, show notification
 function handleSearchComplete(searchResults) {
   console.log('[MainLayout] handleSearchComplete =>', searchResults.type)
   queryType.value = searchResults.type
@@ -232,16 +231,18 @@ function handleSearchComplete(searchResults) {
   const elapsed = (performance.now() - searchStartTimestamp) / 1000
   searchTime.value = elapsed.toFixed(1)
 
-  // If results is an array (research) or object with 'results' array (sales_leads)
   if (Array.isArray(searchResults.results)) {
     resultCount.value = searchResults.results.length
   } else if (searchResults.results && searchResults.results.results) {
+    // e.g. for "sales_leads" which is an object with a `results` array
     resultCount.value = searchResults.results.results.length
+  } else {
+    resultCount.value = 0
   }
 
   showNotification.value = true
 
-  // --- 5-SECOND AUTO-HIDE FOR TOAST ---
+  // 5-second auto-hide
   setTimeout(() => {
     showNotification.value = false
   }, 5000)
@@ -263,16 +264,10 @@ function closeError() {
   errorMessage.value = ''
 }
 
-// For opening full report from the ResearchReport child
-function onShowFullReport(reportData) {
-  selectedReport.value = reportData
-  reportModalOpen.value = true
-}
-
 // Called by SearchSection if user wants to open settings
 function openSettings() {
   console.log('[MainLayout] openSettings clicked')
-  // If you want to actually open the modal in Header:
+  // You can directly open the modal in <Header> if needed:
   // headerRef.value.openSettings()
 }
 
@@ -295,5 +290,5 @@ const hasResults = computed(() => {
 </script>
 
 <style scoped>
-/* You can adjust background colors for the sidebar vs main area or add more styling as needed. */
+/* Basic styling as needed. */
 </style>

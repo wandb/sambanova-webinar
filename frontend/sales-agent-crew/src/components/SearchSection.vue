@@ -79,6 +79,7 @@
       <span>Recording... Click microphone to stop</span>
     </div>
 
+    <!-- Error Modal if needed -->
     <ErrorModal
       :show="showErrorModal"
       :errorMessage="errorMessage"
@@ -119,7 +120,9 @@ const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
 
-// Load keys from localStorage
+/**
+ * Load keys from localStorage
+ */
 async function loadKeys() {
   try {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
@@ -128,12 +131,20 @@ async function loadKeys() {
     
     if (encryptedSambanovaKey) {
       sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
+    } else {
+      sambanovaKey.value = null
     }
+
     if (encryptedExaKey) {
       exaKey.value = await decryptKey(encryptedExaKey)
+    } else {
+      exaKey.value = null
     }
+
     if (encryptedSerperKey) {
       serperKey.value = await decryptKey(encryptedSerperKey)
+    } else {
+      serperKey.value = null
     }
   } catch (error) {
     console.error('Error loading keys:', error)
@@ -142,15 +153,26 @@ async function loadKeys() {
   }
 }
 
+/**
+ * Whenever this component mounts, or whenever `keysUpdated` changes,
+ * we reload the keys so the banner is accurate right away.
+ */
 onMounted(async () => {
   await loadKeys()
 })
 
-watch(() => props.keysUpdated, async () => {
-  await loadKeys()
-}, { immediate: true })
+watch(
+  () => props.keysUpdated,
+  async () => {
+    console.log('[SearchSection] keysUpdated changed => reloading keys...')
+    await loadKeys()
+  },
+  { immediate: true }
+)
 
-// Missing keys
+/**
+ * Computed: which keys are missing?
+ */
 const missingKeys = computed(() => {
   const missing = []
   if (!sambanovaKey.value) missing.push('SambaNova')
@@ -164,21 +186,17 @@ const missingKeys = computed(() => {
  */
 async function performSearch() {
   try {
-    // ---------------------------------------------
-    // 1) FIRST EMIT: we are routing the query
-    // This sets queryType = 'routing_query' in MainLayout
-    // so that we see "Routing Query..." on spinner.
-    // ---------------------------------------------
+    // 1) Indicate we are doing a "routing_query"
     emit('searchStart', 'routing_query')
 
-    // 2) Call the routing endpoint
+    // 2) Determine route
     const routeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': sambanovaKey.value
+          'x-sambanova-key': sambanovaKey.value || '',
         }
       }
     )
@@ -186,30 +204,24 @@ async function performSearch() {
     const detectedType = routeResp.data.type
     console.log('[SearchSection] Detected type:', detectedType)
 
-    // ---------------------------------------------
-    // 3) SECOND EMIT: now we know the actual type
-    // This sets the spinner to sub-messages for "sales_leads" or "research".
-    // ---------------------------------------------
+    // 3) Let parent know we're searching with the discovered type
     emit('searchStart', detectedType || 'unknown')
 
-    // 4) Execute the final query based on that type
+    // 4) Execute the final query
     const executeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/execute/${detectedType}`,
       routeResp.data.parameters,
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': sambanovaKey.value,
+          'x-sambanova-key': sambanovaKey.value || '',
           'x-serper-key': serperKey.value || '',
           'x-exa-key': exaKey.value || ''
         }
       }
     )
 
-    // ---------------------------------------------
-    // Search complete => send results
-    // This will cause MainLayout to set isLoading=false and display results
-    // ---------------------------------------------
+    // 5) Notify the parent that search is complete with results
     emit('searchComplete', {
       type: detectedType,
       query: searchQuery.value,
@@ -363,7 +375,7 @@ async function transcribeAudio(audioBlob) {
     const cleanedText = cleanTranscription(transcribedText)
     searchQuery.value = cleanedText.trim()
 
-    // If we have a transcribed query, automatically perform the search
+    // If we have a transcribed query, automatically search
     if (searchQuery.value) {
       performSearch()
     }
@@ -374,7 +386,6 @@ async function transcribeAudio(audioBlob) {
   }
 }
 
-// Cleanup any known prefixes in the returned text
 function cleanTranscription(transcribedText) {
   let cleanedText = transcribedText.trim()
   const prefixes = [

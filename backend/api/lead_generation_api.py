@@ -117,7 +117,7 @@ class LeadGenerationAPI:
                     parsed_result = json.loads(raw_result)
                     outreach_list = parsed_result.get("outreach_list", [])
                     
-                    # Return them under a known key, e.g. "results" or "leads"
+                    # Return them under a known key
                     return JSONResponse(content={"results": outreach_list})
 
                 elif query_type == "educational_content":
@@ -138,12 +138,13 @@ class LeadGenerationAPI:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, edu_flow.kickoff)
 
-                    # We assume result is already JSON-serializable or is a JSON string
-                    # If it's a string, parse it:
-                    # e.g. sections_with_content = json.loads(result)
-                    # Return the entire structure for the FE, so it can show in FullReportModal:
-                    # or you might do content={"sections_with_content": sections_with_content} if that's your standard
-                    sections_with_content = json.loads(result)
+                    # IMPORTANT: Check if result is already a Python object or still a JSON string
+                    if isinstance(result, str):
+                        sections_with_content = json.loads(result)
+                    else:
+                        sections_with_content = result
+
+                    # Return the content directly - it's already in the correct format
                     return JSONResponse(content=sections_with_content)
 
                 else:

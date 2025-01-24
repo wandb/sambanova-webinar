@@ -82,7 +82,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { jsPDF } from 'jspdf'
+import html2pdf from 'html2pdf.js'
 import {
   ArrowDownTrayIcon,
   ChevronDownIcon,
@@ -128,37 +128,127 @@ function formatMarkdown(text = '') {
   return DOMPurify.sanitize(rawHtml)
 }
 
-// Basic PDF generator
-function downloadPDF() {
-  const doc = new jsPDF()
-  let yOffset = 20
+// Replace the downloadPDF function with this new version
+async function downloadPDF() {
+  // Create a temporary div to hold our formatted content
+  const tempDiv = document.createElement('div')
+  tempDiv.style.padding = '40px'
+  tempDiv.style.fontFamily = 'Arial, sans-serif'
 
-  props.report.forEach((chapter, index) => {
-    if (index > 0) {
-      doc.addPage()
-      yOffset = 20
+  // Add CSS styles
+  const styleSheet = document.createElement('style')
+  styleSheet.textContent = `
+    .chapter {
+      margin-bottom: 40px;
+      page-break-after: always;
     }
-    // Title
-    doc.setFontSize(16)
-    doc.text(chapter.title, 20, yOffset)
-    yOffset += 10
+    .chapter:last-child {
+      page-break-after: avoid;
+    }
+    .chapter-title {
+      font-size: 24px;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .section {
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .goal-section {
+      background-color: #f0f7ff;
+    }
+    .important-section {
+      background-color: #fff8e6;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .content {
+      margin-top: 20px;
+      line-height: 1.6;
+    }
+    .content h1, .content h2, .content h3 {
+      margin: 15px 0;
+      color: #2c3e50;
+    }
+    .content p {
+      margin: 10px 0;
+    }
+    .content ul, .content ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .content a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+  `
+  tempDiv.appendChild(styleSheet)
 
-    doc.setFontSize(12)
+  // Generate HTML content
+  props.report.forEach((chapter) => {
+    const chapterDiv = document.createElement('div')
+    chapterDiv.className = 'chapter'
+
+    // Chapter Title
+    chapterDiv.innerHTML += `
+      <h1 class="chapter-title">${chapter.title}</h1>
+    `
+
     // High Level Goal
-    doc.text(`High Level Goal: ${chapter.high_level_goal || ''}`, 20, yOffset)
-    yOffset += 10
+    chapterDiv.innerHTML += `
+      <div class="section goal-section">
+        <div class="section-title">High Level Goal</div>
+        <div>${chapter.high_level_goal}</div>
+      </div>
+    `
 
     // Why Important
-    doc.text(`Why Important: ${chapter.why_important || ''}`, 20, yOffset)
-    yOffset += 10
+    chapterDiv.innerHTML += `
+      <div class="section important-section">
+        <div class="section-title">Why Important</div>
+        <div>${chapter.why_important}</div>
+      </div>
+    `
 
-    // Content
-    const lines = doc.splitTextToSize(chapter.generated_content || '', 170)
-    doc.text(lines, 20, yOffset + 5)
-    yOffset += (lines.length * 7) + 15
+    // Main Content
+    chapterDiv.innerHTML += `
+      <div class="content">
+        ${DOMPurify.sanitize(marked(chapter.generated_content || ''))}
+      </div>
+    `
+
+    tempDiv.appendChild(chapterDiv)
   })
 
-  doc.save('research_report.pdf')
+  // PDF generation options
+  const opt = {
+    margin: [10, 10],
+    filename: 'research_report.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { 
+      scale: 2,
+      useCORS: true,
+      letterRendering: true
+    },
+    jsPDF: { 
+      unit: 'mm', 
+      format: 'a4', 
+      orientation: 'portrait'
+    }
+  }
+
+  try {
+    // Generate PDF
+    await html2pdf().set(opt).from(tempDiv).save()
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    // You might want to add some user feedback here
+  }
 }
 
 const isFullReportOpen = ref(false)

@@ -28,8 +28,6 @@
           @openSettings="openSettings"
         />
 
-    
-
         <!-- Our "Search Complete" toast notification -->
         <SearchNotification
           :show="showNotification"
@@ -64,7 +62,7 @@
               />
             </template>
 
-            <!-- Research Report Results -->
+            <!-- Research / Educational Content Results -->
             <template v-else>
               <ResearchReport :report="results" />
             </template>
@@ -84,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import Header from '@/components/Header.vue'
 import SearchSection from '@/components/SearchSection.vue'
 import SearchNotification from '@/components/SearchNotification.vue'
@@ -115,7 +113,7 @@ const resultCount = ref(0)
 // Store
 const reportStore = useReportStore()
 
-// Add isDev ref
+// isDev
 const isDev = ref(import.meta.env.DEV)
 
 // On component mount, load any saved reports from localStorage
@@ -131,36 +129,125 @@ function handleKeysUpdated() {
   console.log('[MainLayout] keys updated')
 }
 
+// Search flow timing
+let searchStartTimestamp = 0
+
+// ----------------------
+// NEW: sub-message cycling
+// ----------------------
+const subMessageInterval = ref(null)
+const subMessageIndex = ref(0)
+const currentSubMessages = ref([])
+
+/**
+ * Clears any sub-message interval if running.
+ */
+function clearSubMessageInterval() {
+  if (subMessageInterval.value) {
+    clearInterval(subMessageInterval.value)
+    subMessageInterval.value = null
+  }
+  subMessageIndex.value = 0
+  currentSubMessages.value = []
+}
+
+/**
+ * Cycles through the given messages, updating loadingSubMessage every 2 seconds.
+ */
+function startSubMessageCycle(messages) {
+  clearSubMessageInterval()
+  if (!messages || messages.length === 0) {
+    loadingSubMessage.value = ''
+    return
+  }
+
+  currentSubMessages.value = messages
+  // Set the first sub-message immediately
+  loadingSubMessage.value = messages[0]
+  subMessageIndex.value = 1
+
+  subMessageInterval.value = setInterval(() => {
+    loadingSubMessage.value = messages[subMessageIndex.value]
+    subMessageIndex.value = (subMessageIndex.value + 1) % messages.length
+  }, 2000)
+}
+
+onBeforeUnmount(() => {
+  clearSubMessageInterval()
+})
+
 // -------------------------------------
 // Search events from <SearchSection>
 // -------------------------------------
-let searchStartTimestamp = 0
-
-// Search start => show spinner
 function handleSearchStart(type) {
-  console.log('[MainLayout] Search started with type:', type)
-  queryType.value = type
+  console.log('[MainLayout] Received "searchStart" with type:', type)
+  
+  // Show the spinner
   isLoading.value = true
   results.value = null
+  queryType.value = type
   searchStartTimestamp = performance.now()
-
-  if (queryType.value === 'sales_leads') {
-    loadingMessage.value = 'Searching for leads...'
-    loadingSubMessage.value = 'This may take a moment'
-  } else if (queryType.value === 'educational_content') {
-    loadingMessage.value = 'Generating educational material...'
-    loadingSubMessage.value = 'Researching and compiling info...'
-  } else {
-    loadingMessage.value = 'Determining route...'
-    loadingSubMessage.value = ''
-  }
 }
 
-// Search complete => hide spinner, store results, show notification
+// Watch changes to queryType => update main spinner message
+watch(queryType, (newVal, oldVal) => {
+  console.log('[MainLayout] queryType changed from', oldVal, 'to', newVal)
+  
+  // Whenever queryType changes, reset interval/cycle
+  clearSubMessageInterval()
+
+  switch (newVal) {
+    case 'routing_query':
+      loadingMessage.value = 'Routing Query...'
+      loadingSubMessage.value = ''
+      break
+
+    case 'sales_leads':
+      loadingMessage.value = 'Sales Leads Query...'
+      // Example sub-messages for sales leads
+      startSubMessageCycle([
+        'Searching for companies...',
+        'Extracting data...',
+        'Getting marketing info...'
+      ])
+      break
+
+    case 'research':
+      loadingMessage.value = 'Research Generation...'
+      // Example sub-messages for research
+      startSubMessageCycle([
+        'Searching for topics...',
+        'Creating content plan...',
+        'Writing content...'
+      ])
+      break
+
+    default:
+      // Could be "educational_content", or anything else
+      loadingMessage.value = 'Determining route...'
+      loadingSubMessage.value = ''
+      break
+  }
+})
+
+// Search complete => hide spinner, store results
 function handleSearchComplete(searchResults) {
+  console.log('[MainLayout] handleSearchComplete =>', searchResults.type)
   queryType.value = searchResults.type
   results.value = searchResults.results
+
+  // Once we have final results, turn off loading
   isLoading.value = false
+  
+  // Example of showing a notification or stats:
+  const elapsed = (performance.now() - searchStartTimestamp) / 1000
+  searchTime.value = elapsed.toFixed(1)
+  if (Array.isArray(searchResults.results)) {
+    resultCount.value = searchResults.results.length
+  } else if (searchResults.results && searchResults.results.results) {
+    resultCount.value = searchResults.results.results.length
+  }
+  showNotification.value = true
 }
 
 // Search error => hide spinner, display error
@@ -205,7 +292,7 @@ const hasResults = computed(() => {
   if (queryType.value === 'sales_leads') {
     return results.value?.results && Array.isArray(results.value.results) && results.value.results.length > 0
   }
-  // For research reports, check direct array
+  // For research or other queries, check if it's an array
   return Array.isArray(results.value) && results.value.length > 0
 })
 </script>

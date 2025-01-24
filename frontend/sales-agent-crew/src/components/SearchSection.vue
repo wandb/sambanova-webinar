@@ -1,6 +1,6 @@
 <template>
   <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-    <!-- Warning Message -->
+    <!-- Warning Message for missing keys -->
     <div v-if="missingKeys.length > 0" class="mb-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
       <div class="flex">
         <svg class="h-6 w-6 text-yellow-600 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20">
@@ -23,11 +23,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Search Type Indicator (shows after search starts)
-    <div v-if="searchType" class="mb-4 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">
-      Performing {{ searchType === 'sales_leads' ? 'Sales Lead Research' : 'Educational Content Research' }}...
-    </div> -->
 
     <!-- Search Input Area -->
     <div class="flex items-center space-x-4">
@@ -99,7 +94,6 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 
-// Props & emits
 const props = defineProps({
   keysUpdated: {
     type: Number,
@@ -124,16 +118,8 @@ const exaKey = ref(null)
 const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
-const searchType = ref(null)
-const isLoadingLocal = ref(false) // local loading for this component
-const searchResults = ref(null)
 
-// On mount, load keys
-onMounted(async () => {
-  await loadKeys()
-})
-
-// Load keys from localStorage & decrypt
+// Load keys from localStorage
 async function loadKeys() {
   try {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
@@ -156,12 +142,15 @@ async function loadKeys() {
   }
 }
 
-// Watch for keysUpdated changes
+onMounted(async () => {
+  await loadKeys()
+})
+
 watch(() => props.keysUpdated, async () => {
   await loadKeys()
 }, { immediate: true })
 
-// Determine which keys are missing
+// Missing keys
 const missingKeys = computed(() => {
   const missing = []
   if (!sambanovaKey.value) missing.push('SambaNova')
@@ -170,13 +159,19 @@ const missingKeys = computed(() => {
   return missing
 })
 
-// Main search function
+/**
+ * Main search function
+ */
 async function performSearch() {
   try {
-    emit('searchStart')
-    searchType.value = null
+    // ---------------------------------------------
+    // 1) FIRST EMIT: we are routing the query
+    // This sets queryType = 'routing_query' in MainLayout
+    // so that we see "Routing Query..." on spinner.
+    // ---------------------------------------------
+    emit('searchStart', 'routing_query')
 
-    // 1) First call - route the query
+    // 2) Call the routing endpoint
     const routeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
@@ -189,11 +184,17 @@ async function performSearch() {
     )
 
     const detectedType = routeResp.data.type
-    searchType.value = detectedType
+    console.log('[SearchSection] Detected type:', detectedType)
 
-    // 2) Second call - execute with parameters
+    // ---------------------------------------------
+    // 3) SECOND EMIT: now we know the actual type
+    // This sets the spinner to sub-messages for "sales_leads" or "research".
+    // ---------------------------------------------
+    emit('searchStart', detectedType || 'unknown')
+
+    // 4) Execute the final query based on that type
     const executeResp = await axios.post(
-      `${import.meta.env.VITE_API_URL}/execute/${routeResp.data.type}`,
+      `${import.meta.env.VITE_API_URL}/execute/${detectedType}`,
       routeResp.data.parameters,
       {
         headers: {
@@ -205,6 +206,10 @@ async function performSearch() {
       }
     )
 
+    // ---------------------------------------------
+    // Search complete => send results
+    // This will cause MainLayout to set isLoading=false and display results
+    // ---------------------------------------------
     emit('searchComplete', {
       type: detectedType,
       query: searchQuery.value,
@@ -212,11 +217,14 @@ async function performSearch() {
     })
 
   } catch (error) {
+    console.error('[SearchSection] performSearch error:', error)
     emit('searchError', error)
   }
 }
 
-// Voice recording functions
+/**
+ * Voice recording / transcription
+ */
 function toggleRecording() {
   if (isRecording.value) {
     stopRecording()
@@ -354,6 +362,8 @@ async function transcribeAudio(audioBlob) {
 
     const cleanedText = cleanTranscription(transcribedText)
     searchQuery.value = cleanedText.trim()
+
+    // If we have a transcribed query, automatically perform the search
     if (searchQuery.value) {
       performSearch()
     }

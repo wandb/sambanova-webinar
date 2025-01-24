@@ -82,9 +82,6 @@ class SambaResearchFlow(Flow):
             
             sections_with_content.append(section_dict)
 
-            #dump the complete sections_with_content to a json file
-            with open('sections_with_content.json', 'w') as f:
-                json.dump(sections_with_content, f)
 
         return sections_with_content
 

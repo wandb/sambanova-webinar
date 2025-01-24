@@ -87,6 +87,7 @@ const isCollapsed = ref(false)
 const emit = defineEmits(['selectReport'])
 
 function selectReport(report) {
+  // Emit the entire object or destructure as needed
   emit('selectReport', {
     type: report.type,
     query: report.query,
@@ -95,6 +96,7 @@ function selectReport(report) {
 }
 
 function formatType(type) {
+  // Keep consistent with your UI naming
   return type === 'educational_content' ? 'Research' : 'Sales Leads'
 }
 
@@ -109,7 +111,8 @@ function formatTime(timestamp) {
 
 <style scoped>
 /* Ensure the toggle button remains clickable */
-button[title='Toggle Sidebar'] {
+button[title='Expand Sidebar'],
+button[title='Collapse Sidebar'] {
   z-index: 9999;
 }
-</style> 
+</style>

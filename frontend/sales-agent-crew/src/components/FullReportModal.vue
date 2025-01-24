@@ -22,48 +22,70 @@
             leave-from="opacity-100 scale-100"
             leave-to="opacity-0 scale-95"
           >
-            <DialogPanel class="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+            <DialogPanel
+              class="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
+            >
+              <!-- Modal Title (if needed) -->
               <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 mb-4">
-                {{ reportData.title }}
+                {{ reportData.title || 'Detailed Report' }}
               </DialogTitle>
 
               <div class="mt-4 space-y-6 max-h-[70vh] overflow-y-auto">
-                <!-- Iterate through all sections -->
-                <div v-for="(section, index) in reportData" :key="index" class="mb-8">
-                  <h2 class="text-xl font-bold text-gray-900 mb-4">{{ section.title }}</h2>
-                  
+                <!-- If reportData is an array of sections: -->
+                <div
+                  v-for="(section, index) in reportData"
+                  :key="index"
+                  class="mb-8"
+                >
+                  <!-- Section Title -->
+                  <h2 class="text-xl font-bold text-gray-900 mb-4">
+                    {{ section.title }}
+                  </h2>
+
                   <!-- High Level Goal -->
                   <div class="mb-4">
                     <h3 class="font-semibold text-gray-800">High Level Goal</h3>
-                    <p class="text-gray-600">{{ section.high_level_goal }}</p>
+                    <p class="text-gray-600">
+                      {{ section.high_level_goal }}
+                    </p>
                   </div>
 
                   <!-- Why Important -->
                   <div class="mb-4">
                     <h3 class="font-semibold text-gray-800">Why Important</h3>
-                    <p class="text-gray-600">{{ section.why_important }}</p>
+                    <p class="text-gray-600">
+                      {{ section.why_important }}
+                    </p>
                   </div>
 
-                  <!-- Content -->
+                  <!-- Rendered Markdown Content -->
                   <div class="mb-4">
                     <h3 class="font-semibold text-gray-800">Content</h3>
-                    <div class="prose prose-sm max-w-none" v-html="formatMarkdown(section.generated_content)"></div>
+                    <div
+                      class="prose prose-sm max-w-none"
+                      v-html="formatMarkdown(section.generated_content)"
+                    ></div>
                   </div>
 
                   <!-- Sources -->
                   <div class="mb-4">
                     <h3 class="font-semibold text-gray-800">Sources</h3>
                     <ul class="list-disc pl-5">
-                      <li v-for="(source, sourceIndex) in section.sources" 
-                          :key="sourceIndex"
-                          class="text-blue-600 hover:underline">
+                      <li
+                        v-for="(source, sourceIndex) in section.sources"
+                        :key="sourceIndex"
+                        class="text-blue-600 hover:underline"
+                      >
                         <a :href="source" target="_blank">{{ source }}</a>
                       </li>
                     </ul>
                   </div>
 
                   <!-- Section divider -->
-                  <div v-if="index < reportData.length - 1" class="border-t border-gray-200 my-6"></div>
+                  <div
+                    v-if="index < reportData.length - 1"
+                    class="border-t border-gray-200 my-6"
+                  ></div>
                 </div>
               </div>
 
@@ -86,15 +108,21 @@
 </template>
 
 <script setup>
-import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue'
-import { XMarkIcon, DocumentTextIcon, LinkIcon, LightBulbIcon, AdjustmentsHorizontalIcon as TargetIcon } from '@heroicons/vue/24/outline'
+import {
+  Dialog,
+  DialogPanel,
+  DialogTitle,
+  TransitionRoot,
+  TransitionChild
+} from '@headlessui/vue'
+import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 defineProps({
   open: Boolean,
   reportData: {
-    type: Object,
+    type: [Object, Array],
     required: true
   }
 })
@@ -128,4 +156,4 @@ const formatMarkdown = (content) => {
 :deep(.prose a) {
   @apply text-blue-600 hover:underline;
 }
-</style> 
+</style>

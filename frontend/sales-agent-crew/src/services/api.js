@@ -78,4 +78,3 @@ export const generateOutreach = async (data, apiKeys) => {
 }
 
 export default api
-

@@ -11,10 +11,10 @@ export const useReportStore = defineStore('reportStore', {
         type,                   // 'educational_content' or 'sales_leads'
         query,                  // The user's search query
         timestamp: new Date().toISOString(),
-        results                 // The actual report/leads data
+        results                 // The actual report / leads data
       }
       
-      // Add to start of array
+      // Add to the start of the array
       this.savedReports.unshift(report)
       
       // Persist to localStorage
@@ -37,4 +37,4 @@ export const useReportStore = defineStore('reportStore', {
       this.persistReports()
     }
   }
-}) 
+})

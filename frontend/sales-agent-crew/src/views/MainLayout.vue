@@ -3,9 +3,7 @@
   <div class="min-h-screen flex">
     
     <!-- 1) SIDEBAR -->
-    <Sidebar
-      @selectReport="handleSavedReportSelect"
-    />
+    <Sidebar @selectReport="handleSavedReportSelect" />
 
     <!-- 2) MAIN COLUMN -->
     <div class="flex-1 flex flex-col">
@@ -27,6 +25,13 @@
           @openSettings="openSettings"
         />
 
+        <!-- Our "Search Complete" toast notification -->
+        <SearchNotification
+          :show="showSearchNotification"
+          :time="searchDuration"
+          :result-count="resultCount"
+        />
+
         <!-- LOADING SPINNER: shown whenever isLoading is true -->
         <div v-if="isLoading" class="mt-8">
           <LoadingSpinner 
@@ -44,9 +49,10 @@
 
         <!-- RESULTS SECTION -->
         <div v-if="!isLoading && results">
-          <!-- If these are sales leads, show CompanyResultCard -->
+          
+          <!-- If these are sales leads, show CompanyResultCard in a vertical list -->
           <div v-if="queryType === 'sales_leads'">
-            <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div class="space-y-4">
               <CompanyResultCard
                 v-for="(company, index) in results"
                 :key="index"
@@ -82,6 +88,7 @@
 import { ref, onMounted, computed } from 'vue'
 import Header from '@/components/Header.vue'
 import SearchSection from '@/components/SearchSection.vue'
+import SearchNotification from '@/components/SearchNotification.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import CompanyResultCard from '@/components/CompanyResultCard.vue'
 import ResearchReport from '@/components/ResearchReport.vue'
@@ -101,15 +108,20 @@ const results = ref(null)
 const selectedReport = ref(null)
 const reportModalOpen = ref(false)
 
-// Inside script setup:
+// For the "Search Complete" notification:
+const showSearchNotification = ref(false)
+const searchDuration = ref('0.0')
+const resultCount = ref(0)
+
+// Store
 const reportStore = useReportStore()
 
-// Load saved reports when component mounts
+// On component mount, load any saved reports from localStorage
 onMounted(() => {
   reportStore.loadSavedReports()
 })
 
-// Access saved reports
+// Access saved reports if needed
 const savedReports = computed(() => reportStore.savedReports)
 
 // Called by Header when user updates keys
@@ -117,10 +129,19 @@ function handleKeysUpdated() {
   console.log('[MainLayout] keys updated')
 }
 
+// -------------------------------------
+// Search events from <SearchSection>
+// -------------------------------------
+let searchStartTimestamp = 0
+
 // Search start => show spinner
 function handleSearchStart(type) {
   console.log('[MainLayout] searchStart => type:', type)
   isLoading.value = true
+
+  // Record the start time
+  searchStartTimestamp = performance.now()
+
   if (type === 'sales_leads') {
     loadingMessage.value = 'Searching for leads...'
     loadingSubMessage.value = 'This may take a moment'
@@ -133,14 +154,40 @@ function handleSearchStart(type) {
   }
 }
 
-// Search complete => hide spinner, store results
+// Search complete => hide spinner, store results, show notification
 function handleSearchComplete({ type, query, results: newResults }) {
   console.log('[MainLayout] searchComplete => type:', type, 'results:', newResults)
+  
+  // Some APIs may return "research" instead of "educational_content".
+  // Bridge that difference here so the UI stays consistent:
+  if (type === 'research') {
+    type = 'educational_content'
+  }
+
+  // Calculate how many seconds it took
+  const endTime = performance.now()
+  const elapsedMs = endTime - searchStartTimestamp
+  searchDuration.value = (elapsedMs / 1000).toFixed(2)
+
   isLoading.value = false
   loadingMessage.value = ''
   loadingSubMessage.value = ''
   queryType.value = type
   results.value = newResults
+
+  // Determine how many results
+  if (Array.isArray(newResults)) {
+    resultCount.value = newResults.length
+  } else {
+    // If it's not an array, fallback to 1 (e.g. single object)
+    resultCount.value = 1
+  }
+
+  // Show "search complete" notification briefly
+  showSearchNotification.value = true
+  setTimeout(() => {
+    showSearchNotification.value = false
+  }, 5000)
 
   // Save the report if we got valid results
   if (newResults && (type === 'educational_content' || type === 'sales_leads')) {
@@ -172,18 +219,17 @@ function onShowFullReport(reportData) {
 
 // Called by SearchSection if user wants to open settings
 function openSettings() {
-  // Access the header's openSettings method, which calls the SettingsModal
   console.log('[MainLayout] openSettings clicked')
-  // If you want to actually open it:
-  // this.$refs.headerRef.openSettings()   <-- if using Options API
-  // or headerRef.value.openSettings() if using <script setup> with a template ref
+  // If you want to actually open the modal in Header:
+  // headerRef.value.openSettings()
 }
 
-// Add this function to handle saved report selection
-function handleSavedReportSelect({ type, query, results }) {
-  queryType.value = type
-  results.value = results
-  // You might want to update other state as needed
+// Handle selection of a saved report from Sidebar
+function handleSavedReportSelect(savedReport) {
+  queryType.value = savedReport.type
+  results.value = savedReport.results
+  selectedReport.value = null
+  reportModalOpen.value = false
 }
 </script>
 

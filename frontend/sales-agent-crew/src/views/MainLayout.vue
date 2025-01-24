@@ -119,6 +119,9 @@ const reportStore = useReportStore()
 // Dev check
 const isDev = ref(import.meta.env.DEV)
 
+// 1) Create a ref for Header
+const headerRef = ref(null)
+
 // On component mount, load any saved reports from localStorage
 onMounted(() => {
   reportStore.loadSavedReports()
@@ -272,8 +275,8 @@ function closeError() {
 // Called by SearchSection if user wants to open settings
 function openSettings() {
   console.log('[MainLayout] openSettings clicked')
-  // You can directly open the modal in <Header> if needed:
-  // headerRef.value.openSettings()
+  // ACTUAL OPEN
+  headerRef.value.openSettings()
 }
 
 // Handle selection of a saved report from Sidebar

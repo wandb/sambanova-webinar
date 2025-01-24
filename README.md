@@ -3,7 +3,7 @@
 # Samba Co-Pilot
 
 An intelligent sales and research assistant powered by SambaNova AI. This application helps sales teams and researchers by automatically:
-- Generating qualified sales leads with company insights
+- Generating sales information with company insights
 - Creating detailed research reports and educational content
 - Intelligently routing queries to the appropriate service
 - Supporting voice input for natural interaction
@@ -12,10 +12,11 @@ An intelligent sales and research assistant powered by SambaNova AI. This applic
 
 ### Intelligent Query Routing
 The application automatically determines whether your query is best suited for:
-- Sales lead generation
+- Sales lead Information Gathering
 - Educational content/research creation
+- More tasks to come!
 
-### Sales Lead Generation
+### Sales Lead Information
 When in sales mode, Samba Co-Pilot will:
 - Find relevant companies matching your criteria
 - Extract key company information
@@ -116,11 +117,10 @@ Built with:
 2. **Start Searching**
    - Type your query or use voice input
    - System automatically determines query type
-   - View real-time loading progress
    - Receive structured results
 
 3. **View Results**
-   - Sales leads displayed as cards
+   - Sales information displayed as cards
    - Research shown as structured reports
    - Export functionality available
    - Save important searches

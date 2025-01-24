@@ -4,11 +4,15 @@
     <div v-if="missingKeys.length > 0" class="mb-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
       <div class="flex">
         <svg class="h-6 w-6 text-yellow-600 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          <path
+            fill-rule="evenodd"
+            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+            clip-rule="evenodd"
+          />
         </svg>
         <div>
           <p class="text-yellow-700">
-            Please set up your {{ missingKeys.join(', ') }} API key{{ missingKeys.length > 1 ? 's' : '' }} in the 
+            Please set up your {{ missingKeys.join(', ') }} API key{{ missingKeys.length > 1 ? 's' : '' }} in the
             <button 
               @click="openSettings"
               class="text-yellow-800 underline hover:text-yellow-900 font-medium"
@@ -95,6 +99,7 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 
+// Props & emits
 const props = defineProps({
   keysUpdated: {
     type: Number,
@@ -107,6 +112,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings'])
+
+// Reactive state
 const searchQuery = ref('')
 const isRecording = ref(false)
 const mediaRecorder = ref(null)
@@ -118,26 +125,16 @@ const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
 const searchType = ref(null)
-const isLoading = ref(false)
+const isLoadingLocal = ref(false) // local loading for this component
 const searchResults = ref(null)
 
-const searchTypeLabel = computed(() => {
-  switch (searchType.value) {
-    case 'research': return 'Market Research'
-    case 'leads': return 'Lead Generation'
-    case 'outreach': return 'Email Outreach'
-    case 'sales_leads': return 'Sales Lead Research'
-    default: return ''
-  }
-})
-
-// Add immediate loading of keys when component mounts
+// On mount, load keys
 onMounted(async () => {
   await loadKeys()
 })
 
-// Update loadKeys function to properly decrypt
-const loadKeys = async () => {
+// Load keys from localStorage & decrypt
+async function loadKeys() {
   try {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
     const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
@@ -159,7 +156,12 @@ const loadKeys = async () => {
   }
 }
 
-// Compute missing keys
+// Watch for keysUpdated changes
+watch(() => props.keysUpdated, async () => {
+  await loadKeys()
+}, { immediate: true })
+
+// Determine which keys are missing
 const missingKeys = computed(() => {
   const missing = []
   if (!sambanovaKey.value) missing.push('SambaNova')
@@ -168,18 +170,14 @@ const missingKeys = computed(() => {
   return missing
 })
 
-// Watch for keysUpdated prop changes
-watch(() => props.keysUpdated, async () => {
-  await loadKeys()
-}, { immediate: true })
-
-const performSearch = async () => {
+// Main search function
+async function performSearch() {
   try {
     // Immediately notify parent to show spinner
-    // We don't know the query type yet, so pass something generic or empty:
+    // We don't know final route yet, so pass a generic "Determining route"
     emit('searchStart', 'Determining route')
 
-    // Example: route call
+    // 1) First call - route detection
     const routeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
@@ -191,16 +189,22 @@ const performSearch = async () => {
       }
     )
 
-    // If routeResp is successful, it should have routeResp.data.type
-    const detectedType = routeResp.data.type
-    console.log('[SearchSection] Route determined =>', detectedType)
+    // The server route might return something like { type: "leads" or "research", parameters: {...} }
+    let detectedType = routeResp.data.type || ''
 
-    // Re-emit searchStart with the actual type (optional, but if you want to communicate it):
+    // Map "leads" -> "sales_leads", "research" -> "educational_content", etc.
+    if (detectedType === 'research') {
+      detectedType = 'educational_content'
+    } else if (detectedType === 'leads' || detectedType === 'outreach_leads') {
+      detectedType = 'sales_leads'
+    }
+
+    // Notify parent that the real type is known now
     emit('searchStart', detectedType)
 
-    // Now call the "execute" route
+    // 2) Second call - execute with parameters
     const executeResp = await axios.post(
-      `${import.meta.env.VITE_API_URL}/execute/${detectedType}`,
+      `${import.meta.env.VITE_API_URL}/execute/${routeResp.data.type}`,
       routeResp.data.parameters, 
       {
         headers: {
@@ -211,13 +215,12 @@ const performSearch = async () => {
         }
       }
     )
-    
-    // The shape from the backend is likely:
-    //   { results: [...]} for sales_leads
-    //   or something like { title, high_level_goal, ... } for educational_content
-    // But for consistency, let's just pass the entire executeResp.data:
+
+    // The final data is in executeResp.data
+    // We'll treat it as "results"
     emit('searchComplete', {
       type: detectedType,
+      query: searchQuery.value, // so the results can be saved with original query
       results: executeResp.data
     })
 
@@ -227,88 +230,76 @@ const performSearch = async () => {
   }
 }
 
-const toggleRecording = async () => {
+// Voice recording functions
+function toggleRecording() {
   if (isRecording.value) {
-    console.log('Stopping recording...');
-    stopRecording();
+    stopRecording()
   } else {
-    console.log('Starting recording...');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      startRecording(stream);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      alert('Unable to access microphone. Please check your permissions.');
-    }
+    startRecordingFlow()
   }
-};
+}
 
-const startRecording = (stream) => {
-  console.log('MediaRecorder started');
+async function startRecordingFlow() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    startRecording(stream)
+  } catch (error) {
+    console.error('Error accessing microphone:', error)
+    alert('Unable to access microphone. Please check your permissions.')
+  }
+}
 
-  audioChunks.value = [];
-
-  const options = { mimeType: 'audio/webm' }; // Change if necessary
+function startRecording(stream) {
+  audioChunks.value = []
+  const options = { mimeType: 'audio/webm' }
   if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-    console.warn(`${options.mimeType} is not supported, using default MIME type.`);
-    delete options.mimeType;
+    console.warn(`${options.mimeType} is not supported, using default MIME type.`)
+    delete options.mimeType
   }
 
-  mediaRecorder.value = new MediaRecorder(stream, options);
+  mediaRecorder.value = new MediaRecorder(stream, options)
 
   mediaRecorder.value.ondataavailable = (event) => {
-    console.log('Data available:', event.data.size);
     if (event.data.size > 0) {
-      audioChunks.value.push(event.data);
+      audioChunks.value.push(event.data)
     }
-  };
+  }
 
   mediaRecorder.value.onstop = async () => {
-    console.log('Recording stopped');
-    const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' });
-    console.log('Audio blob size:', audioBlob.size);
+    const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' })
+    await transcribeAudio(audioBlob)
+    stream.getTracks().forEach((track) => track.stop())
+  }
 
-    await transcribeAudio(audioBlob);
+  mediaRecorder.value.start()
+  isRecording.value = true
+}
 
-    // Stop all tracks
-    stream.getTracks().forEach((track) => track.stop());
-  };
-
-  mediaRecorder.value.start();
-  isRecording.value = true;
-};
-
-const stopRecording = () => {
+function stopRecording() {
   if (mediaRecorder.value && mediaRecorder.value.state !== 'inactive') {
     mediaRecorder.value.stop()
     isRecording.value = false
   }
 }
 
-const transcribeAudio = async (audioBlob) => {
-  console.log('Transcribing audio...');
-
+async function transcribeAudio(audioBlob) {
   try {
     if (!sambanovaKey.value) {
-      throw new Error('SambaNova API key is missing. Please add it in the settings.');
+      throw new Error('SambaNova API key is missing. Please add it in the settings.')
     }
 
-    const audioArrayBuffer = await audioBlob.arrayBuffer();
-    console.log('Audio blob size:', audioBlob.size);
-
-    // Convert the audio data to Base64
+    const audioArrayBuffer = await audioBlob.arrayBuffer()
     const audioBase64 = btoa(
       new Uint8Array(audioArrayBuffer)
         .reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
+    )
 
-    // Construct the request body
     const requestBody = {
-      model: 'Qwen2-Audio-7B-Instruct', // Replace with the actual model name
+      model: 'Qwen2-Audio-7B-Instruct',
       messages: [
         {
           role: 'system',
-          content: 'You are an Automatic Speech Recognition tool.',
+          content: 'You are an Automatic Speech Recognition tool.'
         },
         {
           role: 'user',
@@ -316,21 +307,20 @@ const transcribeAudio = async (audioBlob) => {
             {
               type: 'audio_content',
               audio_content: {
-                content: `data:audio/webm;base64,${audioBase64}`,
+                content: `data:audio/webm;base64,${audioBase64}`
               },
             },
-          ],
+          ]
         },
         {
           role: 'user',
-          content: 'Please transcribe the previous audio and only return the transcription.',
+          content: 'Please transcribe the previous audio and only return the transcription.'
         },
       ],
       response_format: 'streaming',
       stream: true,
-    };
+    }
 
-    // Make the API request
     const response = await fetch('https://api.sambanova.ai/v1/audio/reasoning', {
       method: 'POST',
       headers: {
@@ -338,16 +328,16 @@ const transcribeAudio = async (audioBlob) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
-    });
+    })
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      alert(`Transcription failed with status ${response.status}: ${errorText}`);
-      throw new Error(`Transcription failed: ${errorText}`);
+      const errorText = await response.text()
+      console.error('API Error:', response.status, errorText)
+      alert(`Transcription failed with status ${response.status}: ${errorText}`)
+      throw new Error(`Transcription failed: ${errorText}`)
     }
 
-    // Handle the streaming response
+    // Handle streaming response
     const streamReader = response.body.getReader()
     let transcribedText = ''
     const decoder = new TextDecoder()
@@ -362,11 +352,7 @@ const transcribeAudio = async (audioBlob) => {
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const dataStr = line.slice(6).trim()
-          
-          if (dataStr === '[DONE]') {
-            // Stream finished
-            break
-          }
+          if (dataStr === '[DONE]') break
 
           try {
             const data = JSON.parse(dataStr)
@@ -380,10 +366,7 @@ const transcribeAudio = async (audioBlob) => {
       }
     }
 
-    // Clean the transcription
-    const cleanedText = cleanTranscription(transcribedText);
-
-    // Update search query and trigger search
+    const cleanedText = cleanTranscription(transcribedText)
     searchQuery.value = cleanedText.trim()
     if (searchQuery.value) {
       performSearch()
@@ -395,38 +378,34 @@ const transcribeAudio = async (audioBlob) => {
   }
 }
 
-// Function to clean the transcription
+// Cleanup any known prefixes in the returned text
 function cleanTranscription(transcribedText) {
-  // Define possible prefixes
+  let cleanedText = transcribedText.trim()
   const prefixes = [
-    "The transcription of the audio is:",
-    "The transcription is:",
-  ];
-
-  // Trim whitespace
-  let cleanedText = transcribedText.trim();
-
-  // Check for each prefix
+    'The transcription of the audio is:',
+    'The transcription is:',
+  ]
   for (const prefix of prefixes) {
     if (cleanedText.startsWith(prefix)) {
-      // Remove prefix
-      cleanedText = cleanedText.slice(prefix.length).trim();
-      break;
+      cleanedText = cleanedText.slice(prefix.length).trim()
+      break
     }
   }
-
   // Remove surrounding quotes if present
   if (
     (cleanedText.startsWith("'") && cleanedText.endsWith("'")) ||
     (cleanedText.startsWith('"') && cleanedText.endsWith('"'))
   ) {
-    cleanedText = cleanedText.slice(1, -1).trim();
+    cleanedText = cleanedText.slice(1, -1).trim()
   }
-
-  return cleanedText;
+  return cleanedText
 }
 
-const openSettings = () => {
+function openSettings() {
   emit('openSettings')
 }
 </script>
+
+<style scoped>
+/* Basic styling for demonstration. */
+</style>

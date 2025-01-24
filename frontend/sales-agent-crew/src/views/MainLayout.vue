@@ -164,6 +164,8 @@ function handleSearchComplete({ type, query, results: newResults }) {
     type = 'educational_content'
   }
 
+  
+
   // Calculate how many seconds it took
   const endTime = performance.now()
   const elapsedMs = endTime - searchStartTimestamp

@@ -158,7 +158,6 @@ import { ref, computed } from 'vue'
 import { useReportStore } from '../stores/reportStore'
 import {
   ChevronLeftIcon,
-  DocumentTextIcon,
   MagnifyingGlassIcon,
   BookOpenIcon,
   UserGroupIcon,
@@ -171,10 +170,8 @@ const isCollapsed = ref(false)
 const filterType = ref('all')
 const emit = defineEmits(['selectReport'])
 
-/**
- * Existing methods and references
- */
 function selectReport(report) {
+  // Let the parent know which report was clicked
   emit('selectReport', {
     type: report.type,
     query: report.query,
@@ -194,11 +191,6 @@ function formatTime(timestamp) {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-/**
- * New functionalities below
- */
-
-// Capitalize the first letter of the query text
 function capitalizeFirstLetter(str) {
   if (!str) return ''
   return str.charAt(0).toUpperCase() + str.slice(1)
@@ -250,14 +242,14 @@ function exportAllReports() {
 // Delete a single report
 function deleteReport(report) {
   if (confirm(`Are you sure you want to delete this report?`)) {
-    reportStore.deleteReport(report.id) // Assume store has a deleteReport action/mutation
+    reportStore.deleteReport(report.id)
   }
 }
 
 // Clear all reports
 function clearAllConfirm() {
   if (confirm(`Are you sure you want to clear all saved reports? This cannot be undone.`)) {
-    reportStore.clearAllReports() // Assume store has a clearAllReports action/mutation
+    reportStore.clearAllReports()
   }
 }
 </script>

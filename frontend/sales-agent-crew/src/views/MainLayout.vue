@@ -110,12 +110,13 @@ const showNotification = ref(false)
 const searchTime = ref('0.0')
 const resultCount = ref(0)
 
-// NEW: track how many times keys have changed
+// Track how many times keys have changed
 const keysUpdateCounter = ref(0)
 
 // Store
 const reportStore = useReportStore()
 
+// Dev check
 const isDev = ref(import.meta.env.DEV)
 
 // On component mount, load any saved reports from localStorage
@@ -224,6 +225,9 @@ function handleSearchComplete(searchResults) {
   queryType.value = searchResults.type
   results.value = searchResults.results
 
+  // Save the final report to localStorage:
+  reportStore.saveReport(searchResults.type, searchResults.query, searchResults.results)
+
   // Turn off spinner
   isLoading.value = false
 
@@ -231,10 +235,11 @@ function handleSearchComplete(searchResults) {
   const elapsed = (performance.now() - searchStartTimestamp) / 1000
   searchTime.value = elapsed.toFixed(1)
 
+  // Count how many results we got
   if (Array.isArray(searchResults.results)) {
     resultCount.value = searchResults.results.length
   } else if (searchResults.results && searchResults.results.results) {
-    // e.g. for "sales_leads" which is an object with a `results` array
+    // e.g. "sales_leads" => results.results array
     resultCount.value = searchResults.results.results.length
   } else {
     resultCount.value = 0
@@ -242,7 +247,7 @@ function handleSearchComplete(searchResults) {
 
   showNotification.value = true
 
-  // 5-second auto-hide
+  // 5-second auto-hide for the toast
   setTimeout(() => {
     showNotification.value = false
   }, 5000)

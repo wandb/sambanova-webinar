@@ -56,6 +56,19 @@ export const useReportStore = defineStore('reportStore', {
       } catch (error) {
         console.error('Error deleting report:', error)
       }
+    },
+
+    /**
+     * NEW: Clear all reports
+     */
+    clearAllReports() {
+      try {
+        this.savedReports = []
+        this.persistReports()
+        console.log('All reports cleared!')
+      } catch (error) {
+        console.error('Error clearing all reports:', error)
+      }
     }
   }
 })

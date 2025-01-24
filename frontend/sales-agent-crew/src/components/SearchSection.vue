@@ -106,7 +106,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['searchComplete', 'searchStarted', 'openSettings'])
+const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings'])
 const searchQuery = ref('')
 const isRecording = ref(false)
 const mediaRecorder = ref(null)
@@ -175,57 +175,55 @@ watch(() => props.keysUpdated, async () => {
 
 const performSearch = async () => {
   try {
-    // Get API keys from localStorage
-    const sambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-    const serperKey = localStorage.getItem(`serper_key_${userId}`)
-    const exaKey = localStorage.getItem(`exa_key_${userId}`)
+    // Immediately notify parent to show spinner
+    // We don't know the query type yet, so pass something generic or empty:
+    emit('searchStart', 'Determining route')
 
-    // Decrypt keys if they exist
-    const decryptedSambanovaKey = sambanovaKey ? await decryptKey(sambanovaKey) : null
-    const decryptedSerperKey = serperKey ? await decryptKey(serperKey) : null
-    const decryptedExaKey = exaKey ? await decryptKey(exaKey) : null
-
-    if (!decryptedSambanovaKey) {
-      throw new Error('SambaNova API key is required')
-    }
-
-    // Step 1: Determine the query type
-    const routeResponse = await axios.post(
+    // Example: route call
+    const routeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': decryptedSambanovaKey
+          'x-sambanova-key': sambanovaKey.value
         }
       }
     )
 
-    const { type, parameters } = routeResponse.data
+    // If routeResp is successful, it should have routeResp.data.type
+    const detectedType = routeResp.data.type
+    console.log('[SearchSection] Route determined =>', detectedType)
 
-    // Emit the type to update UI accordingly
-    emit('searchStart', type)
+    // Re-emit searchStart with the actual type (optional, but if you want to communicate it):
+    emit('searchStart', detectedType)
 
-    // Step 2: Execute the query based on type
-    const executeResponse = await axios.post(
-      `${import.meta.env.VITE_API_URL}/execute/${type}`,
-      parameters,
+    // Now call the "execute" route
+    const executeResp = await axios.post(
+      `${import.meta.env.VITE_API_URL}/execute/${detectedType}`,
+      routeResp.data.parameters, 
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': decryptedSambanovaKey,
-          'x-serper-key': decryptedSerperKey || '',
-          'x-exa-key': decryptedExaKey || ''
+          'x-sambanova-key': sambanovaKey.value,
+          'x-serper-key': serperKey.value || '',
+          'x-exa-key': exaKey.value || ''
         }
       }
     )
-
-    // Emit the results
-    emit('searchComplete', { type, results: executeResponse.data })
+    
+    // The shape from the backend is likely:
+    //   { results: [...]} for sales_leads
+    //   or something like { title, high_level_goal, ... } for educational_content
+    // But for consistency, let's just pass the entire executeResp.data:
+    emit('searchComplete', {
+      type: detectedType,
+      results: executeResp.data
+    })
 
   } catch (error) {
-    console.error('Search error:', error)
-    emit('searchError', error.message)
+    console.error('[SearchSection] performSearch error:', error)
+    emit('searchError', error)
   }
 }
 

@@ -99,7 +99,6 @@ class LeadGenerationAPI:
             query_type: str,
             parameters: Dict[str, Any]
         ):
-            # Extract API keys from headers
             sambanova_key = request.headers.get("x-sambanova-key")
             serper_key = request.headers.get("x-serper-key")
             exa_key = request.headers.get("x-exa-key")
@@ -112,8 +111,14 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Exa API key for sales leads"}
                         )
                     crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
-                    result = await self.execute_research(crew, parameters)
-                    return JSONResponse(content=json.loads(result))
+                    raw_result = await self.execute_research(crew, parameters)
+                    
+                    # Mirror older code: parse and extract outreach_list
+                    parsed_result = json.loads(raw_result)
+                    outreach_list = parsed_result.get("outreach_list", [])
+                    
+                    # Return them under a known key, e.g. "results" or "leads"
+                    return JSONResponse(content={"results": outreach_list})
 
                 elif query_type == "educational_content":
                     if not serper_key:
@@ -132,11 +137,15 @@ class LeadGenerationAPI:
                     }
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, edu_flow.kickoff)
-                    return JSONResponse(content={
-                        "topic": parameters["topic"],
-                        "audience_level": parameters.get("audience_level", "intermediate"),
-                        "sections": result
-                    })
+
+                    # We assume result is already JSON-serializable or is a JSON string
+                    # If it's a string, parse it:
+                    # e.g. sections_with_content = json.loads(result)
+                    # Return the entire structure for the FE, so it can show in FullReportModal:
+                    # or you might do content={"sections_with_content": sections_with_content} if that's your standard
+                    sections_with_content = json.loads(result)
+                    return JSONResponse(content=sections_with_content)
+
                 else:
                     return JSONResponse(
                         status_code=400,

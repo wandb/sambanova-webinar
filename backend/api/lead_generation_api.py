@@ -13,7 +13,6 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 from services.query_router_service import QueryRouterService
-import agentops
 
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

@@ -189,11 +189,27 @@ const performSearch = async () => {
       throw new Error('SambaNova API key is required')
     }
 
-    console.log('Making API request to:', import.meta.env.VITE_API_URL)
-    
-    // Make API request with proper URL and headers
-    const response = await axios.post(`${import.meta.env.VITE_API_URL}/query`, 
+    // Step 1: Determine the query type
+    const routeResponse = await axios.post(
+      `${import.meta.env.VITE_API_URL}/route`,
       { query: searchQuery.value },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-sambanova-key': decryptedSambanovaKey
+        }
+      }
+    )
+
+    const { type, parameters } = routeResponse.data
+
+    // Emit the type to update UI accordingly
+    emit('searchStart', type)
+
+    // Step 2: Execute the query based on type
+    const executeResponse = await axios.post(
+      `${import.meta.env.VITE_API_URL}/execute/${type}`,
+      parameters,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -204,21 +220,12 @@ const performSearch = async () => {
       }
     )
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || 'Search failed')
-    }
+    // Emit the results
+    emit('searchComplete', { type, results: executeResponse.data })
 
-    const data = await response.json()
-    searchResults.value = data
-    emit('searchComplete', { results: data, type: searchType.value })
   } catch (error) {
     console.error('Search error:', error)
-    errorMessage.value = error.message || 'Search failed. Please try again.'
-    showErrorModal.value = true
-    emit('searchComplete', { results: null, type: searchType.value })
-  } finally {
-    isLoading.value = false
+    emit('searchError', error.message)
   }
 }
 

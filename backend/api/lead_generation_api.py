@@ -63,19 +63,11 @@ class LeadGenerationAPI:
         
 
     def setup_routes(self):
-        @self.app.post("/query")
-        async def route_query(request: Request, query_request: QueryRequest):
+        @self.app.post("/route")
+        async def determine_route(request: Request, query_request: QueryRequest):
             # Extract API keys from headers
             sambanova_key = request.headers.get("x-sambanova-key")
-            serper_key = request.headers.get("x-serper-key")
-            exa_key = request.headers.get("x-exa-key")
-
-            # Debug logging
-            print(f"Received headers: {dict(request.headers)}")
-            print(f"SambaNova Key present: {bool(sambanova_key)}")
-            print(f"Serper Key present: {bool(serper_key)}")
-            print(f"Exa Key present: {bool(exa_key)}")
-
+            
             if not sambanova_key:
                 return JSONResponse(
                     status_code=401,
@@ -86,56 +78,73 @@ class LeadGenerationAPI:
                 # Initialize router
                 router = QueryRouterService(sambanova_key)
                 route_result = router.route_query(query_request.query)
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "type": route_result.type,
+                        "parameters": route_result.parameters
+                    }
+                )
+            except Exception as e:
+                print(f"Error determining route: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": str(e)}
+                )
 
-                if route_result.type == "sales_leads":
+        @self.app.post("/execute/{query_type}")
+        async def execute_query(
+            request: Request, 
+            query_type: str,
+            parameters: Dict[str, Any]
+        ):
+            # Extract API keys from headers
+            sambanova_key = request.headers.get("x-sambanova-key")
+            serper_key = request.headers.get("x-serper-key")
+            exa_key = request.headers.get("x-exa-key")
+
+            try:
+                if query_type == "sales_leads":
                     if not exa_key:
                         return JSONResponse(
                             status_code=401,
                             content={"error": "Missing required Exa API key for sales leads"}
                         )
-                    # Use existing lead generation logic
                     crew = ResearchCrew(sambanova_key=sambanova_key, exa_key=exa_key)
-                    result = await self.execute_research(crew, route_result.parameters)
+                    result = await self.execute_research(crew, parameters)
                     return JSONResponse(content=json.loads(result))
 
-                elif route_result.type == "educational_content":
+                elif query_type == "educational_content":
                     if not serper_key:
                         return JSONResponse(
                             status_code=401,
                             content={"error": "Missing required Serper API key for educational content"}
                         )
-                    try:
-                        # Initialize EduFlow
-                        edu_flow = SambaResearchFlow(
-                            sambanova_key=sambanova_key,
-                            serper_key=serper_key
-                        )
-                        
-                        # Set input variables
-                        edu_flow.input_variables = {
-                            "topic": route_result.parameters["topic"],
-                            "audience_level": route_result.parameters.get("audience_level", "intermediate"),
-                            "additional_context": ", ".join(route_result.parameters.get("focus_areas", []))
-                        }
-                        
-                        # Execute flow in a way that works with asyncio
-                        loop = asyncio.get_running_loop()
-                        result = await loop.run_in_executor(None, edu_flow.kickoff)
-                        
-                        return JSONResponse(content={
-                            "topic": route_result.parameters["topic"],
-                            "audience_level": route_result.parameters.get("audience_level", "intermediate"),
-                            "sections": result
-                        })
-                    except Exception as e:
-                        print(f"Error in educational content generation: {str(e)}")
-                        return JSONResponse(
-                            status_code=500,
-                            content={"error": f"Educational content generation failed: {str(e)}"}
-                        )
+                    edu_flow = SambaResearchFlow(
+                        sambanova_key=sambanova_key,
+                        serper_key=serper_key
+                    )
+                    edu_flow.input_variables = {
+                        "topic": parameters["topic"],
+                        "audience_level": parameters.get("audience_level", "intermediate"),
+                        "additional_context": ", ".join(parameters.get("focus_areas", []))
+                    }
+                    loop = asyncio.get_running_loop()
+                    result = await loop.run_in_executor(None, edu_flow.kickoff)
+                    return JSONResponse(content={
+                        "topic": parameters["topic"],
+                        "audience_level": parameters.get("audience_level", "intermediate"),
+                        "sections": result
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": f"Unknown query type: {query_type}"}
+                    )
 
             except Exception as e:
-                print(f"Error processing query: {str(e)}")
+                print(f"Error executing query: {str(e)}")
                 return JSONResponse(
                     status_code=500,
                     content={"error": str(e)}

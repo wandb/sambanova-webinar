@@ -176,13 +176,22 @@ const handleSearchComplete = ({ results: newResults, type }) => {
 }
 
 const handleSearchStart = async (type) => {
-  console.log('[MainLayout] handleSearchStart fired with type:', type)
-  results.value = {
-    companies: [],
-    report: null
+  console.log('[MainLayout] handleSearchStart => type:', type)
+  queryType.value = type
+  isLoading.value = true
+  results.value = null
+  
+  // Set appropriate loading message based on query type
+  switch(type) {
+    case 'sales_leads':
+      loadingMessage.value = 'Searching for potential leads...'
+      break
+    case 'educational_content':
+      loadingMessage.value = 'Generating educational content...'
+      break
+    default:
+      loadingMessage.value = 'Processing your request...'
   }
-  startLoadingMessages(type)
-  searchType.value = type
 
   try {
     // Get API keys from localStorage
@@ -258,8 +267,9 @@ onUnmounted(() => {
 
 // If search errors out
 const handleSearchError = (error) => {
-  console.log('[MainLayout] handleSearchError =>', error)
+  console.error('[MainLayout] Search error:', error)
   isLoading.value = false
+  loadingMessage.value = ''
   errorMessage.value = error
   showError.value = true
 }

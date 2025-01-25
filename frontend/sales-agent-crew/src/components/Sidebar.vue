@@ -69,13 +69,11 @@
       </div>
 
       <!-- Saved Reports List -->
-      <div 
-        class="overflow-y-auto max-h-[calc(100vh-8rem)]"
-      >
+      <div class="overflow-y-auto max-h-[calc(100vh-8rem)]">
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
-          class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors group"
+          class="p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors group"
         >
           <!-- Entire row clickable except the buttons -->
           <div
@@ -98,19 +96,17 @@
             </div>
 
             <!-- Expanded View -->
-            <div v-else class="space-y-1 w-full pr-2">
-              <!-- Query text is now black -->
-              <div class="font-medium break-words text-black">
+            <div v-else class="w-full pr-2">
+              <!-- Main query text (non-bold, slightly smaller) -->
+              <div class="text-sm text-gray-700 break-words">
                 {{ capitalizeFirstLetter(report.query) }}
               </div>
-              <div class="flex items-center justify-between text-sm text-gray-500">
+              <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
                 <span class="flex items-center space-x-1">
-                  <!-- Icon gets color styling -->
                   <component 
                     :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
                     :class="['w-4', 'h-4', reportTextColor(report.type)]"
                   />
-                  <!-- Type label gets color styling -->
                   <span :class="reportTextColor(report.type)">
                     {{ formatType(report.type) }}
                   </span>
@@ -126,7 +122,7 @@
           <!-- Individual Action Buttons (only in expanded mode) -->
           <div 
             v-if="!isCollapsed" 
-            class="flex items-center justify-end mt-2 space-x-4 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center justify-end mt-1 space-x-4 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <!-- Export Single -->
             <button

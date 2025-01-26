@@ -13,9 +13,12 @@ services:
     volumes:
       - ./backend:/app  # Optional: Mount the backend code for development
     environment:
-      - ALLOWED_ORIGINS=* # For development/testing
-      # For production, you might want to specify domains:
-      # - ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
+      - ALLOWED_ORIGINS=*
+      # For production, you might specify:
+      # - ALLOWED_ORIGINS=https://yourdomain.com
+      # The environment below so the backend can find Redis in Docker:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
 
   frontend:
     build:
@@ -29,14 +32,22 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /etc/sn-certs:/etc/sn-certs  # Mount the certificates directory
+      - /etc/sn-certs:/etc/sn-certs
     environment:
-      - USE_OFFICIAL_CERTS=${USE_OFFICIAL_CERTS:-false}  # Control which certs to use
+      - USE_OFFICIAL_CERTS=${USE_OFFICIAL_CERTS:-false}
     networks:
       - app-network
     depends_on:
       - backend
 
+  redis:
+    image: "redis:7.0-alpine"
+    container_name: redis
+    networks:
+      - app-network
+    ports:
+      - "6379:6379"
+
 networks:
   app-network:
-    driver: bridge 
+    driver: bridge

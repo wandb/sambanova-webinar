@@ -2,20 +2,29 @@ import redis
 import json
 import time
 from typing import Any
-
+import os
 
 class RedisConversationLogger:
     """
     Publishes each agent step to Redis pub/sub for real-time streaming.
+    Reads REDIS_HOST/REDIS_PORT from environment to handle local vs. Docker.
     """
-    def __init__(self, redis_host="localhost", redis_port=6379, user_id="", run_id="", agent_name=""):
+    def __init__(self, user_id="", run_id="", agent_name=""):
+        # Read from env or default
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", "6379"))
+
         try:
-            self.r = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True)
-            # Test connection
+            self.r = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=0,
+                decode_responses=True
+            )
             self.r.ping()
-            print(f"Redis connected successfully for {agent_name}")
+            print(f"[RedisConversationLogger] Connected to Redis at {redis_host}:{redis_port} for {agent_name}")
         except redis.ConnectionError as e:
-            print(f"Redis connection failed: {e}")
+            print(f"[RedisConversationLogger] Redis connection failed: {e}")
         
         # Ensure proper string conversion and handle potential JSON objects
         if isinstance(user_id, (dict, list)):

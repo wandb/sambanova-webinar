@@ -43,19 +43,21 @@ class LeadGenerationAPI:
         self.setup_cors()
         self.setup_routes()
 
-        # Redis
-        self.redis_client = redis.Redis(
-            host="localhost", 
-            port=6379, 
-            db=0, 
-            decode_responses=True
-        )
-
-        # Executor for concurrency
+        # For concurrency
         self.executor = ThreadPoolExecutor(max_workers=2)
 
+        # Redis connection for route logs / SSE (read env or default)
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", "6379"))
+        self.redis_client = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            db=0,
+            decode_responses=True
+        )
+        print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+
     def setup_cors(self):
-        # Get allowed origins from environment variable or use default
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
         if not allowed_origins or (len(allowed_origins) == 1 and allowed_origins[0] == '*'):
             allowed_origins = ["*"]
@@ -115,7 +117,6 @@ class LeadGenerationAPI:
             serper_key = request.headers.get("x-serper-key")
             exa_key = request.headers.get("x-exa-key")
 
-            # Retrieve user/run IDs
             user_id = request.headers.get("x-user-id", "")
             run_id = request.headers.get("x-run-id", "")
 
@@ -186,20 +187,21 @@ class LeadGenerationAPI:
             print(f"[stream_logs] Subscribing to channel: {channel}")
 
             try:
-                redis_client = redis.Redis(
-                    host="localhost", 
-                    port=6379, 
-                    db=0, 
+                # Use the same environment-based config
+                redis_host = os.getenv("REDIS_HOST", "localhost")
+                redis_port = int(os.getenv("REDIS_PORT", "6379"))
+                local_redis = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=0,
                     decode_responses=True
                 )
-                pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
 
-                # Subscribe to the exact channel
+                pubsub = local_redis.pubsub(ignore_subscribe_messages=True)
                 pubsub.subscribe(channel)
 
                 async def event_generator():
                     try:
-                        # Immediately yield a "connection_established" to confirm SSE is open
                         yield {
                             "event": "message",
                             "data": json.dumps({
@@ -213,22 +215,18 @@ class LeadGenerationAPI:
                                 print("[stream_logs] Client disconnected")
                                 break
 
-                            # Wait for new message
                             message = pubsub.get_message(timeout=1.0)
-                           
-
                             if message:
-                                print(f"[stream_logs] Message from Redis: {message}")
+                                # This is a normal publish
                                 if message["type"] == "message":
-                                    # This is a standard publish
-                                    data_str = message["data"]  # JSON string
+                                    data_str = message["data"]
                                     yield {
                                         "event": "message",
                                         "data": data_str
                                     }
 
                             await asyncio.sleep(0.25)
-                            # Optionally send a ping
+                            # send a keep-alive ping
                             yield {
                                 "event": "ping",
                                 "data": json.dumps({"type": "ping"})
@@ -242,7 +240,7 @@ class LeadGenerationAPI:
                         print("[stream_logs] Unsubscribing and closing pubsub")
                         pubsub.unsubscribe()
                         pubsub.close()
-                        redis_client.close()
+                        local_redis.close()
 
                 return EventSourceResponse(
                     event_generator(),

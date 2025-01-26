@@ -1,7 +1,7 @@
 <template>
   <div class="w-80 bg-gray-100 border-l border-gray-300 flex flex-col" v-if="userId && runId">
     <div class="p-2 font-bold bg-gray-200 border-b">
-      Agent Thoughts ({{ runIdShort }})
+      Agent Thoughts
     </div>
     <div class="flex-1 overflow-auto p-2 space-y-2">
       <div 
@@ -62,9 +62,9 @@ function connectToSSE() {
 
   eventSource.onmessage = (event) => {
     try {
-      console.log('[AgentSidebar] Raw SSE event data:', event.data)
+      
       const data = JSON.parse(event.data)
-      console.log('[AgentSidebar] Parsed SSE message:', data)
+      
 
       // If it's a "connection_established" or "ping" message, skip
       if (data.type === 'connection_established') {

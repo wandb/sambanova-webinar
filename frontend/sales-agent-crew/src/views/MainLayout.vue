@@ -147,7 +147,6 @@ onMounted(() => {
 
 // Called by Header
 function handleKeysUpdated() {
-  console.log('[MainLayout] keys updated')
   keysUpdateCounter.value++
 }
 
@@ -193,7 +192,7 @@ onBeforeUnmount(() => {
  * e.g. "routing_query", "sales_leads", "educational_content"
  */
 function handleSearchStart(type) {
-  console.log('[MainLayout] Received "searchStart" with type:', type)
+  
 
   // If we are starting a brand-new search, generate a new runId
   // We do this only once per search cycle
@@ -201,7 +200,6 @@ function handleSearchStart(type) {
   // so we only set runId if not already set, or always set anew on each brand-new search.
   if (type === 'routing_query' || !currentRunId.value) {
     currentRunId.value = uuidv4()
-    console.log('[MainLayout] new runId =>', currentRunId.value)
   }
 
   // Show spinner
@@ -213,7 +211,6 @@ function handleSearchStart(type) {
 
 // Watch queryType => update loading messages
 watch(queryType, (newVal, oldVal) => {
-  console.log('[MainLayout] queryType changed from', oldVal, 'to', newVal)
   clearSubMessageInterval()
 
   switch (newVal) {
@@ -246,7 +243,6 @@ watch(queryType, (newVal, oldVal) => {
 
 // searchComplete => hide spinner, store results, etc.
 function handleSearchComplete(searchResults) {
-  console.log('[MainLayout] handleSearchComplete =>', searchResults.type)
   queryType.value = searchResults.type
   results.value = searchResults.results
 
@@ -293,7 +289,6 @@ function closeError() {
 
 // open settings
 function openSettings() {
-  console.log('[MainLayout] openSettings clicked')
   headerRef.value.openSettings()
 }
 

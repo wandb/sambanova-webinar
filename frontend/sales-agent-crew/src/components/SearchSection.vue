@@ -164,7 +164,6 @@ onMounted(async () => {
 watch(
   () => props.keysUpdated,
   async () => {
-    console.log('[SearchSection] keysUpdated changed => reloading keys...')
     await loadKeys()
   },
   { immediate: true }
@@ -200,7 +199,7 @@ async function performSearch() {
     )
 
     const detectedType = routeResp.data.type
-    console.log('[SearchSection] Detected type:', detectedType)
+   
 
     // 3) Tell parent "searchStart" with final type
     emit('searchStart', detectedType || 'unknown')

@@ -43,8 +43,13 @@ class LeadGenerationAPI:
         self.setup_cors()
         self.setup_routes()
 
-        # Redis
-        self.redis_client = redis.Redis(host="localhost", port=6379, db=0)
+        # Redis with decode_responses
+        self.redis_client = redis.Redis(
+            host="localhost", 
+            port=6379, 
+            db=0, 
+            decode_responses=True  # Add this
+        )
 
         # Executor for concurrency
         self.executor = ThreadPoolExecutor(max_workers=2)
@@ -55,7 +60,11 @@ class LeadGenerationAPI:
         if not allowed_origins or (len(allowed_origins) == 1 and allowed_origins[0] == '*'):
             allowed_origins = ["*"]
         else:
-            allowed_origins.extend(["http://localhost:5173", "http://localhost:5174"])
+            allowed_origins.extend([
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:8000"
+            ])
 
         self.app.add_middleware(
             CORSMiddleware,
@@ -70,6 +79,7 @@ class LeadGenerationAPI:
                 "x-user-id",
                 "x-run-id"
             ],
+            expose_headers=["content-type", "content-length"]
         )
 
     def setup_routes(self):
@@ -172,33 +182,70 @@ class LeadGenerationAPI:
             print(f"Subscribing to channel: {channel}")  # Debug log
             
             try:
-                pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
-                await pubsub.subscribe(channel)
+                redis_client = redis.Redis(
+                    host="localhost", 
+                    port=6379, 
+                    db=0, 
+                    decode_responses=True
+                )
+                pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
+                pubsub.subscribe(channel)
                 
                 async def event_generator():
                     try:
+                        # Send initial message to establish connection
+                        yield {
+                            "event": "message",
+                            "data": json.dumps({
+                                "type": "connection_established",
+                                "message": "Connected to SSE stream"
+                            })
+                        }
+                        
                         while True:
                             if await request.is_disconnected():
                                 print("Client disconnected")
                                 break
                                 
-                            message = await pubsub.get_message(timeout=1.0)
+                            message = pubsub.get_message(timeout=1.0)
                             if message and message["type"] == "message":
-                                print(f"Received message: {message['data']}")  # Debug log
+                                print(f"Received message: {message['data']}")
                                 yield {
                                     "event": "message",
                                     "data": message["data"]
                                 }
+                            
+                            # Add a small delay to prevent CPU overload
                             await asyncio.sleep(0.1)
+                            
+                            # Send keepalive comment periodically
+                            yield {
+                                "event": "ping",  # Changed from keepalive to ping
+                                "data": ""
+                            }
+                            
                     except Exception as e:
                         print(f"Error in event generator: {e}")
+                        import traceback
+                        traceback.print_exc()
                     finally:
-                        await pubsub.unsubscribe()
-                        await pubsub.close()
+                        pubsub.unsubscribe()
+                        pubsub.close()
+                        redis_client.close()
                         
-                return EventSourceResponse(event_generator())
+                return EventSourceResponse(
+                    event_generator(),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                    }
+                )
+                
             except Exception as e:
                 print(f"Error setting up SSE stream: {e}")
+                import traceback
+                traceback.print_exc()
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
     async def execute_research(self, crew, parameters):

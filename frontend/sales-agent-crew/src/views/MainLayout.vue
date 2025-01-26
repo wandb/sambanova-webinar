@@ -1,8 +1,8 @@
 <template>
-  <!-- Outer container uses flex-row so the sidebar and main area appear side-by-side -->
+  <!-- Outer container uses flex-row so the sidebar, main area, and agent sidebar appear side-by-side -->
   <div class="min-h-screen flex">
-    
-    <!-- 1) SIDEBAR -->
+
+    <!-- 1) LEFT SIDEBAR -->
     <Sidebar @selectReport="handleSavedReportSelect" />
 
     <!-- 2) MAIN COLUMN -->
@@ -18,10 +18,11 @@
       <!-- MAIN CONTENT WRAPPER -->
       <main class="flex-grow flex flex-col p-4 space-y-4 overflow-y-auto">
 
-        <!-- SearchSection: triggers search events, note :keysUpdated -->
+        <!-- SearchSection: triggers search events, note :keysUpdated and :runId -->
         <SearchSection 
           :keysUpdated="keysUpdateCounter"
           :isLoading="isLoading"
+          :runId="currentRunId"
           @searchStart="handleSearchStart"
           @searchComplete="handleSearchComplete"
           @searchError="handleSearchError"
@@ -78,11 +79,21 @@
         />
       </main>
     </div>
+
+    <!-- 3) RIGHT SIDEBAR: Real-time Agent Logs -->
+    <AgentSidebar 
+      :userId="clerkUserId" 
+      :runId="currentRunId" 
+    />
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
+import { useUser } from '@clerk/vue'         // Clerk for user ID
+import { v4 as uuidv4 } from 'uuid'               // For generating runIds
+
 import Header from '@/components/Header.vue'
 import SearchSection from '@/components/SearchSection.vue'
 import SearchNotification from '@/components/SearchNotification.vue'
@@ -91,8 +102,10 @@ import CompanyResultCard from '@/components/CompanyResultCard.vue'
 import ResearchReport from '@/components/ResearchReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
-import { useReportStore } from '@/stores/reportStore'
 import Sidebar from '@/components/Sidebar.vue'
+import AgentSidebar from '@/components/AgentSidebar.vue'
+
+import { useReportStore } from '@/stores/reportStore'
 
 // Reactive state
 const isLoading = ref(false)
@@ -105,7 +118,7 @@ const results = ref(null)
 const selectedReport = ref(null)
 const reportModalOpen = ref(false)
 
-// For the "Search Complete" notification:
+// For the "Search Complete" toast notification:
 const showNotification = ref(false)
 const searchTime = ref('0.0')
 const resultCount = ref(0)
@@ -119,8 +132,15 @@ const reportStore = useReportStore()
 // Dev check
 const isDev = ref(import.meta.env.DEV)
 
-// 1) Create a ref for Header
+// Header ref
 const headerRef = ref(null)
+
+// We hold the user ID from Clerk
+const { user } = useUser()
+const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
+
+// We'll assign a new runId every time a search starts
+const currentRunId = ref('')
 
 // On component mount, load any saved reports from localStorage
 onMounted(() => {
@@ -177,7 +197,10 @@ onBeforeUnmount(() => {
 // -------------------------------------
 function handleSearchStart(type) {
   console.log('[MainLayout] Received "searchStart" with type:', type)
-  
+
+  // Generate a new runId each time a search starts
+  currentRunId.value = uuidv4()
+
   // Show the spinner
   isLoading.value = true
   results.value = null
@@ -275,7 +298,6 @@ function closeError() {
 // Called by SearchSection if user wants to open settings
 function openSettings() {
   console.log('[MainLayout] openSettings clicked')
-  // ACTUAL OPEN
   headerRef.value.openSettings()
 }
 

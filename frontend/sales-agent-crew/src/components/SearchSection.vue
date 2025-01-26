@@ -95,6 +95,7 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 
+// NEW PROPS for runId so we can send it along
 const props = defineProps({
   keysUpdated: {
     type: Number,
@@ -104,16 +105,23 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // We'll read the parent's runId prop:
+  runId: {
+    type: String,
+    default: ''
+  }
 })
 
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings'])
+
+// We have Clerk's userId from the composition API
+const { userId } = useAuth()
 
 // Reactive state
 const searchQuery = ref('')
 const isRecording = ref(false)
 const mediaRecorder = ref(null)
 const audioChunks = ref([])
-const { userId } = useAuth()
 const sambanovaKey = ref(null)
 const exaKey = ref(null)
 const serperKey = ref(null)
@@ -186,7 +194,7 @@ const missingKeys = computed(() => {
  */
 async function performSearch() {
   try {
-    // 1) Indicate we are doing a "routing_query"
+    // 1) Indicate we're about to route
     emit('searchStart', 'routing_query')
 
     // 2) Determine route
@@ -196,7 +204,7 @@ async function performSearch() {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': sambanovaKey.value || '',
+          'x-sambanova-key': sambanovaKey.value || ''
         }
       }
     )
@@ -204,7 +212,7 @@ async function performSearch() {
     const detectedType = routeResp.data.type
     console.log('[SearchSection] Detected type:', detectedType)
 
-    // 3) Let parent know we're searching with the discovered type
+    // 3) Let parent know we're searching with that discovered type
     emit('searchStart', detectedType || 'unknown')
 
     // 4) Execute the final query
@@ -216,7 +224,10 @@ async function performSearch() {
           'Content-Type': 'application/json',
           'x-sambanova-key': sambanovaKey.value || '',
           'x-serper-key': serperKey.value || '',
-          'x-exa-key': exaKey.value || ''
+          'x-exa-key': exaKey.value || '',
+          // pass user/run IDs
+          'x-user-id': userId || '',
+          'x-run-id': props.runId || ''
         }
       }
     )

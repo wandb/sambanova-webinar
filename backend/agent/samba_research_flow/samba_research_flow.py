@@ -35,15 +35,19 @@ class SambaResearchFlow(Flow):
 
     input_variables = Dict[str, Any]
 
-    def __init__(self, sambanova_key: str = None, serper_key: str = None) -> None:
+    def __init__(self, sambanova_key: str = None, serper_key: str = None, user_id: str = None, run_id: str = None) -> None:
         """Initialize the educational flow with research and content creation crews."""
         super().__init__()
         self.research_crew = EduResearchCrew(
             sambanova_key=sambanova_key,
-            serper_key=serper_key
+            serper_key=serper_key,
+            user_id=user_id,
+            run_id=run_id
         ).crew()
         self.content_crew = EduContentWriterCrew(
-            sambanova_key=sambanova_key
+            sambanova_key=sambanova_key,
+            user_id=user_id,
+            run_id=run_id
         ).crew()
 
     @start()

@@ -13,6 +13,7 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
 from pydantic import BaseModel
+from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
 repo_dir = os.path.abspath(os.path.join(current_dir, '../..'))
@@ -66,8 +67,10 @@ class EduResearchCrew:
     llm: LLM
     sambanova_key: str
     serper_key: str
+    user_id: str
+    run_id: str
 
-    def __init__(self, sambanova_key: str = None, serper_key: str = None) -> None:
+    def __init__(self, sambanova_key: str = None, serper_key: str = None, user_id: str = None, run_id: str = None) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
@@ -82,6 +85,8 @@ class EduResearchCrew:
             max_tokens=4096,
             api_key=self.sambanova_key
         )
+        self.user_id = user_id
+        self.run_id = run_id
 
     @agent
     def researcher(self) -> Agent:
@@ -94,8 +99,14 @@ class EduResearchCrew:
         # Temporarily set serper key in environment for this tool instance
         os.environ["SERPER_API_KEY"] = self.serper_key
         tool = SerperDevTool()
+
+        researcher_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Researcher Agent"
+        )
            
-        return Agent(config=self.agents_config['researcher'], llm=self.llm, verbose=True, tools=[tool])
+        return Agent(config=self.agents_config['researcher'], llm=self.llm, verbose=True, tools=[tool],step_callback=researcher_logger)
 
     @agent
     def planner(self) -> Agent:
@@ -105,7 +116,12 @@ class EduResearchCrew:
         Returns:
             Agent: A configured planning agent
         """
-        return Agent(config=self.agents_config['planner'], llm=self.llm, verbose=True)
+        planner_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Planner Agent"
+        )
+        return Agent(config=self.agents_config['planner'], llm=self.llm, verbose=True,step_callback=planner_logger)
 
     @task
     def research_task(self) -> Task:

@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
+from utils.agent_thought import RedisConversationLogger
 
 
 
@@ -34,8 +35,10 @@ class EduContentWriterCrew:
     tasks: List[Any]  # Type hint for the tasks list
     llm: LLM
     sambanova_key: str
+    user_id: str
+    run_id: str
 
-    def __init__(self, sambanova_key: str = None) -> None:
+    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None) -> None:
         """Initialize the content writer crew with API key."""
         super().__init__()
         self.agents_config = {}
@@ -50,6 +53,8 @@ class EduContentWriterCrew:
             max_tokens=4096,
             api_key=self.sambanova_key
         )
+        self.user_id = user_id
+        self.run_id = run_id
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -75,7 +80,12 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in creating educational content.
         """
-        return Agent(config=self.agents_config['content_writer'], llm=self.llm, verbose=True)
+        content_writer_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Content Writer Agent"
+        )
+        return Agent(config=self.agents_config['content_writer'], llm=self.llm, verbose=True,step_callback=content_writer_logger)
 
     @agent
     def editor(self) -> Agent:
@@ -85,7 +95,12 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in editing and refining content.
         """
-        return Agent(config=self.agents_config['editor'], llm=self.llm, verbose=True)
+        editor_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Editor Agent"
+        )
+        return Agent(config=self.agents_config['editor'], llm=self.llm, verbose=True,step_callback=editor_logger)
 
     @agent
     def quality_reviewer(self) -> Agent:
@@ -95,7 +110,12 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in reviewing and ensuring content quality.
         """
-        return Agent(config=self.agents_config['quality_reviewer'], llm=self.llm, verbose=True)
+        quality_reviewer_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Quality Reviewer Agent"
+        )
+        return Agent(config=self.agents_config['quality_reviewer'], llm=self.llm, verbose=True,step_callback=quality_reviewer_logger)
 
     @task
     def writing_task(self) -> Task:

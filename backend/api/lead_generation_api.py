@@ -147,7 +147,9 @@ class LeadGenerationAPI:
                         )
                     edu_flow = SambaResearchFlow(
                         sambanova_key=sambanova_key,
-                        serper_key=serper_key
+                        serper_key=serper_key,
+                        user_id=user_id,
+                        run_id=run_id
                     )
                     edu_flow.input_variables = {
                         "topic": parameters["topic"],

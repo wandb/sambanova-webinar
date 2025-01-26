@@ -29,7 +29,6 @@ class RedisConversationLogger:
         self.run_id = str(run_id) if run_id else ""
         self.agent_name = agent_name
         
-        print(f"Initialized logger with user_id: {self.user_id}, run_id: {self.run_id}")  # Debug log
 
     def __call__(self, output: Any):
         try:
@@ -42,8 +41,6 @@ class RedisConversationLogger:
                     "timestamp": time.time()
                 }
                 channel = f"agent_thoughts:{self.user_id}:{self.run_id}"
-                print(f"Publishing to channel (formatted): {channel}")  # Debug log
-                print(f"Message content: {json.dumps(message)}")  # Debug log
                 self.r.publish(channel, json.dumps(message))
         except Exception as e:
             print(f"Error publishing to Redis: {e}")

@@ -232,15 +232,19 @@ class ResearchCrew:
             description=(
                 "Step 2: data_extraction_agent reads aggregator_search_task's 'companies'. "
                 "For each company's 'description' aggregator snippet, parse with LLM output to get detailed fields. "
-                "If the 'text' field is available parse from that too. Ignore article-only links. "
-                "Return a list of relevant companies. Also gather named products/services."
+                "If the 'text' field is available parse information from that field as well."
+                "Remember some of these links will be to articles and NOT companies. You should not include these."
+                "If within the text field of such articles there are companies mentioned you should include them if they are relevant."
+                "Store partial results in data_manager. Return the new list of companies."
+                "Remember to get the most relevant companies for the user's query, as well as the most relevant products and services."
+                "These should be named products and services, not just categories. This is very important."
             ),
             expected_output=(
                 "[\n"
                 "  {\n"
                 "    'name': '...', 'website': '...', 'headquarters': '...', "
                 "    'funding_stage': '...', 'employee_count': '...', "
-                "    'funding_amount': '...', 'product_list': '...', ...\n"
+                "'funding_amount': '...', 'product_list': '...', ...\n"
                 "    'detailed_description': '...', ...\n"
                 "  }\n"
                 "]"
@@ -253,8 +257,11 @@ class ResearchCrew:
         # 3) data_enrichment_task
         self.data_enrichment_task = Task(
             description=(
-                "Step 3: If missing fields, do extra aggregator queries. "
-                "Add named products/services, key contacts, etc. Return enriched array."
+                "Step 3: For each partial company, if missing fields, do an extra aggregator query, parse again.  "
+                "The data should be as enriched as possible. Listing all named products and services from that company."
+                "As well as the key contacts and their titles for outreach."
+                "For key contacts, you should return as many as possible not just CEO etc."
+                "Then return the final enriched array."
             ),
             expected_output=(
                 "[\n"
@@ -275,7 +282,10 @@ class ResearchCrew:
         # 4) market_trends_task
         self.market_trends_task = Task(
             description=(
-                "Use MarketResearchTool to get relevant trends. Then map to each company by name."
+                "Use Market Research Intelligence with:\n"
+                "  industry={industry}\n"
+                "  product={product}\n\n"
+                "Then map findings to the final companies from data_enrichment_task."
             ),
             expected_output=(
                 "[\n"
@@ -293,10 +303,13 @@ class ResearchCrew:
         # 5) outreach_task
         self.outreach_task = Task(
             description=(
-                "Create JSON array of personalized outreach emails. Must include these fields:\n"
-                "  - company_name, website, headquarters, funding_status, funding_amount, product,\n"
-                "  - relevant_trends, opportunities, challenges, email_subject, email_body.\n"
-                "Body: ~100-150 words, start 'Dear [Company]'."
+                "Create a JSON array of personalized emails for the final companies. "
+                "company_name, website, headquarters, funding_status, email_subject, email_body. "
+                "Body must start 'Dear [Company]' (100-150 words). Return ONLY a JSON array. "
+                "Be sure to mention the company's product or service by NAME in the email body and use all relevant information."
+                "We should map ALL fields collected in the data_enrichment_task and market_trends_task to the response json"
+                "To create a hyper-personalized email based on relevant current information."
+                "The email should be tailored to the company's named product or service, and the market trends."
             ),
             expected_output=(
                 "[\n"

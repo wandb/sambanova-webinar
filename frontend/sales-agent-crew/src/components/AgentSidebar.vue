@@ -17,7 +17,9 @@
             stroke-linecap="round" 
             stroke-linejoin="round" 
             stroke-width="2" 
-            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17a2 2 0 01-.586 1.414l-1 1a1 1 0 001.414 1.414L7 16.414A2 2 0 008.414 17H15a3 3 0 003-3v-1a3 3 0 00-3-3V8z" 
+            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17a2 2 0 01-.586 1.414l-1 1
+               a1 1 0 001.414 1.414L7 16.414A2 2 0 008.414 17H15
+               a3 3 0 003-3v-1a3 3 0 00-3-3V8z" 
           />
         </svg>
         <span>Agent Thoughts</span>
@@ -84,7 +86,11 @@
           <template v-if="segment.type === 'thought'">
             <div class="flex items-start space-x-2">
               <span v-html="icons.thought" class="inline-block text-yellow-600"></span>
-              <div class="whitespace-pre-wrap">{{ segment.content }}</div>
+              <!-- Stage name in italic, then content on the same line -->
+              <div class="whitespace-pre-wrap">
+                <span class="italic text-yellow-600 mr-1">Thought:</span>
+                {{ segment.content }}
+              </div>
             </div>
           </template>
 
@@ -92,15 +98,23 @@
           <template v-else-if="segment.type === 'action'">
             <div class="flex items-start space-x-2">
               <span v-html="icons.action" class="inline-block text-indigo-700"></span>
-              <div class="whitespace-pre-wrap">{{ segment.content }}</div>
+              <div class="whitespace-pre-wrap">
+                <span class="italic text-indigo-700 mr-1">Action:</span>
+                {{ segment.content }}
+              </div>
             </div>
           </template>
 
           <!-- Action Input stage -->
           <template v-else-if="segment.type === 'action_input'">
-            <div class="flex items-start space-x-2 ml-4">
-              <span v-html="icons.actionInput" class="inline-block text-indigo-400"></span>
-              <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap text-xs w-full">{{ segment.content }}</pre>
+            <div class="flex flex-col space-y-1 ml-4">
+              <div class="flex items-center space-x-2 text-indigo-400">
+                <span v-html="icons.actionInput" class="inline-block"></span>
+                <span class="italic">Action Input:</span>
+              </div>
+              <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap text-xs w-full">
+                {{ segment.content }}
+              </pre>
             </div>
           </template>
 
@@ -109,7 +123,7 @@
             <div class="flex flex-col space-y-1 ml-4">
               <div class="flex items-center space-x-2 text-teal-700">
                 <span v-html="icons.observation" class="inline-block"></span>
-                <span>Observation</span>
+                <span class="italic">Observation:</span>
               </div>
               <div>
                 <template v-if="segment.truncated && !segment.expanded">
@@ -146,7 +160,7 @@
             <div class="flex flex-col space-y-2">
               <div class="flex items-center space-x-2">
                 <span v-html="icons.finalAnswer" class="inline-block text-purple-700"></span>
-                <span>Final Answer</span>
+                <span class="italic text-purple-700">Final Answer:</span>
                 <button
                   class="text-xs text-blue-600 underline"
                   @click="segment.show = !segment.show"
@@ -175,8 +189,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
+// PROPS
 const props = defineProps({
   userId: {
     type: String,
@@ -197,14 +212,16 @@ let eventSource = null
 let firstMessageArrived = false
 let lastFinalAnswer = '' // For deduping repeated final answers
 
-// Icons for each stage
+// Icons for each stage, color-coded.
 const icons = {
   thought: `
     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17a2 2 0 01-.586 1.414l-1 1
-               a1 1 0 001.414 1.414L7 16.414A2 2 0 008.414 17H15a3 3 0 003-3v-1
-               a3 3 0 00-3-3V8z"/>
+            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17
+               a2 2 0 01-.586 1.414l-1 1
+               a1 1 0 001.414 1.414L7 16.414
+               A2 2 0 008.414 17H15
+               a3 3 0 003-3v-1a3 3 0 00-3-3V8z"/>
     </svg>
   `,
   action: `
@@ -238,9 +255,7 @@ const icons = {
   `
 }
 
-/**
- * agent colors for background
- */
+// Agent color mapping
 const agentStyleMap = {
   'Aggregator Search Agent': {
     backgroundColor: '#F3E8FF'
@@ -261,13 +276,13 @@ function getAgentStyle(agentName) {
   if (style) {
     return { 'background-color': style.backgroundColor }
   }
-  // fallback color
+  // fallback
   return { 'background-color': '#F1F5F9' }
 }
 
 function getAgentIcon(agentName) {
-  // re-use the existing icons if you want agent-specific icons
-  // for now, just use a default
+  // If you wanted specific icons per agent, you could do so here
+  // We'll just keep a default for now.
   return `
     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -277,16 +292,15 @@ function getAgentIcon(agentName) {
 }
 
 /**
- * parseMessage => splits text into segments: Thought, Action, Action Input, Observation, Final Answer, etc.
+ * parseMessage => splits text into segments: Thought, Action, Action Input, Observation, Final Answer
+ * with additional logic to handle truncation for Observation
  */
 function parseMessage(fullText) {
-  // reset local variables
   const segments = []
   let lines = fullText.split('\n')
   let currentType = 'raw'
   let currentContent = ''
 
-  // helper to push a segment
   function pushSegment(type, content) {
     // deduplicate repeated final answers
     if (type === 'final_answer') {
@@ -294,31 +308,38 @@ function parseMessage(fullText) {
       lastFinalAnswer = content.trim()
     }
 
-    let segment = {
+    const segment = {
       type,
       content,
-      show: type !== 'final_answer' ? true : false, // final answer hidden by default
+      show: (type !== 'final_answer'), // final answer hidden by default
       truncated: false,
-      expanded: false
+      expanded: false,
+      firstLines: [],
+      remainingLines: []
     }
 
-    // If it's "observation," we limit to first 3 lines by default
+    // Additional check for observation truncation:
+    // 1) if multi-line and lines > 3 => truncate
+    // 2) if single-line but length > 200 => also truncate
     if (type === 'observation') {
       let obsLines = content.split('\n')
       if (obsLines.length > 3) {
         segment.truncated = true
         segment.firstLines = obsLines.slice(0, 3)
         segment.remainingLines = obsLines.slice(3)
-      } else {
-        segment.truncated = false
+      } else if (obsLines.length === 1 && content.length > 200) {
+        // single line but very long
+        segment.truncated = true
+        segment.firstLines = [content.slice(0, 200)]
+        segment.remainingLines = [content.slice(200)]
       }
     }
+
     segments.push(segment)
   }
 
-  lines.forEach((line) => {
+  for (let line of lines) {
     let trimmed = line.trim()
-
     if (/^Thought:\s*/i.test(trimmed)) {
       if (currentContent.trim()) {
         pushSegment(currentType, currentContent)
@@ -350,14 +371,13 @@ function parseMessage(fullText) {
       currentType = 'final_answer'
       currentContent = trimmed.replace(/^Final Answer:\s*/i, '').trim()
     } else {
-      // keep appending
       if (!currentContent) {
         currentContent = trimmed
       } else {
         currentContent += '\n' + trimmed
       }
     }
-  })
+  }
 
   // push leftover
   if (currentContent.trim()) {
@@ -368,7 +388,7 @@ function parseMessage(fullText) {
 }
 
 /**
- * connectToSSE => open an EventSource to /stream/logs
+ * SSE connect
  */
 function connectToSSE() {
   if (!props.userId || !props.runId) {
@@ -376,7 +396,7 @@ function connectToSSE() {
     return
   }
 
-  // Close existing
+  // close existing
   if (eventSource) {
     eventSource.close()
     eventSource = null
@@ -420,12 +440,11 @@ function connectToSSE() {
         return
       }
 
-      // check if it matches
+      // check match
       if (messageData.user_id === props.userId && messageData.run_id === props.runId) {
         if (!firstMessageArrived) {
           firstMessageArrived = true
-          // auto-expand on first message if currently collapsed
-          collapsed.value = false
+          collapsed.value = false // auto-expand on first message
         }
 
         let cleaned = messageData.text
@@ -454,31 +473,29 @@ function connectToSSE() {
   }
 }
 
-// On mount
+// Lifecycle
 onMounted(() => {
   connectToSSE()
 })
 
-// On unmount
 onBeforeUnmount(() => {
   if (eventSource) {
     eventSource.close()
   }
 })
 
-// Also watch runId => if it changes, we reset state & expand
+// Watch runId => if changes => reset + reconnect
 watch(() => props.runId, (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
     lastFinalAnswer = ''
     firstMessageArrived = false
-    // auto-expand on new search
     collapsed.value = false
     connectToSSE()
   }
 })
 
-// Also watch userId => if user changes, reset
+// Watch userId => if changes => reset + reconnect
 watch(() => props.userId, (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
@@ -490,7 +507,5 @@ watch(() => props.userId, (newVal, oldVal) => {
 </script>
 
 <style scoped>
-/* The container is set to "h-screen" by default.
-   We ensure the messages can scroll within "flex-1 overflow-y-auto".
-*/
+/* The container is "h-screen", ensuring the messages can scroll within "flex-1 overflow-y-auto". */
 </style>

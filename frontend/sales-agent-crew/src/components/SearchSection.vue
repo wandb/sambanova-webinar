@@ -226,7 +226,7 @@ async function performSearch() {
           'x-serper-key': serperKey.value || '',
           'x-exa-key': exaKey.value || '',
           // pass user/run IDs
-          'x-user-id': userId || '',
+          'x-user-id': userId.value || '',
           'x-run-id': props.runId || ''
         }
       }

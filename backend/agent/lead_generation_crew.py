@@ -74,10 +74,19 @@ class RedisConversationLogger:
         except redis.ConnectionError as e:
             print(f"Redis connection failed: {e}")
         
-        # Ensure user_id is a string
-        self.user_id = str(user_id) if user_id else ""
+        # Ensure proper string conversion and handle potential JSON objects
+        if isinstance(user_id, (dict, list)):
+            try:
+                self.user_id = json.dumps(user_id)
+            except:
+                self.user_id = str(user_id)
+        else:
+            self.user_id = str(user_id) if user_id else ""
+            
         self.run_id = str(run_id) if run_id else ""
         self.agent_name = agent_name
+        
+        print(f"Initialized logger with user_id: {self.user_id}, run_id: {self.run_id}")  # Debug log
 
     def __call__(self, output: Any):
         try:
@@ -91,6 +100,7 @@ class RedisConversationLogger:
                 }
                 channel = f"agent_thoughts:{self.user_id}:{self.run_id}"
                 print(f"Publishing to channel (formatted): {channel}")  # Debug log
+                print(f"Message content: {json.dumps(message)}")  # Debug log
                 self.r.publish(channel, json.dumps(message))
         except Exception as e:
             print(f"Error publishing to Redis: {e}")

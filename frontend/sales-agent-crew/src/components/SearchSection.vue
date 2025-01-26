@@ -34,7 +34,7 @@
           class="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           :disabled="isLoading"
         />
-        
+
         <!-- Voice Input Button -->
         <button
           @click="toggleRecording"
@@ -62,7 +62,7 @@
           </svg>
         </button>
       </div>
-      
+
       <button
         @click="performSearch"
         :disabled="isLoading || !searchQuery.trim()"
@@ -72,14 +72,14 @@
         <span v-else>Searching...</span>
       </button>
     </div>
-    
+
     <!-- Recording Status -->
     <div v-if="isRecording" class="mt-2 text-sm text-gray-600 flex items-center space-x-2">
       <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
       <span>Recording... Click microphone to stop</span>
     </div>
 
-    <!-- Error Modal if needed -->
+    <!-- Error Modal -->
     <ErrorModal
       :show="showErrorModal"
       :errorMessage="errorMessage"
@@ -95,7 +95,6 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 
-// NEW PROPS for runId so we can send it along
 const props = defineProps({
   keysUpdated: {
     type: Number,
@@ -105,7 +104,7 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // We'll read the parent's runId prop:
+  // The runId from MainLayout
   runId: {
     type: String,
     default: ''
@@ -113,9 +112,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings'])
-
-// We have Clerk's userId from the composition API
-const { userId } = useAuth()
 
 // Reactive state
 const searchQuery = ref('')
@@ -128,15 +124,15 @@ const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
 
-/**
- * Load keys from localStorage
- */
+// Clerk
+const { userId } = useAuth()
+
 async function loadKeys() {
   try {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
     const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
     const encryptedSerperKey = localStorage.getItem(`serper_key_${userId}`)
-    
+
     if (encryptedSambanovaKey) {
       sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
     } else {
@@ -161,10 +157,6 @@ async function loadKeys() {
   }
 }
 
-/**
- * Whenever this component mounts, or whenever `keysUpdated` changes,
- * we reload the keys so the banner is accurate right away.
- */
 onMounted(async () => {
   await loadKeys()
 })
@@ -178,9 +170,6 @@ watch(
   { immediate: true }
 )
 
-/**
- * Computed: which keys are missing?
- */
 const missingKeys = computed(() => {
   const missing = []
   if (!sambanovaKey.value) missing.push('SambaNova')
@@ -189,12 +178,9 @@ const missingKeys = computed(() => {
   return missing
 })
 
-/**
- * Main search function
- */
 async function performSearch() {
   try {
-    // 1) Indicate we're about to route
+    // 1) Indicate we are about to do "routing_query"
     emit('searchStart', 'routing_query')
 
     // 2) Determine route
@@ -204,7 +190,11 @@ async function performSearch() {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-sambanova-key': sambanovaKey.value || ''
+          'x-sambanova-key': sambanovaKey.value || '',
+          // Make sure to pass runId here if your backend expects it for "route" 
+          // (But typically only needed on "execute"... optional)
+          'x-user-id': userId || '',
+          'x-run-id': props.runId || ''
         }
       }
     )
@@ -212,7 +202,7 @@ async function performSearch() {
     const detectedType = routeResp.data.type
     console.log('[SearchSection] Detected type:', detectedType)
 
-    // 3) Let parent know we're searching with that discovered type
+    // 3) Tell parent "searchStart" with final type
     emit('searchStart', detectedType || 'unknown')
 
     // 4) Execute the final query
@@ -225,14 +215,14 @@ async function performSearch() {
           'x-sambanova-key': sambanovaKey.value || '',
           'x-serper-key': serperKey.value || '',
           'x-exa-key': exaKey.value || '',
-          // pass user/run IDs
+          // **Crucial**: same user/run ID as SSE 
           'x-user-id': userId.value || '',
           'x-run-id': props.runId || ''
         }
       }
     )
 
-    // 5) Notify the parent that search is complete with results
+    // 5) searchComplete
     emit('searchComplete', {
       type: detectedType,
       query: searchQuery.value,
@@ -246,7 +236,7 @@ async function performSearch() {
 }
 
 /**
- * Voice recording / transcription
+ * Voice recording / transcription (unchanged)
  */
 function toggleRecording() {
   if (isRecording.value) {
@@ -354,7 +344,7 @@ async function transcribeAudio(audioBlob) {
       throw new Error(`Transcription failed: ${errorText}`)
     }
 
-    // Handle streaming response
+    // streaming response
     const streamReader = response.body.getReader()
     let transcribedText = ''
     const decoder = new TextDecoder()
@@ -370,7 +360,6 @@ async function transcribeAudio(audioBlob) {
         if (line.startsWith('data: ')) {
           const dataStr = line.slice(6).trim()
           if (dataStr === '[DONE]') break
-
           try {
             const data = JSON.parse(dataStr)
             if (data.choices?.[0]?.delta?.content) {
@@ -386,7 +375,6 @@ async function transcribeAudio(audioBlob) {
     const cleanedText = cleanTranscription(transcribedText)
     searchQuery.value = cleanedText.trim()
 
-    // If we have a transcribed query, automatically search
     if (searchQuery.value) {
       performSearch()
     }

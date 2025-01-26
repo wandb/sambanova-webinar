@@ -43,12 +43,12 @@ class LeadGenerationAPI:
         self.setup_cors()
         self.setup_routes()
 
-        # Redis with decode_responses
+        # Redis
         self.redis_client = redis.Redis(
             host="localhost", 
             port=6379, 
             db=0, 
-            decode_responses=True  # Add this
+            decode_responses=True
         )
 
         # Executor for concurrency
@@ -102,7 +102,7 @@ class LeadGenerationAPI:
                     }
                 )
             except Exception as e:
-                print(f"Error determining route: {str(e)}")
+                print(f"[/route] Error determining route: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
         @self.app.post("/execute/{query_type}")
@@ -119,6 +119,8 @@ class LeadGenerationAPI:
             user_id = request.headers.get("x-user-id", "")
             run_id = request.headers.get("x-run-id", "")
 
+            print(f"[/execute/{query_type}] user_id={user_id}, run_id={run_id}")
+
             try:
                 if query_type == "sales_leads":
                     if not exa_key:
@@ -126,7 +128,6 @@ class LeadGenerationAPI:
                             status_code=401,
                             content={"error": "Missing required Exa API key for sales leads"}
                         )
-                    # Pass user_id and run_id to the crew
                     crew = ResearchCrew(
                         sambanova_key=sambanova_key,
                         exa_key=exa_key,
@@ -170,7 +171,7 @@ class LeadGenerationAPI:
                     )
 
             except Exception as e:
-                print(f"Error executing query: {str(e)}")
+                print(f"[/execute/{query_type}] Error executing query: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
         @self.app.get("/stream/logs")
@@ -179,8 +180,9 @@ class LeadGenerationAPI:
             SSE endpoint that streams agent logs for the given user_id + run_id.
             """
             channel = f"agent_thoughts:{user_id}:{run_id}"
-            print(f"Subscribing to channel: {channel}")  # Debug log
-            
+            print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}")
+            print(f"[stream_logs] Subscribing to channel: {channel}")
+
             try:
                 redis_client = redis.Redis(
                     host="localhost", 
@@ -189,11 +191,13 @@ class LeadGenerationAPI:
                     decode_responses=True
                 )
                 pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
+
+                # Subscribe to the exact channel
                 pubsub.subscribe(channel)
-                
+
                 async def event_generator():
                     try:
-                        # Send initial message to establish connection
+                        # Immediately yield a "connection_established" to confirm SSE is open
                         yield {
                             "event": "message",
                             "data": json.dumps({
@@ -201,57 +205,60 @@ class LeadGenerationAPI:
                                 "message": "Connected to SSE stream"
                             })
                         }
-                        
+
                         while True:
                             if await request.is_disconnected():
-                                print("Client disconnected")
+                                print("[stream_logs] Client disconnected")
                                 break
-                                
+
+                            # Wait for new message
                             message = pubsub.get_message(timeout=1.0)
-                            if message and message["type"] == "message":
-                                print(f"Received message: {message['data']}")
-                                yield {
-                                    "event": "message",
-                                    "data": message["data"]
-                                }
-                            
-                            # Add a small delay to prevent CPU overload
-                            await asyncio.sleep(0.1)
-                            
-                            # Send keepalive comment periodically
+                           
+
+                            if message:
+                                print(f"[stream_logs] Message from Redis: {message}")
+                                if message["type"] == "message":
+                                    # This is a standard publish
+                                    data_str = message["data"]  # JSON string
+                                    yield {
+                                        "event": "message",
+                                        "data": data_str
+                                    }
+
+                            await asyncio.sleep(0.25)
+                            # Optionally send a ping
                             yield {
-                                "event": "ping",  # Changed from keepalive to ping
-                                "data": ""
+                                "event": "ping",
+                                "data": json.dumps({"type": "ping"})
                             }
-                            
+
                     except Exception as e:
-                        print(f"Error in event generator: {e}")
+                        print(f"[stream_logs] Error in event generator: {e}")
                         import traceback
                         traceback.print_exc()
                     finally:
+                        print("[stream_logs] Unsubscribing and closing pubsub")
                         pubsub.unsubscribe()
                         pubsub.close()
                         redis_client.close()
-                        
+
                 return EventSourceResponse(
                     event_generator(),
                     media_type="text/event-stream",
                     headers={
                         "Cache-Control": "no-cache",
-                        "Connection": "keep-alive",
+                        "Connection": "keep-alive"
                     }
                 )
-                
+
             except Exception as e:
-                print(f"Error setting up SSE stream: {e}")
+                print(f"[stream_logs] Error setting up SSE: {e}")
                 import traceback
                 traceback.print_exc()
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
     async def execute_research(self, crew, parameters):
-        # We can do optional advanced parsing or just feed userPromptExtractor
         extractor = UserPromptExtractor(crew.sambanova_key)
-        # Combine text
         combined_text = " ".join([
             parameters.get("industry", ""),
             parameters.get("company_stage", ""),

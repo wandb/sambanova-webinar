@@ -1,64 +1,72 @@
 <template>
-  <!-- The entire sidebar container; it's collapsible. -->
+  <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
   <div
-    class="border-l border-gray-300 flex flex-col bg-gray-50 transition-all duration-300"
+    v-if="userId && runId"
+    class="flex flex-col h-screen border-l border-gray-300 transition-all duration-300 bg-white"
     :class="collapsed ? 'w-12' : 'w-80'"
   >
-    <!-- Header area with "Agent Thoughts" title and a toggle button. -->
-    <div
-      class="flex items-center border-b border-gray-200 p-2 bg-gray-200"
+    <!-- TOP HEADER ROW -->
+    <div 
+      class="flex items-center border-b border-gray-200 p-2"
       :class="collapsed ? 'justify-center' : 'justify-between'"
     >
-      <!-- Title (hidden when collapsed) -->
-      <div
-        v-if="!collapsed"
-        class="font-bold text-gray-800"
-      >
-        Agent Thoughts
+      <div v-if="!collapsed" class="flex items-center space-x-2 text-gray-800 font-semibold">
+        <!-- Agent Thoughts icon -->
+        <svg class="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2" 
+            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17a2 2 0 01-.586 1.414l-1 1a1 1 0 001.414 1.414L7 16.414A2 2 0 008.414 17H15a3 3 0 003-3v-1a3 3 0 00-3-3V8z" 
+          />
+        </svg>
+        <span>Agent Thoughts</span>
       </div>
 
-      <!-- Toggle button -->
+      <!-- Collapse/Expand Button -->
       <button
-        class="hover:bg-gray-300 p-1 rounded"
+        class="hover:bg-gray-100 p-1 rounded"
         @click="collapsed = !collapsed"
       >
         <span v-if="collapsed">
-          <!-- Expand icon (arbitrary chevron right) -->
+          <!-- Expand icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 5l7 7-7 7" />
+            <path 
+              stroke-linecap="round" 
+              stroke-linejoin="round" 
+              stroke-width="2"
+              d="M9 5l7 7-7 7" 
+            />
           </svg>
         </span>
         <span v-else>
-          <!-- Collapse icon (chevron left) -->
+          <!-- Collapse icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 19l-7-7 7-7" />
+            <path 
+              stroke-linecap="round" 
+              stroke-linejoin="round" 
+              stroke-width="2"
+              d="M15 19l-7-7 7-7" 
+            />
           </svg>
         </span>
       </button>
     </div>
 
-    <!-- Main content area: scrollable messages -->
-    <div
-      v-if="!collapsed && userId && runId"
-      class="flex-1 overflow-y-auto p-2 space-y-2"
-    >
-      <!-- Render each parsed message -->
+    <!-- MESSAGES SCROLL CONTAINER -->
+    <div v-if="!collapsed" class="flex-1 overflow-y-auto p-2 space-y-2">
+      <!-- Each message card -->
       <div
         v-for="(msg, index) in messages"
         :key="index"
         class="flex flex-col rounded shadow-sm p-2"
         :style="getAgentStyle(msg.agent_name)"
       >
-        <!-- Top line => agent name + timestamp -->
+        <!-- Agent Name + Timestamp row -->
         <div class="flex justify-between items-center mb-2">
           <div class="flex items-center space-x-1 font-semibold text-sm">
-            <!-- Agent Icon -->
-            <span
-              v-html="getAgentIcon(msg.agent_name)"
-              class="inline-block"
-            ></span>
+            <!-- Agent icon -->
+            <span v-html="getAgentIcon(msg.agent_name)" class="inline-block"></span>
             <span>{{ msg.agent_name }}</span>
           </div>
           <div class="text-xs text-gray-700">
@@ -66,70 +74,100 @@
           </div>
         </div>
 
-        <!-- For each "segment" in the parsed message content -->
+        <!-- Render each "segment" of the parsed message -->
         <div
           v-for="(segment, idx) in msg.parsedSegments"
           :key="idx"
           class="text-sm text-gray-800 mb-1"
         >
-          <!-- Thought block -->
-          <div
-            v-if="segment.type === 'thought'"
-            class="flex items-start space-x-2"
-          >
-            <span class="font-bold">Thought:</span>
-            <div class="whitespace-pre-wrap">{{ segment.content }}</div>
-          </div>
-
-          <!-- Action block -->
-          <div
-            v-else-if="segment.type === 'action'"
-            class="flex items-start space-x-2"
-          >
-            <span class="font-bold text-indigo-700">Action:</span>
-            <div class="whitespace-pre-wrap">{{ segment.content }}</div>
-          </div>
-
-          <!-- Action Input block -->
-          <div
-            v-else-if="segment.type === 'action_input'"
-            class="flex items-start space-x-2 ml-4"
-          >
-            <span class="font-bold text-indigo-700">Action Input:</span>
-            <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap text-xs">{{ segment.content }}</pre>
-          </div>
-
-          <!-- Observation block -->
-          <div
-            v-else-if="segment.type === 'observation'"
-            class="flex flex-col space-y-1 ml-4"
-          >
-            <div class="font-bold text-teal-700">Observation:</div>
-            <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap text-xs">{{ segment.content }}</pre>
-          </div>
-
-          <!-- Final Answer block -->
-          <div
-            v-else-if="segment.type === 'final_answer'"
-            class="flex flex-col space-y-2"
-          >
-            <div class="flex items-center space-x-2">
-              <span class="font-bold text-purple-700">Final Answer:</span>
-              <!-- Toggle to show/hide the final answer details -->
-              <button
-                class="text-xs text-blue-600 underline"
-                @click="segment.show = !segment.show"
-              >
-                {{ segment.show ? 'Hide' : 'Show' }}
-              </button>
+          <!-- Thought stage -->
+          <template v-if="segment.type === 'thought'">
+            <div class="flex items-start space-x-2">
+              <span v-html="icons.thought" class="inline-block text-yellow-600"></span>
+              <div class="whitespace-pre-wrap">{{ segment.content }}</div>
             </div>
-            <div v-if="segment.show">
-              <pre class="bg-white border border-gray-300 rounded p-2 whitespace-pre-wrap text-xs">{{ segment.content }}</pre>
-            </div>
-          </div>
+          </template>
 
-          <!-- default fallback for lines that don't match known markers -->
-          <div v-else class="whitespace-pre-wrap">{{ segment.content }}</div>
+          <!-- Action stage -->
+          <template v-else-if="segment.type === 'action'">
+            <div class="flex items-start space-x-2">
+              <span v-html="icons.action" class="inline-block text-indigo-700"></span>
+              <div class="whitespace-pre-wrap">{{ segment.content }}</div>
+            </div>
+          </template>
+
+          <!-- Action Input stage -->
+          <template v-else-if="segment.type === 'action_input'">
+            <div class="flex items-start space-x-2 ml-4">
+              <span v-html="icons.actionInput" class="inline-block text-indigo-400"></span>
+              <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap text-xs w-full">{{ segment.content }}</pre>
+            </div>
+          </template>
+
+          <!-- Observation stage (truncate by default) -->
+          <template v-else-if="segment.type === 'observation'">
+            <div class="flex flex-col space-y-1 ml-4">
+              <div class="flex items-center space-x-2 text-teal-700">
+                <span v-html="icons.observation" class="inline-block"></span>
+                <span>Observation</span>
+              </div>
+              <div>
+                <template v-if="segment.truncated && !segment.expanded">
+                  <pre class="bg-gray-50 p-2 rounded whitespace-pre-wrap text-xs">
+                    {{ segment.firstLines.join('\n') }}
+                  </pre>
+                  <!-- If there's more content, show a toggle -->
+                  <button
+                    v-if="segment.remainingLines.length"
+                    class="text-xs text-blue-600 underline"
+                    @click="segment.expanded = true"
+                  >
+                    Show more
+                  </button>
+                </template>
+                <template v-else>
+                  <pre class="bg-white border border-gray-300 rounded p-2 whitespace-pre-wrap text-xs">
+                    {{ segment.content }}
+                  </pre>
+                  <button
+                    v-if="segment.truncated"
+                    class="text-xs text-blue-600 underline"
+                    @click="segment.expanded = false"
+                  >
+                    Show less
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Final Answer stage -->
+          <template v-else-if="segment.type === 'final_answer'">
+            <div class="flex flex-col space-y-2">
+              <div class="flex items-center space-x-2">
+                <span v-html="icons.finalAnswer" class="inline-block text-purple-700"></span>
+                <span>Final Answer</span>
+                <button
+                  class="text-xs text-blue-600 underline"
+                  @click="segment.show = !segment.show"
+                >
+                  {{ segment.show ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <div v-if="segment.show">
+                <pre class="bg-white border border-gray-300 rounded p-2 whitespace-pre-wrap text-xs">
+                  {{ segment.content }}
+                </pre>
+              </div>
+            </div>
+          </template>
+
+          <!-- default fallback -->
+          <template v-else>
+            <div class="whitespace-pre-wrap">
+              {{ segment.content }}
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -139,7 +177,6 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 
-// PROPS
 const props = defineProps({
   userId: {
     type: String,
@@ -151,77 +188,87 @@ const props = defineProps({
   }
 })
 
-// STATE
-const messages = ref([])
-let eventSource = null
-// The sidebar is initially collapsed => user can expand or it can auto-expand on first message.
+// Collapsed by default; user or code can expand
 const collapsed = ref(true)
 
-// If you want the sidebar to expand automatically on first message, track that:
+// SSE management
+const messages = ref([])
+let eventSource = null
 let firstMessageArrived = false
+let lastFinalAnswer = '' // For deduping repeated final answers
 
-// RUNTIME
-const runIdShort = computed(() => props.runId.slice(0, 8))
+// Icons for each stage
+const icons = {
+  thought: `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17a2 2 0 01-.586 1.414l-1 1
+               a1 1 0 001.414 1.414L7 16.414A2 2 0 008.414 17H15a3 3 0 003-3v-1
+               a3 3 0 00-3-3V8z"/>
+    </svg>
+  `,
+  action: `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+    </svg>
+  `,
+  actionInput: `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 20h9m-9-4h9m-9-4h9M3 4h1
+               a2 2 0 012 2v12a2 2 0 01-2 2H3
+               a2 2 0 01-2-2V6a2 2 0 012-2z"/>
+    </svg>
+  `,
+  observation: `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5 3c-1.1 0-2 .9-2 2v13
+               a2 2 0 002 2h14
+               a2 2 0 002-2V5
+               a2 2 0 00-2-2H5zm2 10l3 3l7-7"/>
+    </svg>
+  `,
+  finalAnswer: `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 9l-7 7-4-4"/>
+    </svg>
+  `
+}
 
 /**
- * Agent color & icon map
+ * agent colors for background
  */
 const agentStyleMap = {
   'Aggregator Search Agent': {
-    backgroundColor: '#F3E8FF', // pastel purple
-    icon: `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 16s1-1 4-1 4 1 4 1 1-1 4-1 4 1 4 1V4H4v12z"/>
-      </svg>
-    `
+    backgroundColor: '#F3E8FF'
   },
   'Data Extraction Agent': {
-    backgroundColor: '#E7F9F1', // pastel green
-    icon: `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"/>
-      </svg>
-    `
+    backgroundColor: '#E7F9F1'
   },
   'Market Trends Analyst': {
-    backgroundColor: '#FFFBEA', // pastel yellow
-    icon: `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 3h18v18H3V3zm3 6l3 3-3 3m12-6l-3 3 3 3"/>
-      </svg>
-    `
+    backgroundColor: '#FFFBEA'
   },
   'Outreach Specialist': {
-    backgroundColor: '#E7F3FF', // pastel blue
-    icon: `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16h6M4 6h16"/>
-      </svg>
-    `
+    backgroundColor: '#E7F3FF'
   }
-  // fallback styling can be added for other agent names
 }
 
-/**
- * getAgentStyle => returns inline style for background, fallback if no match
- */
 function getAgentStyle(agentName) {
   const style = agentStyleMap[agentName]
-  return style
-    ? { 'background-color': style.backgroundColor }
-    : { 'background-color': '#F1F5F9' } // fallback
+  if (style) {
+    return { 'background-color': style.backgroundColor }
+  }
+  // fallback color
+  return { 'background-color': '#F1F5F9' }
 }
 
-/**
- * getAgentIcon => returns an inline SVG string
- */
 function getAgentIcon(agentName) {
-  const style = agentStyleMap[agentName]
-  return style?.icon || `
+  // re-use the existing icons if you want agent-specific icons
+  // for now, just use a default
+  return `
     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 4v16m8-8H4"/>
@@ -230,52 +277,49 @@ function getAgentIcon(agentName) {
 }
 
 /**
- * parseMessage => Splits the text into segments:
- *   Thought:
- *   Action:
- *   Action Input:
- *   Observation:
- *   Final Answer:
- * We also deduplicate identical final answers.
+ * parseMessage => splits text into segments: Thought, Action, Action Input, Observation, Final Answer, etc.
  */
-let lastFinalAnswer = '' // store last final answer to skip duplicates
-
 function parseMessage(fullText) {
-  // We separate by possible lines, then re-group
-  // We'll build an array of {type, content, show} blocks
+  // reset local variables
   const segments = []
-  // We can do a simple approach: find these markers: 
-  // "Thought:", "Action:", "Action Input:", "Observation:", "Final Answer:"
-  // We'll parse them in order. If none match, it's raw text.
-
-  // Because the text might have multiple lines, let's do a line-based parse.
   let lines = fullText.split('\n')
   let currentType = 'raw'
   let currentContent = ''
 
+  // helper to push a segment
   function pushSegment(type, content) {
-    // handle final answer dedup
+    // deduplicate repeated final answers
     if (type === 'final_answer') {
-      if (content.trim() === lastFinalAnswer.trim()) {
-        // skip adding if it's the same exact final answer
-        return
-      }
+      if (content.trim() === lastFinalAnswer.trim()) return
       lastFinalAnswer = content.trim()
     }
-    segments.push({
+
+    let segment = {
       type,
       content,
-      // for final answer, hidden by default
-      show: (type === 'final_answer') ? false : true
-    })
+      show: type !== 'final_answer' ? true : false, // final answer hidden by default
+      truncated: false,
+      expanded: false
+    }
+
+    // If it's "observation," we limit to first 3 lines by default
+    if (type === 'observation') {
+      let obsLines = content.split('\n')
+      if (obsLines.length > 3) {
+        segment.truncated = true
+        segment.firstLines = obsLines.slice(0, 3)
+        segment.remainingLines = obsLines.slice(3)
+      } else {
+        segment.truncated = false
+      }
+    }
+    segments.push(segment)
   }
 
   lines.forEach((line) => {
-    const trimmed = line.trim()
+    let trimmed = line.trim()
 
-    // Check if line starts with these markers:
     if (/^Thought:\s*/i.test(trimmed)) {
-      // push any existing content as raw
       if (currentContent.trim()) {
         pushSegment(currentType, currentContent)
       }
@@ -306,7 +350,7 @@ function parseMessage(fullText) {
       currentType = 'final_answer'
       currentContent = trimmed.replace(/^Final Answer:\s*/i, '').trim()
     } else {
-      // just append to current content
+      // keep appending
       if (!currentContent) {
         currentContent = trimmed
       } else {
@@ -315,7 +359,7 @@ function parseMessage(fullText) {
     }
   })
 
-  // after the loop, push any leftover
+  // push leftover
   if (currentContent.trim()) {
     pushSegment(currentType, currentContent)
   }
@@ -324,7 +368,7 @@ function parseMessage(fullText) {
 }
 
 /**
- * connectToSSE => sets up EventSource, listens for new messages
+ * connectToSSE => open an EventSource to /stream/logs
  */
 function connectToSSE() {
   if (!props.userId || !props.runId) {
@@ -332,7 +376,7 @@ function connectToSSE() {
     return
   }
 
-  // Close existing connection
+  // Close existing
   if (eventSource) {
     eventSource.close()
     eventSource = null
@@ -345,13 +389,13 @@ function connectToSSE() {
   eventSource = new EventSource(url)
 
   eventSource.onopen = () => {
-    console.log('[AgentSidebar] SSE connection opened successfully')
+    console.log('[AgentSidebar] SSE opened successfully')
   }
 
   eventSource.onerror = (err) => {
-    console.error('[AgentSidebar] SSE connection error:', err)
+    console.error('[AgentSidebar] SSE error:', err)
     if (eventSource.readyState === EventSource.CLOSED) {
-      console.log('[AgentSidebar] SSE closed, reconnecting in 5s')
+      console.log('[AgentSidebar] SSE closed, attempt reconnect in 5s')
       setTimeout(() => {
         connectToSSE()
       }, 5000)
@@ -361,91 +405,92 @@ function connectToSSE() {
   eventSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-
       if (data.type === 'connection_established') {
         console.log('[AgentSidebar] SSE connection established')
         return
       }
       if (data.type === 'ping') {
-        // keep-alive, ignore
         return
       }
 
-      // Normal agent message
+      // normal message
       const messageData = data
       if (!messageData.user_id || !messageData.run_id || !messageData.agent_name) {
-        console.log('[AgentSidebar] message missing fields => ignoring:', messageData)
+        console.log('[AgentSidebar] Missing fields => ignoring:', messageData)
         return
       }
 
-      // Check user/run match
+      // check if it matches
       if (messageData.user_id === props.userId && messageData.run_id === props.runId) {
-        // If first message => auto expand if collapsed
         if (!firstMessageArrived) {
           firstMessageArrived = true
+          // auto-expand on first message if currently collapsed
           collapsed.value = false
         }
 
-        // parse
         let cleaned = messageData.text
           .replace(/\n{3,}/g, '\n\n')
           .replace(/You ONLY have access.*$/s, '')
           .trim()
 
-        const segments = parseMessage(cleaned)
-
+        let segments = parseMessage(cleaned)
         messages.value.push({
           agent_name: messageData.agent_name,
           timestamp: messageData.timestamp,
           parsedSegments: segments
         })
 
-        // auto scroll
+        // auto-scroll
         setTimeout(() => {
           const container = document.querySelector('.overflow-y-auto')
           if (container) {
             container.scrollTop = container.scrollHeight
           }
         }, 100)
-      } else {
-        console.log('[AgentSidebar] SSE message does not match userId/runId => ignoring')
       }
     } catch (err) {
-      console.error('[AgentSidebar] Error parsing SSE message:', err, 'Raw event data:', event.data)
+      console.error('[AgentSidebar] SSE parse error:', err, 'Raw:', event.data)
     }
   }
 }
 
-/**
- * watch userId/runId => reconnect SSE
- */
-watch(
-  () => [props.userId, props.runId],
-  () => {
-    messages.value = []
-    lastFinalAnswer = '' // reset final answer dedup
-    firstMessageArrived = false
-    connectToSSE()
-  }
-)
-
-// Lifecycle
+// On mount
 onMounted(() => {
   connectToSSE()
 })
 
+// On unmount
 onBeforeUnmount(() => {
   if (eventSource) {
     eventSource.close()
   }
 })
+
+// Also watch runId => if it changes, we reset state & expand
+watch(() => props.runId, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    messages.value = []
+    lastFinalAnswer = ''
+    firstMessageArrived = false
+    // auto-expand on new search
+    collapsed.value = false
+    connectToSSE()
+  }
+})
+
+// Also watch userId => if user changes, reset
+watch(() => props.userId, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    messages.value = []
+    lastFinalAnswer = ''
+    firstMessageArrived = false
+    connectToSSE()
+  }
+})
 </script>
 
 <style scoped>
-/* Make sure the container can scroll. */
-.overflow-y-auto {
-  max-height: 100%;
-}
-
-/* We can refine the code further if needed. */
+/* The container is set to "h-screen" by default.
+   We ensure the messages can scroll within "flex-1 overflow-y-auto".
+*/
 </style>

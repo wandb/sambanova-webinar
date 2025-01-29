@@ -1,138 +1,65 @@
-![Samba Sales Co-Pilot Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
+# Sales Agent Crew - AI-Powered Sales Lead Generation - Frontend
 
-# Samba Co-Pilot
-
-An intelligent sales and research assistant powered by SambaNova AI. This application helps sales teams and researchers by automatically:
-- Generating qualified sales leads with company insights
-- Creating detailed research reports and educational content
-- Intelligently routing queries to the appropriate service
-- Supporting voice input for natural interaction
+Sales Agent Crew is an intelligent lead generation platform designed to identify and generate personalized outreach for potential sales leads. By combining the power of AI with a modern web interface, it streamlines your sales prospecting process, saving time and maximizing efficiency.
 
 ## Features
 
-### Intelligent Query Routing
-The application automatically determines whether your query is best suited for:
-- Sales lead generation
-- Educational content/research creation
-
-### Sales Lead Generation
-When in sales mode, Samba Co-Pilot will:
-- Find relevant companies matching your criteria
-- Extract key company information
-- Provide funding status and insights
-- Generate customized sales approaches
-
-### Research & Content Generation
-For research queries, the system will:
-- Analyze topics in-depth
-- Create structured research reports
-- Provide educational content
-- Include relevant citations and sources
-
-### Voice Input Support
-- Click the microphone icon to start voice input
-- Automatic transcription of speech to text
-- Hands-free operation support
-
-### Additional Features
-- 🔐 Secure API key management with encryption
-- 📜 Chat history tracking
-- 📥 Results export functionality
-- 🔄 Real-time query routing
-- 📊 Detailed company insights
-- ✍️ AI-generated outreach templates
-
-## Technical Setup
-
-### Prerequisites
-- Node.js 16+
-- NPM or Yarn
-- API Keys:
-  - SambaNova API key
-  - Serper API key (for web search)
-  - Exa API key (for company data)
-
-### Installation
-```bash
-npm install
-```
-
-### Development
-```bash
-npm run dev
-```
-
-### Production Build
-```bash
-npm run build
-```
-
-## Environment Variables
-
-Create a `.env` file with:
-```env
-VITE_API_URL=your_api_url
-```
-
-## API Keys Setup
-
-Access the settings modal to configure your:
-- SambaNova API key
-- Serper API key
-- Exa API key
-
-All keys are encrypted before storage in localStorage.
-
-## Architecture
-
-Built with:
-- Vue 3 + Composition API
-- Vite
-- TailwindCSS
-- Clerk for authentication
-- Axios for API calls
+- 🎯 **Targeted Lead Generation**: Generate leads based on your criteria.
+- ✍️ **AI-Generated Email Templates**: Create personalized email templates with AI.
+- 💼 **Company Research & Market Analysis**: Gain valuable insights for better decision-making.
+- 🎨 **Modern UI**: Enjoy a responsive and user-friendly interface.
+- ⚡ **Real-Time Analysis**: Generate and analyze leads instantly.
 
 ## Tech Stack
 
-### Frontend
-- Vue.js 3 (Composition API)
-- TailwindCSS for styling
-- Vite for build tooling
-- Clerk for authentication
+- **Frontend**: Vue.js, Tailwind CSS
+- **AI/ML**: LangChain, SpaCy
 
-### Backend Integration
-- FastAPI
-- CrewAI
-- SambaNova Agentic Cloud
-- Exa Search API
+## Prerequisites
 
-## Usage
+Before starting, ensure you have the following installed:
 
-1. **Configure API Keys**
-   - Open settings
-   - Enter your API keys
-   - Keys are securely encrypted
+- Node.js 16 or higher.
+- Yarn package manager.
+- Serper API Key.
+- Clerk API Key.
 
-2. **Start Searching**
-   - Type your query or use voice input
-   - System automatically determines query type
-   - View real-time loading progress
-   - Receive structured results
+## Installation
 
-3. **View Results**
-   - Sales leads displayed as cards
-   - Research shown as structured reports
-   - Export functionality available
-   - Save important searches
+1. Clone the repository and navigate to the project directory:
 
-## Contributing
+With HTTPS:
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+```bash
+git clone https://github.com/sambanova/samba-co-pilot.git
+cd samba-co-pilot
+```
 
-## License
+With SSH:
 
-[MIT License](LICENSE)
+```bash
+git clone git@github.com:sambanova/samba-co-pilot.git
+cd samba-co-pilot
+```
+
+2. Create a .env file in `/frontend/sales-agent-crew/` and add the Vite API URL:
+
+```bash
+VITE_API_URL=your_api_url
+```
+
+3. Install Vue dependencies:
+
+```bash
+yarn install
+```
+
+## Running the Application
+
+1. Start the Vue development server:
+
+```bash
+# From the project root
+cd frontend/sales-agent-crew/
+yarn dev
+```

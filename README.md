@@ -3,7 +3,8 @@
 # Samba Co-Pilot
 
 An intelligent sales and research assistant powered by SambaNova AI. This application helps sales teams and researchers by automatically:
-- Generating sales information with company insights
+
+- Generating qualified sales information with company insights
 - Creating detailed research reports and educational content
 - Intelligently routing queries to the appropriate service
 - Supporting voice input for natural interaction
@@ -11,14 +12,18 @@ An intelligent sales and research assistant powered by SambaNova AI. This applic
 ## Features
 
 ### Intelligent Query Routing
+
 The application automatically determines whether your query is best suited for:
+
 - Sales lead Information Gathering
 - Educational content/research creation
 - Financial Analysis and Market Research
 - More tasks to come!
 
 ### Sales Lead Information
+
 When in sales mode, Samba Co-Pilot will:
+
 - Find relevant companies matching your criteria
 - Extract key company information
 - Provide funding status and insights
@@ -33,7 +38,9 @@ Example Sales Queries:
 - "Show me B2B SaaS companies in Singapore with over 100 employees"
 
 ### Research & Content Generation
+
 For research queries, the system will:
+
 - Analyze topics in-depth
 - Create structured research reports
 - Provide educational content
@@ -65,11 +72,13 @@ Example Financial Queries:
 - "Compare profitability metrics between major EV manufacturers"
 
 ### Voice Input Support
+
 - Click the microphone icon to start voice input
 - Automatic transcription of speech to text
 - Hands-free operation support
 
 ### Additional Features
+
 - 🔐 Secure API key management with encryption
 - 📜 Chat history tracking
 - 📥 Results export functionality
@@ -81,47 +90,114 @@ Example Financial Queries:
 ## Technical Setup
 
 ### Prerequisites
-- Node.js 16+
-- NPM or Yarn
+
+- Python 3.8 or higher.
+- Node.js 16 or higher.
+- Yarn.
 - API Keys:
-  - SambaNova API key
-  - Serper API key (for web search)
-  - Exa API key (for company data)
+  - SambaNova API key.
+  - Serper API key (for web search).
+  - Exa API key (for company data).
+  - Perplexity API key ().
+  - Clerk API key (for authentication).
 
-### Installation
+### Frontend
+
+For the following commands, go to `/frontend/sales-agent-crew/` directory.
+
+#### Install Vue.js dependencies
+
 ```bash
-npm install
+yarn install
 ```
 
-### Development
+#### Run a local development environment
+
 ```bash
-npm run dev
+yarn dev
 ```
 
-### Production Build
+#### Create a production build
+
 ```bash
-npm run build
+yarn build
+```
+
+### Backend
+
+For the following commands, go to `/backend/` directory.
+
+#### Install Python dependencies
+
+Create and activate a virtual environment (for example with venv) and install the project dependencies inside it.
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+#### Run the application
+
+```bash
+uvicorn api.main:app --reload
 ```
 
 ## Environment Variables
 
-Create a `.env` file with:
-```env
+For the frontend, go to `/frontend/sales-agent-crew/` and create a `.env` file with:
+
+```bash
 VITE_API_URL=your_api_url
 ```
+
+And for the backend, go to `/backend/` and create a `.env` file with:
+
+```bash
+PERPLEXITY_API_KEY=your_perplexity_api_key
+OPENAI_API_KEY=your_openai_api_key
+```
+
+## Running the Application
+
+1. Start the FastAPI backend server:
+
+```bash
+# From the project root
+cd backend
+uvicorn api.main:app --reload
+```
+
+2. Start the Vue.js frontend development server:
+
+```bash
+# From the project root
+cd frontend/sales-agent-crew/
+yarn dev
+```
+
+3. Open your browser and navigate to:\*
+
+```bash
+ http://localhost:5174/
+```
+
+\*Update the URL in the LeadGenerationAPI CORS API if it's different.
 
 ## API Keys Setup
 
 Access the settings modal to configure your:
+
 - SambaNova API key
 - Serper API key
 - Exa API key
 
-All keys are encrypted before storage in localStorage.
+All keys are encrypted before storaging them in localStorage.
 
 ## Architecture
 
 Built with:
+
 - Vue 3 + Composition API
 - Vite
 - TailwindCSS
@@ -131,12 +207,14 @@ Built with:
 ## Tech Stack
 
 ### Frontend
+
 - Vue.js 3 (Composition API)
 - TailwindCSS for styling
 - Vite for build tooling
 - Clerk for authentication
 
 ### Backend Integration
+
 - FastAPI
 - CrewAI
 - SambaNova Agentic Cloud
@@ -146,11 +224,13 @@ Built with:
 ## Usage
 
 1. **Configure API Keys**
+
    - Open settings
    - Enter your API keys
    - Keys are securely encrypted
 
 2. **Start Searching**
+
    - Type your query or use voice input
    - System automatically determines query type
    - Receive structured results

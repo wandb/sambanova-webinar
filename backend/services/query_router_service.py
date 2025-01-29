@@ -4,7 +4,8 @@ import requests
 from pydantic import BaseModel
 
 class QueryType(BaseModel):
-    type: str  # "sales_leads" or "educational_content"
+    # Now can be: "sales_leads", "educational_content", or "financial_analysis"
+    type: str
     parameters: Dict[str, Any]
 
 class QueryRouterService:
@@ -18,7 +19,7 @@ class QueryRouterService:
             "how does", "tutorial", "course", "education", "training",
             "concepts", "fundamentals", "basics", "advanced", "intermediate",
             "beginner", "introduction", "deep dive", "overview", "study",
-            # Added research/technical keywords
+            # Additional research/technical
             "technology", "architecture", "design", "implementation",
             "analysis", "comparison", "performance", "methodology",
             "framework", "system", "protocol", "algorithm", "mechanism",
@@ -34,20 +35,50 @@ class QueryRouterService:
             "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
+        # Financial-specific keywords/phrases
+        self.financial_keywords = [
+            "stock", 
+            "technical analysis", 
+            "fundamental analysis", 
+            "price target", 
+            "investment strategy", 
+            "ticker",
+            "financial analysis",
+            "ratios", 
+            "eps", 
+            "balance sheet", 
+            "income statement",
+            "analysis of a stock",
+            "analyzing a stock",
+            # you can add more synonyms
+        ]
+
+        # Additional phrases for override
+        self.override_phrases = [
+            "fundamental and technical analysis",
+            "fundamental & technical analysis"
+        ]
+
     def _detect_query_type(self, query: str) -> str:
         """
-        Pre-check query type based on keywords before LLM call
+        Pre-check query type based on keywords before LLM call,
+        including financial keywords for 'financial_analysis'.
         """
         query_lower = query.lower()
         edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
+        fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
         
-        # Bias towards educational content when scores are equal or no keywords found
+        # If financial keywords predominate, route to financial_analysis
+        if fin_score > edu_score and fin_score > sales_score:
+            return "financial_analysis"
+
+        # Otherwise keep your original approach
         return "educational_content" if edu_score >= sales_score else "sales_leads"
 
     def _call_llm(self, system_message: str, user_message: str) -> str:
         """
-        Make an API call to SambaNova's LLM.
+        Make an API call to SambaNova's LLM (same logic you had).
         """
         headers = {
             "Authorization": f"Bearer {self.sambanova_key}",
@@ -80,7 +111,7 @@ class QueryRouterService:
             return self._get_default_response(self._detect_query_type(user_message))
 
     def _get_default_response(self, detected_type: str) -> str:
-        """Return a default structured response based on detected type"""
+        """Return a default structured response based on detected type, also handling financial_analysis."""
         if detected_type == "educational_content":
             return json.dumps({
                 "type": "educational_content",
@@ -90,6 +121,16 @@ class QueryRouterService:
                     "focus_areas": ["key concepts", "practical applications"]
                 }
             })
+        elif detected_type == "financial_analysis":
+            return json.dumps({
+                "type": "financial_analysis",
+                "parameters": {
+                    "query_text": "",
+                    "ticker": "",
+                    "company_name": ""
+                }
+            })
+        # else fallback is sales_leads
         return json.dumps({
             "type": "sales_leads",
             "parameters": {
@@ -102,28 +143,26 @@ class QueryRouterService:
         })
 
     def _normalize_educational_params(self, params: Dict) -> Dict:
-        """Normalize educational content parameters with defaults"""
-        # Handle focus areas
+        """Normalize educational content parameters with defaults."""
         focus_areas = params.get("focus_areas", [])
         if isinstance(focus_areas, str):
             focus_areas = [area.strip() for area in focus_areas.split(",")]
         elif not focus_areas:
             focus_areas = ["key concepts", "practical applications"]
 
-        # Validate and default audience_level
         valid_levels = ["beginner", "intermediate", "advanced"]
-        audience_level = params.get("audience_level", "intermediate").lower()
+        audience_level = params.get("audience_level","intermediate").lower()
         if audience_level not in valid_levels:
             audience_level = "intermediate"
 
         return {
-            "topic": params.get("topic", ""),
+            "topic": params.get("topic",""),
             "audience_level": audience_level,
             "focus_areas": focus_areas
         }
 
     def _normalize_sales_params(self, params: Dict) -> Dict:
-        """Normalize sales leads parameters with defaults"""
+        """Normalize sales leads parameters with defaults."""
         return {
             "industry": params.get("industry", ""),
             "company_stage": params.get("company_stage", ""),
@@ -131,103 +170,134 @@ class QueryRouterService:
             "funding_stage": params.get("funding_stage", ""),
             "product": params.get("product", "")
         }
-    
+
+    def _normalize_financial_params(self, params: Dict) -> Dict:
+        """Normalize financial analysis parameters with defaults."""
+        return {
+            "query_text": params.get("query_text",""),
+            "ticker": params.get("ticker",""),
+            "company_name": params.get("company_name","")
+        }
+
+    def _final_override(self, user_query: str, chosen_type: str) -> str:
+        """
+        If user query explicitly mentions 'technical analysis' or 'fundamental analysis',
+        or certain override phrases, we force 'financial_analysis'.
+        This ensures queries like 'Could you do fundamental and technical analysis on Tesla?'
+        won't route to educational_content.
+        """
+        qlower = user_query.lower()
+
+        # If user typed both "fundamental" and "analysis", or "technical" and "analysis",
+        # or special override phrases, force financial.
+        if "fundamental analysis" in qlower or "technical analysis" in qlower:
+            return "financial_analysis"
+
+        # Check for combined phrase like "fundamental and technical analysis" etc.
+        for phrase in self.override_phrases:
+            if phrase in qlower:
+                return "financial_analysis"
+
+        return chosen_type
+
     def route_query(self, query: str) -> QueryType:
         """
-        Route the query to appropriate endpoint using LLM with few-shot examples.
+        Our main routing method with LLM. 
+        We do:
+          1) initial detection with _detect_query_type
+          2) call LLM with a few-shot system prompt
+          3) parse/normalize
+          4) final override if we see certain phrases in user query
         """
         detected_type = self._detect_query_type(query)
         
-        system_message = """
+        system_message = f"""
         You are a query routing expert that categorizes queries and extracts structured information.
         You must ALWAYS return a valid JSON object with 'type' and 'parameters'.
-        
+
+        We have three possible types: 'sales_leads', 'educational_content', or 'financial_analysis'.
+
         Important rules:
-        1. If a query is purely about a technical topic or concept without company/business context, treat it as educational_content
-        2. Only categorize as sales_leads if there's a clear intention to find companies, products, or business opportunities
-        
+        1. If a query is purely about a technical topic or concept without business context, treat as 'educational_content'.
+        2. Only categorize as 'sales_leads' if there's a clear intention to find companies, products, or business leads.
+        3. If user is talking about stock analysis, risk metrics, price targets, or fundamental/technical financial details, route to 'financial_analysis'.
+
         Examples:
-        
+
         Query: "Find AI startups in Boston"
-        {
-            "type": "sales_leads",
-            "parameters": {
-                "industry": "AI",
-                "company_stage": "startup",
-                "geography": "Boston",
-                "funding_stage": "",
-                "product": ""
-            }
-        }
-        
+        {{
+          "type": "sales_leads",
+          "parameters": {{
+            "industry": "AI",
+            "company_stage": "startup",
+            "geography": "Boston",
+            "funding_stage": "",
+            "product": ""
+          }}
+        }}
+
         Query: "High Bandwidth Memory and SRAM"
-        {
-            "type": "educational_content",
-            "parameters": {
-                "topic": "High Bandwidth Memory and SRAM technologies",
-                "audience_level": "intermediate",
-                "focus_areas": ["architecture comparison", "performance characteristics", "implementation details"]
-            }
-        }
-        
-        Query: "Quantum Computing Architecture"
-        {
-            "type": "educational_content",
-            "parameters": {
-                "topic": "Quantum Computing Architecture",
-                "audience_level": "intermediate",
-                "focus_areas": ["system design", "quantum principles", "hardware implementation"]
-            }
-        }
-        
-        Query: "RISC-V processor manufacturers in Asia"
-        {
-            "type": "sales_leads",
-            "parameters": {
-                "industry": "semiconductor",
-                "company_stage": "",
-                "geography": "Asia",
-                "funding_stage": "",
-                "product": "RISC-V processors"
-            }
-        }
-        
-        Query: "Neural Network Accelerators"
-        {
-            "type": "educational_content",
-            "parameters": {
-                "topic": "Neural Network Accelerators",
-                "audience_level": "intermediate",
-                "focus_areas": ["hardware architecture", "optimization techniques", "performance analysis"]
-            }
-        }
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "High Bandwidth Memory and SRAM technologies",
+            "audience_level": "intermediate",
+            "focus_areas": ["architecture comparison", "performance characteristics", "implementation details"]
+          }}
+        }}
+
+        Query: "Perform a fundamental analysis on Apple"
+        {{
+          "type": "financial_analysis",
+          "parameters": {{
+            "query_text": "Perform a fundamental analysis on Apple",
+            "ticker": "",
+            "company_name": ""
+          }}
+        }}
+
+        User query: "{query}"
+        Initial type detection suggests: {detected_type}
+
+        Return ONLY JSON with 'type' and 'parameters'.
         """
 
-        user_message = f"""
-        Query: "{query}"
-        
-        Based on the examples above, categorize this query and extract relevant parameters.
-        Initial type detection suggests: {detected_type}
-        
-        Return ONLY a JSON object with the same structure as the examples.
-        """
+        user_message = "Please classify and extract parameters."
 
         try:
-            result = self._call_llm(system_message, user_message)
-            parsed_result = json.loads(result)
-            
-            # Use keyword detection as fallback
+            llm_result_str = self._call_llm(system_message, user_message)
+            parsed_result = json.loads(llm_result_str)
+
+            # If LLM didn't provide "type", fallback
             if "type" not in parsed_result:
                 parsed_result["type"] = detected_type
-            
-            # Normalize parameters based on type
+
+            # Now do final param normalization
             if parsed_result["type"] == "educational_content":
-                parsed_result["parameters"] = self._normalize_educational_params(parsed_result.get("parameters", {}))
+                parsed_result["parameters"] = self._normalize_educational_params(
+                    parsed_result.get("parameters", {})
+                )
+            elif parsed_result["type"] == "financial_analysis":
+                parsed_result["parameters"] = self._normalize_financial_params(
+                    parsed_result.get("parameters", {})
+                )
             else:
-                parsed_result["parameters"] = self._normalize_sales_params(parsed_result.get("parameters", {}))
-                
+                # default to sales_leads
+                parsed_result["parameters"] = self._normalize_sales_params(
+                    parsed_result.get("parameters", {})
+                )
+
+            # final override check
+            final_type = self._final_override(query, parsed_result["type"])
+            parsed_result["type"] = final_type
+
             return QueryType(**parsed_result)
             
         except json.JSONDecodeError as e:
-            print(f"JSON decode error: {str(e)}")
-            return QueryType(**json.loads(self._get_default_response(detected_type))) 
+            print(f"[route_query] JSON decode error: {str(e)}")
+            # fallback if LLM fails
+            fallback_json = self._get_default_response(detected_type)
+            fallback_dict = json.loads(fallback_json)
+            # also final override
+            fallback_dict["type"] = self._final_override(query, fallback_dict["type"])
+            return QueryType(**fallback_dict)

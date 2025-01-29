@@ -21,21 +21,23 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Original
 from services.query_router_service import QueryRouterService
 from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 
+# New
+from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
+from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
 
 class QueryRequest(BaseModel):
     query: str
-
 
 class EduContentRequest(BaseModel):
     topic: str
     audience_level: str = "intermediate"
     additional_context: Optional[Dict[str, List[str]]] = None
-
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -167,6 +169,44 @@ class LeadGenerationAPI:
 
                     return JSONResponse(content=sections_with_content)
 
+                elif query_type == "financial_analysis":
+                    if not exa_key or not serper_key:
+                        return JSONResponse(
+                            status_code=401,
+                            content={"error": "Missing required Exa or Serper API keys for financial analysis"}
+                        )
+                    
+                    try:
+                        # Extract ticker/company from user query
+                        extractor = FinancialPromptExtractor(sambanova_key)
+                        print(f'Extractor: {extractor}')
+                        ticker, company = extractor.extract_info(parameters.get("query_text", ""))
+                        
+                        # Create proper inputs dictionary
+                        analysis_inputs = {
+                            "ticker": ticker,
+                            "company_name": company
+                        }
+                        
+                        crew = FinancialAnalysisCrew(
+                            sambanova_key=sambanova_key,
+                            exa_key=exa_key,
+                            serper_key=serper_key,
+                            user_id=user_id,
+                            run_id=run_id
+                        )
+                        
+                        result = crew.execute_financial_analysis(analysis_inputs)
+                        parsed_fin = json.loads(result)
+                        return JSONResponse(content={"results": parsed_fin})
+                        
+                    except Exception as e:
+                        print(f"[/execute/financial_analysis] Error: {str(e)}")
+                        return JSONResponse(
+                            status_code=500,
+                            content={"error": str(e)}
+                        )
+
                 else:
                     return JSONResponse(
                         status_code=400,
@@ -183,11 +223,10 @@ class LeadGenerationAPI:
             SSE endpoint that streams agent logs for the given user_id + run_id.
             """
             channel = f"agent_thoughts:{user_id}:{run_id}"
-            print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}")
-            print(f"[stream_logs] Subscribing to channel: {channel}")
+            print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}, channel={channel}")
 
             try:
-                # Use the same environment-based config
+                # Use environment-based config
                 redis_host = os.getenv("REDIS_HOST", "localhost")
                 redis_port = int(os.getenv("REDIS_PORT", "6379"))
                 local_redis = redis.Redis(
@@ -209,35 +248,28 @@ class LeadGenerationAPI:
                                 "message": "Connected to SSE stream"
                             })
                         }
-
                         while True:
                             if await request.is_disconnected():
                                 print("[stream_logs] Client disconnected")
                                 break
 
                             message = pubsub.get_message(timeout=1.0)
-                            if message:
-                                # This is a normal publish
-                                if message["type"] == "message":
-                                    data_str = message["data"]
-                                    yield {
-                                        "event": "message",
-                                        "data": data_str
-                                    }
+                            if message and message["type"] == "message":
+                                data_str = message["data"]
+                                yield {
+                                    "event": "message",
+                                    "data": data_str
+                                }
 
                             await asyncio.sleep(0.25)
-                            # send a keep-alive ping
                             yield {
                                 "event": "ping",
-                                "data": json.dumps({"type": "ping"})
+                                "data": json.dumps({"type":"ping"})
                             }
-
-                    except Exception as e:
-                        print(f"[stream_logs] Error in event generator: {e}")
-                        import traceback
-                        traceback.print_exc()
+                    except Exception as ex:
+                        print(f"[stream_logs] Error in SSE generator: {ex}")
                     finally:
-                        print("[stream_logs] Unsubscribing and closing pubsub")
+                        print("[stream_logs] unsubscribing, closing pubsub")
                         pubsub.unsubscribe()
                         pubsub.close()
                         local_redis.close()
@@ -245,19 +277,13 @@ class LeadGenerationAPI:
                 return EventSourceResponse(
                     event_generator(),
                     media_type="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive"
-                    }
+                    headers={"Cache-Control":"no-cache","Connection":"keep-alive"}
                 )
-
             except Exception as e:
                 print(f"[stream_logs] Error setting up SSE: {e}")
-                import traceback
-                traceback.print_exc()
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-    async def execute_research(self, crew, parameters):
+    async def execute_research(self, crew, parameters: Dict[str,Any]):
         extractor = UserPromptExtractor(crew.sambanova_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
@@ -274,6 +300,34 @@ class LeadGenerationAPI:
         result = await loop.run_in_executor(None, future.result)
         return result
 
+    async def execute_financial_analysis(self, sambanova_key: str, exa_key: str, serper_key: str,
+                                         user_id: str, run_id: str,
+                                         parameters: Dict[str,Any]):
+        """
+        Instantiates FinancialAnalysisCrew and runs the pipeline.
+        We parse ticker + company_name from the user prompt with FinancialPromptExtractor.
+        """
+        fextractor = FinancialPromptExtractor(sambanova_key)
+        query_text = parameters.get("query_text","")
+        (extracted_ticker, extracted_company) = fextractor.extract_info(query_text)
+
+        if not extracted_ticker:
+            extracted_ticker = parameters.get("ticker","")
+        if not extracted_company:
+            extracted_company = parameters.get("company_name","")
+
+        if not extracted_ticker:
+            extracted_ticker = "AAPL"
+        if not extracted_company:
+            extracted_company = "Apple Inc"
+
+        fac = FinancialAnalysisCrew(sambanova_key, exa_key, serper_key, user_id, run_id)
+        input_vars = {"ticker": extracted_ticker, "company_name": extracted_company}
+
+        loop = asyncio.get_running_loop()
+        future = self.executor.submit(fac.execute_financial_analysis, input_vars)
+        raw = await loop.run_in_executor(None, future.result)
+        return raw
 
 def create_app():
     api = LeadGenerationAPI()

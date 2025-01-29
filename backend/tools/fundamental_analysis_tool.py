@@ -2,7 +2,7 @@ import yfinance as yf
 from typing import Dict, Any, List
 from crewai.tools import tool
 
-@tool
+@tool('Fundamental Analysis Tool')
 def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
     """
     Expanded fundamental analysis with additional metrics: EPS, P/S, short ratio, margins, etc.

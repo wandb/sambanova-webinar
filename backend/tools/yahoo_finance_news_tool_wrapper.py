@@ -1,14 +1,16 @@
-from langchain_community.tools.yahoo_finance_news import YahooFinanceNewsTool
+from langchain_community.tools.yahoo_finance_news import YahooFinanceNewsInput
 from crewai.tools import tool
 
 @tool
-def yahoo_finance_news_tool(ticker: str):
+def yahoo_news_tool(ticker: str):
     """
-    Simple wrapper around YahooFinanceNewsTool from langchain_community.
-    Returns JSON with top news articles for the ticker.
+    Perform a comprehensive technical analysis on the given stock symbol.
+    
+    Args:
+        ticker (str): The stock symbol to analyze.
+        period (str): The time period for analysis. Default is "1y" (1 year).
+    
+    Returns:
+        dict: A dictionary with the detailed technical analysis results.
     """
-    news_tool = YahooFinanceNewsTool()
-    raw = news_tool.run(ticker)
-    # Typically raw is a JSON string. 
-    # Return dict with 'news_items'
-    return {"news_items": raw}
+    return YahooFinanceNewsInput(query=ticker)

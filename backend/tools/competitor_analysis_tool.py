@@ -2,7 +2,7 @@ import yfinance as yf
 from typing import Dict, Any, List
 from crewai.tools import tool
 
-@tool
+@tool('Competitor Analysis Tool')
 def competitor_analysis_tool(tickers: List[str]) -> Dict[str, Any]:
     """
     For each ticker in 'tickers', fetch fundamental info from yfinance. 

@@ -21,10 +21,11 @@ from dotenv import load_dotenv
 from tools.competitor_llm_tool import CompetitorLLMTool
 from tools.competitor_analysis_tool import competitor_analysis_tool
 from tools.fundamental_analysis_tool import fundamental_analysis_tool
-from tools.technical_analysis_tool import technical_analysis_tool
+from tools.technical_analysis_tool import yf_tech_analysis
 from tools.risk_assessment_tool import risk_assessment_tool
-from tools.yahoo_finance_news_tool_wrapper import yahoo_finance_news_tool
+from tools.yahoo_finance_news_tool_wrapper import yahoo_news_tool
 from tools.reddit_discussion_tool import reddit_discussion_tool
+from crewai_tools import SerperDevTool
 
 load_dotenv()
 
@@ -123,7 +124,7 @@ class NewsItem(BaseModel):
     published_time: str
 
 class YahooNewsData(BaseModel):
-    news_items: List[NewsItem]  # because the tool might return a list of dict. We can refine as needed.
+    news_items: List[NewsItem]
 
 class RedditPost(BaseModel):
     title: str
@@ -140,9 +141,7 @@ class FinancialAnalysisResult(BaseModel):
     fundamental: FundamentalData
     technical: TechnicalData
     risk: RiskData
-    news: YahooNewsData
-    reddit: RedditData
-    summary: str = ""
+    comprehensive_summary: str = ""
 
 #####################################
 class FinancialAnalysisCrew:
@@ -165,6 +164,12 @@ class FinancialAnalysisCrew:
             max_tokens=4096,
             api_key=sambanova_key
         )
+        self.aggregator_llm = LLM(
+            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            temperature=0.0,
+            max_tokens=4096,
+            api_key=sambanova_key
+        )
         self.sambanova_key = sambanova_key
         self.exa_key = exa_key
         self.serper_key = serper_key
@@ -176,79 +181,89 @@ class FinancialAnalysisCrew:
 
     def _init_agents(self):
         # 1) competitor LLM
-
         comp_llm_tool = CompetitorLLMTool(sambanova_api_key=self.sambanova_key)
         self.competitor_llm_agent = Agent(
             role="Competitor Ticker Finder",
-            goal="Given company_name {company_name}, call competitor_llm_tool to get competitor tickers.",
-            backstory="You are a financial analyst who is tasked with finding the competitors of a given company. You will be given a company name and you will need to find the competitors of that company. You will use the competitor_llm_tool to get the competitors of the company.",
+            goal="Identify and analyze 3 primary competitors for the target company using market intelligence and financial metrics",
+            backstory="Expert in competitive analysis and market research, specializing in identifying key market players and their relative positioning within their industry sectors.",
             llm=self.llm,
             tools=[comp_llm_tool],
-            allow_delegation=False,
-            verbose=True
-        )
-        # 2) competitor analysis
-        self.competitor_analysis_agent = Agent(
-            role="Competitor Analysis Agent",
-            goal="Given competitor tickers, retrieve competitor fundamentals. Use competitor_analysis_tool.",
-            backstory="You are a financial analyst who is tasked with finding the competitors of a given company. You will be given a company name and you will need to find the competitors of that company. You will use the competitor_analysis_tool to get the fundamentals of the competitors of the company.",
-            llm=self.llm,
-            tools=[competitor_analysis_tool],
             allow_delegation=False,
             verbose=True,
             output_pydantic=CompetitorBlock
         )
+
+        # 2) competitor analysis
+        self.competitor_analysis_agent = Agent(
+            role="Competitor Analysis Agent",
+            goal="Perform detailed comparative analysis of identified competitors' key financial and operational metrics",
+            backstory="Financial analyst specializing in comparative company analysis, with expertise in evaluating competitive advantages and market positioning through quantitative metrics.",
+            llm=self.llm,
+            tools=[competitor_analysis_tool],
+            allow_delegation=False,
+            verbose=True,
+            output_pydantic=CompetitorInfo
+        )
+
         # 3) fundamental agent
         self.fundamental_agent = Agent(
             role="Fundamental Analysis Agent",
-            goal="Gather advanced fundamentals, returns CSV from fundamental_analysis_tool.",
-            backstory="You are a financial analyst who is tasked with gathering advanced fundamentals and returns CSV for a given company. You will be given a company name and you will need to gather the advanced fundamentals and returns CSV for that company. You will use the fundamental_analysis_tool to get the advanced fundamentals and returns CSV for the company.",
+            goal="Analyze company fundamentals through key financial ratios, growth metrics, and operational efficiency indicators of stock {ticker}",
+            backstory="Senior financial analyst with expertise in fundamental analysis, specializing in evaluating company financial health and growth prospects through comprehensive metric analysis.",
             llm=self.llm,
             tools=[fundamental_analysis_tool],
             allow_delegation=False,
             verbose=True,
             output_pydantic=FundamentalData
         )
-        # 4) technical agent
-        self.technical_agent = Agent(
-            role="Technical Analysis Agent",
-            goal="Compute technical indicators, chart_data.",
-            backstory="You are a financial analyst who is tasked with computing technical indicators and chart data for a given company. You will be given a company name and you will need to compute the technical indicators and chart data for that company. You will use the technical_analysis_tool to get the technical indicators and chart data for the company.",
-            llm=self.llm,
-            tools=[technical_analysis_tool],
-            allow_delegation=False,
-            verbose=True,
-            output_pydantic=TechnicalData
-        )
+
+        # # 4) technical agent
+        # self.technical_agent = Agent(
+        #     role="Technical Analysis Agent",
+        #     goal="Evaluate price patterns, momentum indicators, and market trends through technical analysis",
+        #     backstory="Technical analysis specialist with deep expertise in chart patterns, technical indicators, and trend analysis for market timing and price movement prediction.",
+        #     llm=self.llm,
+        #     tools=[yf_tech_analysis],
+        #     allow_delegation=False,
+        #     verbose=True,
+        #     allow_code_execution=True,
+        #     output_pydantic=TechnicalData
+        # )
+
         # 5) risk agent
         self.risk_agent = Agent(
             role="Risk Assessment Agent",
-            goal="Compute Beta, Sharpe, VaR, maxDD, daily_returns CSV, etc.",
-            backstory="You are a financial analyst who is tasked with computing risk metrics for a given company. You will be given a company name and you will need to compute the risk metrics for that company. You will use the risk_assessment_tool to get the risk metrics for the company.",
+            goal="Evaluate investment risks through quantitative risk metrics and market exposure analysis",
+            backstory="Risk management specialist focusing on quantitative risk assessment, market volatility analysis, and portfolio risk metrics calculation.",
             llm=self.llm,
             tools=[risk_assessment_tool],
             allow_delegation=False,
             verbose=True,
             output_pydantic=RiskData
         )
+
         # 6) news agent
+        # Temporarily set serper key in environment for this tool instance
+        os.environ["SERPER_API_KEY"] = self.serper_key
+        tool = SerperDevTool()
+
         self.news_agent = Agent(
             role="Financial News Agent",
-            goal="Fetch Yahoo Finance news for a the following ticker:  {ticker}. Use yahoo_finance_news_tool.",
-            backstory="You are a financial analyst who is tasked with fetching financial news for a given ticker. You will be given a ticker and you will need to fetch the financial news for that ticker. You will use the yahoo_finance_news_tool to get the financial news for the ticker.",
-
+            goal="Gather and analyze recent news, market sentiment, and media coverage affecting the ticker {ticker}",
+            backstory="Market intelligence specialist focusing on news analysis, sentiment evaluation, and media impact assessment on company performance.",
             llm=self.llm,
-            tools=[yahoo_finance_news_tool],
+            tools=[SerperDevTool()],
             allow_delegation=False,
             verbose=True,
             output_pydantic=YahooNewsData
         )
+
         # aggregator
         self.aggregator_agent = Agent(
             role="Aggregator Agent",
-            goal="Combine competitor/fundamental/technical/risk/news/reddit into final JSON of type FinancialAnalysisResult.",
-            backstory="You are a financial analyst who is tasked with combining the results from the competitor/fundamental/technical/risk/news/reddit agents into a single JSON of type FinancialAnalysisResult. You will be given the results from the competitor/fundamental/technical/risk/news/reddit agents and you will need to combine them into a single JSON of type FinancialAnalysisResult.",
-            llm=self.llm,
+            goal="Synthesize all analysis components into a comprehensive financial assessment",
+            backstory="Senior financial advisor specializing in comprehensive market analysis, combining multiple analytical perspectives into actionable investment insights.",
+            llm=self.aggregator_llm,
             allow_delegation=False,
             verbose=True,
             output_pydantic=FinancialAnalysisResult
@@ -258,7 +273,7 @@ class FinancialAnalysisCrew:
         self.competitor_llm_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "CompLLM")
         self.competitor_analysis_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "CompAnalysis")
         self.fundamental_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "FundAgent")
-        self.technical_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "TechAgent")
+        #self.technical_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "TechAgent")
         self.risk_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "RiskAgent")
         self.news_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "NewsAgent")
         self.aggregator_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Aggregator")
@@ -266,134 +281,73 @@ class FinancialAnalysisCrew:
     def _init_tasks(self):
         # 1) competitor_llm_task
         self.competitor_llm_task = Task(
-            description="Call competitor_llm_tool(company_name, sambanova_key) => competitor tickers",
+            description="Identify and analyze 3 key competitors for the follwing company using market intelligence: Company Ticker: {ticker}",
             agent=self.competitor_llm_agent,
-            expected_output=(
-                "[\n"
-                "  {\n"
-                "    'ticker': 'MSFT',\n"
-                "    'company_name': 'Microsoft',\n"
-                "    'market_cap': '2.8T',\n"
-                "    'industry': 'Technology',\n"
-                "    'description': 'Global technology company...',\n"
-                "    'products': ['Windows', 'Office 365', 'Azure', 'Xbox'],\n"
-                "    'competitors': ['AAPL', 'GOOGL', 'AMZN'],\n"
-                "    'revenue': '168.1B',\n"
-                "    'revenue_growth': '0.18'\n"
-                "  }\n"
-                "]"
-            ),
-            
+            expected_output="List of 3 tickers of competitors closest to the target company in the same industry",
+            max_iterations=2
         )
+
         # 2) competitor_analysis_task
         self.competitor_analysis_task = Task(
-            description="Given the competitor tickers from competitor_llm_task, call competitor_analysis_tool(tickers).",
+            description="Perform detailed comparative analysis of identified competitors using financial and operational metrics pass in the tickers from the competitor_llm_task as a list of strings",
+            
             agent=self.competitor_analysis_agent,
             context=[self.competitor_llm_task],
-            expected_output=(
-                "[\n"
-                "  '{\n"
-                "    'competitor_tickers': ['AAPL', 'GOOGL', 'AMZN'],\n"
-                "    'competitor_details': [{'ticker': 'AAPL', 'name': 'Apple', 'market_cap': '2.8T', 'industry': 'Technology', 'description': 'Global technology company...', 'products': ['iPhone', 'iPad', 'Mac', 'Apple Watch', 'Apple TV'], 'revenue': '168.1B', 'revenue_growth': '0.18'}]\n"
-                "  }\n"
-                "]"
-            )
+            expected_output="Expected fields: competitor_tickers[], competitor_details[]{ticker, name, market_cap, industry, sector, pe_ratio, ps_ratio, ebitda_margins, profit_margins, revenue_growth, earnings_growth}"
         )
+
         # 3) fundamental_task
         self.fundamental_task = Task(
-            description="Call fundamental_analysis_tool(ticker).",
+            description="Analyze company fundamentals through comprehensive financial metrics and ratios for the following company: Company Ticker: {ticker}. Pass in this ticker to the fundamental_analysis_tool as a string",
             agent=self.fundamental_agent,
-            expected_output=(
-                "{\n"
-                "  'company_name': 'Apple',\n"
-                "  'sector': 'Technology',\n"
-                "  'industry': 'Consumer Electronics',\n"
-                "  'market_cap': '2.8T',\n"
-                "  'pe_ratio': '25.0',\n"
-                "  'forward_pe': '20.0',\n"
-                "  ...\n"
-                "}"
-            )
+            expected_output="Expected fields: company_name, sector, industry, market_cap, pe_ratio, forward_pe, peg_ratio, ps_ratio, price_to_book, dividend_yield, beta, quarterly_fundamentals"
         )
-        # 4) technical_task
-        self.technical_task = Task(
-            description="Call technical_analysis_tool(ticker).",
-            agent=self.technical_agent,
-            expected_output=(
-                "{\n"
-                "  'moving_averages': {'50': 150.0, '200': 140.0},\n"
-                "  'rsi': 70.0,\n"
-                "  'macd': {'12': 1.0, '26': 0.5},\n"
-                "  ...\n"
-                "}"
-            )
-        )
+
+        # # 4) technical_task
+        # self.technical_task = Task(
+        #     description=(
+        #     "Perform technical analysis on {ticker}. Include:\n"
+        #     "1. 50-day and 200-day moving averages (1 year).\n"
+        #     "2. Key support and resistance levels (3 each).\n"
+        #     "3. RSI and MACD indicators.\n"
+        #     "4. Volume analysis (3 months).\n"
+        #     "5. Significant chart patterns (6 months).\n"
+        #     "6. Fibonacci retracement levels.\n"
+        #     "7. Comparison with sector's average.\n"
+        #     "Use the yf_tech_analysis tool for data."
+        # ),
+        #     agent=self.technical_agent,
+        #     expected_output="Expected fields: moving_averages, rsi, macd, bollinger_bands, volatility, momentum, support_levels, resistance_levels, detected_patterns, chart_data"
+        # )
+
         # 5) risk_task
         self.risk_task = Task(
-            description="Call risk_assessment_tool(ticker).",
+            description="Calculate and analyze key risk metrics and market exposure indicators for the following company: Company Ticker: {ticker}. Pass in this ticker to the risk_assessment_tool as a string and period as a string ie '1y' and benchmark as a string ie '^GSPC' for the S&P 500",
             agent=self.risk_agent,
-            expected_output=(
-                "{\n"
-                "  'beta': 1.2,\n"
-                "  'sharpe_ratio': 0.5,\n"
-                "  'value_at_risk_95': 1.5,\n"
-                "  'max_drawdown': 20.0,\n"
-                "  ...\n"
-                "}"
-            )
+            expected_output="Expected fields: beta, sharpe_ratio, value_at_risk_95, max_drawdown, volatility, daily_returns"
         )
+
         # 6) news_task
         self.news_task = Task(
-            description="Call yahoo_finance_news_tool with {ticker} as inputs.",
+            description="Gather and analyze recent news and market sentiment data for the following company: Company Name: {company_name}. Pass in this company name to the tool as a string and search for the LATEST financial news, this is key, analyze all the snippets, retrieve original urls from the link key and turn them all into a single list of news items ad detailed as possible, pay special attention to recent events that may affect the stock price and other metrics  postiv",
             agent=self.news_agent,
-            expected_output=(
-                "News items: [{'title': 'Apple Q4 2024 Earnings', 'link': 'https://finance.yahoo.com/news/apple-q4-2024-earnings-100000000.html', 'published_time': '2024-01-25 10:00:00'}]"
-                
-            )
+            expected_output="A list of news items with the title, content, link, and published_time",
+            output_pydantic=YahooNewsData
         )
+
         # 7) aggregator_task
         self.aggregator_task = Task(
             description=(
-                "Combine partial results from competitor_analysis_task, fundamental_task, "
-                "technical_task, risk_task, news_task into a single JSON matching FinancialAnalysisResult. "
-                "Ticker = original ticker. Company_name = original. competitor -> competitor_tickers[], competitor_details[]. "
-                "Then fundamental, technical, risk, news, reddit. Provide a 'summary' bullet point."
+                "Synthesize analyses from all components into a comprehensive financial assessment for the following company: Company Ticker: {ticker}. "
+                "Combine data from competitor analysis, fundamental metrics, technical indicators, "
+                "risk metrics, and market sentiment into a structured report as well a comprehensive summary including the latest news affecting the company, be sure to cross reference the news and events with the stock price and other metrics"
             ),
             agent=self.aggregator_agent,
-            context=[self.competitor_analysis_task, self.fundamental_task, self.technical_task, self.risk_task, self.news_task],
-            expected_output=(
-                #insert expected output here of FinancialAnalysisResult in use all fields by name
-                "{\n"
-                "  'ticker': 'AAPL',\n"
-                "  'company_name': 'Apple',\n"
-                "  'competitor': 'competitor_tickers': ['AAPL', 'GOOGL', 'AMZN'],\n"
-                "    'competitor_details': [{'ticker': 'AAPL', 'name': 'Apple', 'market_cap': '2.8T', 'industry': 'Technology', 'description': 'Global technology company...', 'products': ['iPhone', 'iPad', 'Mac', 'Apple Watch', 'Apple TV'], 'revenue': '168.1B', 'revenue_growth': '0.18'}]\n"
-                "  },\n"
-                "  'fundamental': {'company_name': 'Apple',\n"
-                "    'sector': 'Technology',\n"
-                "    'industry': 'Consumer Electronics',\n"
-                "    'market_cap': '2.8T',\n"
-                "    'pe_ratio': '25.0',\n"
-                "    ...\n"
-                "  },\n"
-                "  'technical': {'moving_averages': {'50': 150.0, '200': 140.0},\n"
-                "    'rsi': 70.0,\n"
-                "    'macd': {'12': 1.0, '26': 0.5},\n"
-                "    ...\n"
-                "  },\n"
-                "  'risk': {'beta': 1.2,\n"
-                "    'sharpe_ratio': 0.5,\n"
-                "    'value_at_risk_95': 1.5,\n"
-                "    'max_drawdown': 20.0,\n"
-                "    ...\n"
-                "  },\n"
-                "  'news': {'news_items': [{'title': 'Apple Q4 2024 Earnings', 'link': 'https://finance.yahoo.com/news/apple-q4-2024-earnings-100000000.html', 'published_time': '2024-01-25 10:00:00'}]\n"
-                "    'reddit_posts': [{'title': 'Apple Q4 2024 Earnings', 'created_utc': 1716768000, 'subreddit': 'apple'}]\n"
-                "  },\n"
-                "  'summary': '...'\n"
-                "}"
-            )
+            context=[self.competitor_analysis_task, self.fundamental_task, self.risk_task, self.news_task],
+            expected_output="Expected json fields with nested objects: ticker, company_name, competitor, fundamental, technical, risk, comprehensive_summary (at least 500 words) This summary should be a comprehensive summary of the entire analysis paying special attention to any news or events that may affect the stock price and other metrics",
+            output_pydantic=FinancialAnalysisResult
         )
+       
 
     def execute_financial_analysis(self, inputs: Dict[str, Any]) -> str:
         """
@@ -401,17 +355,12 @@ class FinancialAnalysisCrew:
           competitor tasks -> parallel fundamental/technical/risk/news -> aggregator
         Expects inputs: {"ticker":"AAPL","company_name":"Apple"}
         """
-        # We'll do competitor tasks in sequence, then fundamental/technical/risk/news in parallel, aggregator last
-        # That means the crew tasks order: competitor_llm_task, competitor_analysis_task, 
-        # then (fundamental_task, technical_task, risk_task, news_task) parallel,
-        # aggregator_task last in sequence.
-
         crew = Crew(
             agents=[
                 self.competitor_llm_agent,
                 self.competitor_analysis_agent,
                 self.fundamental_agent,
-                self.technical_agent,
+                #self.technical_agent,
                 self.risk_agent,
                 self.news_agent,
                 self.aggregator_agent
@@ -421,9 +370,9 @@ class FinancialAnalysisCrew:
                 self.competitor_analysis_task,
                 # parallel stage
                 self.fundamental_task,
-                self.technical_task,
-                  self.risk_task, 
-                  self.news_task,
+                #self.technical_task,
+                self.risk_task, 
+                self.news_task,
                 # aggregator last
                 self.aggregator_task
             ],
@@ -441,7 +390,6 @@ def main():
     run_id = str(uuid.uuid4())
 
     # Example usage:
-    # Suppose user prompt gave us ticker/company
     inputs = {
         "ticker": "NVDA",
         "company_name": "NVIDIA"

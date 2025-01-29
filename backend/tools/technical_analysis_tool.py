@@ -1,86 +1,151 @@
 import yfinance as yf
-import numpy as np
 import pandas as pd
-import talib
-from scipy.signal import find_peaks
-from typing import Dict, Any, List
+import numpy as np
+from datetime import datetime, timedelta
 from crewai.tools import tool
 
-@tool
-def technical_analysis_tool(ticker: str, period: str = "1y") -> Dict[str, Any]:
+
+@tool("yf tech analysis")
+def yf_tech_analysis(ticker: str, period: str = "1y"):
     """
-    Returns major technical indicators plus a 'chart_data' CSV-like array 
-    for the last 120 days.
+    Perform a comprehensive technical analysis on the given stock symbol.
+    
+    Args:
+        ticker (str): The stock symbol to analyze.
+        period (str): The time period for analysis. Default is "1y" (1 year).
+    
+    Returns:
+        dict: A dictionary with the detailed technical analysis results.
     """
-    df = yf.download(ticker, period=period)
-    if df is None or df.empty:
-        return {"error": f"No data for {ticker}"}
-
-    close = df['Close']
-    df['rsi'] = talib.RSI(close, timeperiod=14)
-    df['macd'], df['macd_signal'], df['macd_hist'] = talib.MACD(close,12,26,9)
-    df['upper_bb'], df['middle_bb'], df['lower_bb'] = talib.BBANDS(close, timeperiod=20)
-    df['ma50'] = talib.SMA(close, timeperiod=50)
-    df['ma200'] = talib.SMA(close, timeperiod=200)
-
-    # daily returns -> volatility
-    daily_returns = close.pct_change().dropna()
-    volatility = float(daily_returns.std()*np.sqrt(252))
-
-    momentum = None
-    if len(close)>=20:
-        momentum = float(close.iloc[-1]-close.iloc[-20])
-
-    # detect support/resistance from last 60 days
-    last60 = close[-60:]
-    peaks_idx, _ = find_peaks(last60, distance=5)
-    troughs_idx, _ = find_peaks(-last60, distance=5)
-    peak_vals = [float(last60.iloc[i]) for i in peaks_idx]
-    trough_vals = [float(last60.iloc[i]) for i in troughs_idx]
-
-    # possible chart patterns
-    detected_patterns = []
-    if len(peak_vals)>=2:
-        if abs(peak_vals[-1]-peak_vals[-2])/peak_vals[-2]<0.02:
-            detected_patterns.append("double_top")
-    if len(trough_vals)>=2:
-        if abs(trough_vals[-1]-trough_vals[-2])/trough_vals[-2]<0.02:
-            detected_patterns.append("double_bottom")
-
-    # chart_data for last 120 days 
-    subset = df.tail(120)
-    chart_data = []
-    for idx, row in subset.iterrows():
-        chart_data.append({
-            "date": str(idx.date()),
-            "open": float(row["Open"]),
-            "high": float(row["High"]),
-            "low": float(row["Low"]),
-            "close": float(row["Close"]),
-            "volume": float(row["Volume"])
-        })
-
-    result = {
-        "moving_averages": {
-            "ma50": float(df['ma50'].iloc[-1]) if not pd.isna(df['ma50'].iloc[-1]) else None,
-            "ma200": float(df['ma200'].iloc[-1]) if not pd.isna(df['ma200'].iloc[-1]) else None
-        },
-        "rsi": float(df['rsi'].iloc[-1]) if not pd.isna(df['rsi'].iloc[-1]) else None,
-        "macd": {
-            "macd": float(df['macd'].iloc[-1]) if not pd.isna(df['macd'].iloc[-1]) else None,
-            "signal": float(df['macd_signal'].iloc[-1]) if not pd.isna(df['macd_signal'].iloc[-1]) else None,
-            "hist": float(df['macd_hist'].iloc[-1]) if not pd.isna(df['macd_hist'].iloc[-1]) else None
-        },
-        "bollinger_bands": {
-            "upper": float(df['upper_bb'].iloc[-1]) if not pd.isna(df['upper_bb'].iloc[-1]) else None,
-            "middle": float(df['middle_bb'].iloc[-1]) if not pd.isna(df['middle_bb'].iloc[-1]) else None,
-            "lower": float(df['lower_bb'].iloc[-1]) if not pd.isna(df['lower_bb'].iloc[-1]) else None,
-        },
-        "volatility": volatility,
-        "momentum": momentum,
-        "support_levels": sorted(trough_vals),
-        "resistance_levels": sorted(peak_vals),
-        "detected_patterns": detected_patterns,
-        "chart_data": chart_data
+    # Download data
+    data = yf.download(ticker, period=period)
+    
+    # Basic Moving Averages
+    for ma in [20, 50, 100, 200]:
+        data[f'{ma}_MA'] = data['Close'].rolling(window=ma).mean()
+    
+    # Exponential Moving Averages
+    for ema in [12, 26, 50, 200]:
+        data[f'{ema}_EMA'] = data['Close'].ewm(span=ema, adjust=False).mean()
+    
+    # MACD
+    data['MACD'] = data['12_EMA'] - data['26_EMA']
+    data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
+    data['MACD_Histogram'] = data['MACD'] - data['Signal_Line']
+    
+    # RSI
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    # Align the DataFrames before division
+    gain, loss = gain.align(loss, axis=1, copy=False)
+    rs = gain / loss
+    data['RSI'] = 100 - (100 / (1 + rs))
+    
+    # Bollinger Bands
+    data['20_MA'] = data['Close'].rolling(window=20).mean()
+    data['20_SD'] = data['Close'].rolling(window=20).std()
+    data['Upper_BB'] = data['20_MA'] + (data['20_SD'] * 2)
+    data['Lower_BB'] = data['20_MA'] - (data['20_SD'] * 2)
+    
+    # Stochastic Oscillator
+    low_14 = data['Low'].rolling(window=14).min()
+    high_14 = data['High'].rolling(window=14).max()
+    data['%K'] = (data['Close'] - low_14) / (high_14 - low_14) * 100
+    data['%D'] = data['%K'].rolling(window=3).mean()
+    
+    # Average True Range (ATR)
+    data['TR'] = np.maximum(data['High'] - data['Low'], 
+                            np.maximum(abs(data['High'] - data['Close'].shift()), 
+                                       abs(data['Low'] - data['Close'].shift())))
+    data['ATR'] = data['TR'].rolling(window=14).mean()
+    
+    # On-Balance Volume (OBV)
+    data['OBV'] = (np.sign(data['Close'].diff()) * data['Volume']).cumsum()
+    
+    # Fibonacci Retracement Levels
+    max_price = data['High'].max()
+    min_price = data['Low'].min()
+    diff = max_price - min_price
+    
+    fibonacci_levels = {
+        '0%': max_price,
+        '23.6%': max_price - 0.236 * diff,
+        '38.2%': max_price - 0.382 * diff,
+        '50%': max_price - 0.5 * diff,
+        '61.8%': max_price - 0.618 * diff,
+        '100%': min_price
     }
-    return result
+    
+    # Calculate support and resistance levels
+    data['Support'] = data['Low'].rolling(window=20).min()
+    data['Resistance'] = data['High'].rolling(window=20).max()
+    
+    # Identify potential breakouts
+    data['Potential_Breakout'] = np.where((data['Close'] > data['Resistance'].shift(1)), 'Bullish Breakout',
+                                 np.where((data['Close'] < data['Support'].shift(1)), 'Bearish Breakdown', 'No Breakout'))
+    
+    # Trend Identification
+    data['Trend'] = np.where((data['Close'] > data['200_MA']) & (data['50_MA'] > data['200_MA']), 'Bullish',
+                    np.where((data['Close'] < data['200_MA']) & (data['50_MA'] < data['200_MA']), 'Bearish', 'Neutral'))
+    
+    # Volume Analysis
+    data['Volume_MA'] = data['Volume'].rolling(window=20).mean()
+    data['Volume_Trend'] = np.where(data['Volume'] > data['Volume_MA'], 'Above Average', 'Below Average')
+    
+    # Prepare the results
+    latest = data.iloc[-1]
+    analysis_results = {
+        'Current_Price': latest['Close'],
+        'Moving_Averages': {f'{ma}_MA': latest[f'{ma}_MA'] for ma in [20, 50, 100, 200]},
+        'Exponential_MAs': {f'{ema}_EMA': latest[f'{ema}_EMA'] for ema in [12, 26, 50, 200]},
+        'MACD': {
+            'MACD': latest['MACD'],
+            'Signal_Line': latest['Signal_Line'],
+            'Histogram': latest['MACD_Histogram']
+        },
+        'RSI': latest['RSI'],
+        'Bollinger_Bands': {
+            'Upper': latest['Upper_BB'],
+            'Middle': latest['20_MA'],
+            'Lower': latest['Lower_BB']
+        },
+        'Stochastic': {
+            '%K': latest['%K'],
+            '%D': latest['%D']
+        },
+        'ATR': latest['ATR'],
+        'OBV': latest['OBV'],
+        'Fibonacci_Levels': fibonacci_levels,
+        'Support_Resistance': {
+            'Support': latest['Support'],
+            'Resistance': latest['Resistance']
+        },
+        'Potential_Breakout': latest['Potential_Breakout'],
+        'Trend': latest['Trend'],
+        'Volume': {
+            'Current': latest['Volume'],
+            'MA': latest['Volume_MA'],
+            'Trend': latest['Volume_Trend']
+        }
+    }
+    
+    # Add some basic statistics
+    analysis_results['Statistics'] = {
+        'Yearly_High': data['High'].max(),
+        'Yearly_Low': data['Low'].min(),
+        'Average_Volume': data['Volume'].mean(),
+        'Volatility': data['Close'].pct_change().std() * (252 ** 0.5)  # Annualized volatility
+    }
+    
+    # Add interpretation
+    analysis_results['Interpretation'] = {
+        'Trend': 'Bullish' if latest['Close'] > latest['200_MA'] else 'Bearish',
+        'RSI': 'Overbought' if latest['RSI'] > 70 else ('Oversold' if latest['RSI'] < 30 else 'Neutral'),
+        'MACD': 'Bullish' if latest['MACD'] > latest['Signal_Line'] else 'Bearish',
+        'Stochastic': 'Overbought' if latest['%K'] > 80 else ('Oversold' if latest['%K'] < 20 else 'Neutral'),
+        'Bollinger_Bands': 'Overbought' if latest['Close'] > latest['Upper_BB'] else ('Oversold' if latest['Close'] < latest['Lower_BB'] else 'Neutral'),
+        'Volume': 'High' if latest['Volume'] > latest['Volume_MA'] else 'Low'
+    }
+    
+    return analysis_results

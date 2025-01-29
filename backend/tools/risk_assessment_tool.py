@@ -3,7 +3,7 @@ import numpy as np
 from typing import Dict, Any
 from crewai.tools import tool
 
-@tool
+@tool('Risk Assessment Tool')
 def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "5y") -> Dict[str, Any]:
     """
     Compute Beta, Sharpe, VaR, Max Drawdown, Volatility, plus daily_returns CSV for advanced plotting.
@@ -47,14 +47,23 @@ def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "5
     # annual vol
     vol = float(stock_returns.std()*np.sqrt(252))
 
-    # daily returns CSV
+    # daily returns CSV 
+    # for sake of tokens can we group by month? 
+    # we can do this by creating a new dataframe with the date as the index and the monthly return as the value
+    # then we can group by month and sum the returns
+
+    # Group returns by month and calculate average
+    monthly_returns = stock_returns.groupby([stock_returns.index.year, stock_returns.index.month]).mean()
     returns_csv = []
-    for date, ret in stock_returns.items():
+    for (year, month), ret in monthly_returns.items():
+        # Create date string in YYYY-MM format
+        date_str = f"{year}-{month:02d}"
         returns_csv.append({
-            "date": str(date.date()),
-            "daily_return": float(ret)
+            "date": date_str,
+            "monthly_avg_return": float(ret)
         })
 
+  
     return {
         "beta": beta,
         "sharpe_ratio": sharpe,

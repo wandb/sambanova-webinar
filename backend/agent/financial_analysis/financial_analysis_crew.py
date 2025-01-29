@@ -251,7 +251,7 @@ class FinancialAnalysisCrew:
             role="Financial News Agent",
             goal="Gather and analyze recent news, market sentiment, and media coverage affecting the ticker {ticker}",
             backstory="Market intelligence specialist focusing on news analysis, sentiment evaluation, and media impact assessment on company performance.",
-            llm=self.llm,
+            llm=self.aggregator_llm,
             tools=[SerperDevTool()],
             allow_delegation=False,
             verbose=True,
@@ -283,8 +283,7 @@ class FinancialAnalysisCrew:
         self.competitor_llm_task = Task(
             description="Identify and analyze 3 key competitors for the follwing company using market intelligence: Company Ticker: {ticker}",
             agent=self.competitor_llm_agent,
-            expected_output="List of 3 tickers of competitors closest to the target company in the same industry",
-            max_iterations=2
+            expected_output="List of 3 tickers of competitors closest to the target company in the same industry, if they aren't close enough try to find a competitor that is close enough",
         )
 
         # 2) competitor_analysis_task
@@ -344,7 +343,7 @@ class FinancialAnalysisCrew:
             ),
             agent=self.aggregator_agent,
             context=[self.competitor_analysis_task, self.fundamental_task, self.risk_task, self.news_task],
-            expected_output="Expected json fields with nested objects: ticker, company_name, competitor, fundamental, technical, risk, comprehensive_summary (at least 500 words) This summary should be a comprehensive summary of the entire analysis paying special attention to any news or events that may affect the stock price and other metrics",
+            expected_output="Expected json fields with nested objects: ticker, company_name, competitor, fundamental, technical, risk, comprehensive_summary (at least 700 words) This summary should be a comprehensive summary of the entire analysis paying close attention to referencing the news in the previous tasks events that may affect the stock price and other metrics, you MUST reference the news exhaustively in the summary",
             output_pydantic=FinancialAnalysisResult
         )
        

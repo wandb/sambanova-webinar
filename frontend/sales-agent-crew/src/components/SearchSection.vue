@@ -129,9 +129,9 @@ const { userId } = useAuth()
 
 async function loadKeys() {
   try {
-    const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-    const encryptedExaKey = localStorage.getItem(`exa_key_${userId}`)
-    const encryptedSerperKey = localStorage.getItem(`serper_key_${userId}`)
+    const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
+    const encryptedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
+    const encryptedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
 
     if (encryptedSambanovaKey) {
       sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
@@ -192,7 +192,7 @@ async function performSearch() {
           'x-sambanova-key': sambanovaKey.value || '',
           // Make sure to pass runId here if your backend expects it for "route" 
           // (But typically only needed on "execute"... optional)
-          'x-user-id': userId || '',
+          'x-user-id': userId.value || '',
           'x-run-id': props.runId || ''
         }
       }

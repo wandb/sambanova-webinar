@@ -62,5 +62,5 @@ python -m spacy download en_core_web_sm
 ```bash
 # From the project root
 cd backend
-uvicorn api.main:app --reload
+uvicorn api.lead_generation_api:create_app --reload
 ```

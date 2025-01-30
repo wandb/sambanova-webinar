@@ -223,9 +223,9 @@ onMounted(async () => {
 
 const loadKeys = async () => {
   try {
-    const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId}`)
-    const savedExaKey = localStorage.getItem(`exa_key_${userId}`)
-    const savedSerperKey = localStorage.getItem(`serper_key_${userId}`)
+    const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
+    const savedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
+    const savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
 
     sambanovaKey.value = savedSambanovaKey
       ? await decryptKey(savedSambanovaKey)
@@ -250,7 +250,7 @@ const saveSambanovaKey = async () => {
       return
     }
     const encryptedKey = await encryptKey(sambanovaKey.value)
-    localStorage.setItem(`sambanova_key_${userId}`, encryptedKey)
+    localStorage.setItem(`sambanova_key_${userId.value}`, encryptedKey)
     successMessage.value = 'SambaNova API key saved successfully!'
     emit('keysUpdated')
   } catch (error) {
@@ -262,7 +262,7 @@ const saveSambanovaKey = async () => {
 }
 
 const clearSambanovaKey = () => {
-  localStorage.removeItem(`sambanova_key_${userId}`)
+  localStorage.removeItem(`sambanova_key_${userId.value}`)
   sambanovaKey.value = ''
   successMessage.value = 'SambaNova API key cleared successfully!'
   emit('keysUpdated')
@@ -276,7 +276,7 @@ const saveExaKey = async () => {
       return
     }
     const encryptedKey = await encryptKey(exaKey.value)
-    localStorage.setItem(`exa_key_${userId}`, encryptedKey)
+    localStorage.setItem(`exa_key_${userId.value}`, encryptedKey)
     successMessage.value = 'Exa API key saved successfully!'
     emit('keysUpdated')
   } catch (error) {
@@ -288,7 +288,7 @@ const saveExaKey = async () => {
 }
 
 const clearExaKey = () => {
-  localStorage.removeItem(`exa_key_${userId}`)
+  localStorage.removeItem(`exa_key_${userId.value}`)
   exaKey.value = ''
   successMessage.value = 'Exa API key cleared successfully!'
   emit('keysUpdated')
@@ -302,7 +302,7 @@ const saveSerperKey = async () => {
       return
     }
     const encryptedKey = await encryptKey(serperKey.value)
-    localStorage.setItem(`serper_key_${userId}`, encryptedKey)
+    localStorage.setItem(`serper_key_${userId.value}`, encryptedKey)
     successMessage.value = 'Serper API key saved successfully!'
     emit('keysUpdated')
   } catch (error) {
@@ -314,7 +314,7 @@ const saveSerperKey = async () => {
 }
 
 const clearSerperKey = () => {
-  localStorage.removeItem(`serper_key_${userId}`)
+  localStorage.removeItem(`serper_key_${userId.value}`)
   serperKey.value = ''
   successMessage.value = 'Serper API key cleared successfully!'
   emit('keysUpdated')
@@ -357,4 +357,4 @@ defineExpose({
     serperKey: serperKey.value
   }),
 })
-</script> 
+</script>

@@ -198,7 +198,7 @@ class LeadGenerationAPI:
                         
                         result = crew.execute_financial_analysis(analysis_inputs)
                         parsed_fin = json.loads(result)
-                        return JSONResponse(content={"results": parsed_fin})
+                        return JSONResponse(content=parsed_fin)
                         
                     except Exception as e:
                         print(f"[/execute/financial_analysis] Error: {str(e)}")

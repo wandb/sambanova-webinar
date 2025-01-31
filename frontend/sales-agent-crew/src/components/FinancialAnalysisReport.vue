@@ -1,17 +1,15 @@
 <script setup>
 /**
- * FinancialAnalysisReport: 
- * 1) Displays competitor data in a combined bar+line chart (market cap vs. PE ratio).
- * 2) Shows a donut chart of margin distribution from fundamentals (profit vs. operating vs. EBITDA).
- * 3) Shows daily returns as a line chart from the risk section.
- * 4) Also displays textual data in tabular form.
- * 5) Provides "View Full Report" and "Download PDF" functionality.
- *
- * Make sure to install Chart.js:
- *   npm install chart.js
+ * FinancialAnalysisReport:
+ *  - Displays competitor data in a combined bar+line chart (market cap vs. PE ratio).
+ *  - Shows a set of "mini dashboard" competitor cards to compare each competitor's metrics to the main company.
+ *  - Shows fundamentals & margins as a "dashboard" grid with icons, tooltips, and properly rounded values.
+ *  - Shows risk metrics similarly, with icons and tooltips.
+ *  - Displays an "Avg Monthly Returns" line chart (formerly daily returns).
+ *  - Provides "View Full Report" and "Download PDF" functionality.
  */
 
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import html2pdf from 'html2pdf.js'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
@@ -23,11 +21,17 @@ import {
   PresentationChartLineIcon,
   UsersIcon,
   ChartPieIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  BanknotesIcon,
+  ArrowTrendingUpIcon,
+  LightBulbIcon,
+  ArrowTrendingDownIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
 
 import FullFinancialReportModal from './FullFinancialReportModal.vue'
 
+// Props
 const props = defineProps({
   report: {
     type: Object,
@@ -41,54 +45,98 @@ const isFullReportOpen = ref(false)
 // Chart references
 let competitorChart = null
 let marginsChart = null
-let dailyReturnsChart = null
+let monthlyReturnsChart = null
 
 // Canvas refs
 const competitorCanvasRef = ref(null)
 const marginsCanvasRef = ref(null)
-const dailyReturnsCanvasRef = ref(null)
+const monthlyReturnsCanvasRef = ref(null)
+
+// Utility for tooltips: define a small dictionary
+const metricTooltips = {
+  market_cap: 'Total market value of all outstanding shares (approx).',
+  pe_ratio: 'Price-to-Earnings Ratio: share price / earnings per share.',
+  ps_ratio: 'Price-to-Sales Ratio: market cap / total revenue.',
+  profit_margins: 'Net income / total revenue (expressed as fraction).',
+  operating_margins: 'Operating income / total revenue.',
+  ebitda_margins: 'EBITDA / total revenue.',
+  revenue_growth: 'Change in revenue over a given period (year/year or quarter/quarter).',
+  earnings_growth: 'Change in net income (earnings) over a given period.',
+  short_ratio: 'Shares shorted / average daily volume. Indicates short interest.',
+  forward_pe: 'PE ratio based on forecasted future earnings.',
+  dividend_yield: 'Annual dividends per share / share price.',
+  analyst_recommendation: 'Summary of analyst consensus (e.g. strong_buy).',
+  target_price: 'Analyst mean or median target price for the stock.',
+  beta: 'Volatility measure compared to the market (beta > 1 => more volatile).',
+  sharpe_ratio: 'Risk-adjusted return measure. Higher is better.',
+  value_at_risk_95: 'Max expected loss with 95% confidence over a period.',
+  max_drawdown: 'Largest drop from a peak to a trough over a timeframe.',
+  volatility: 'Standard deviation of returns. Higher => more risk.'
+}
+
+// Helper function to format large numeric values (market cap, etc.) in trillions/billions/millions
+function formatLargeNumber(num) {
+  if (!num || isNaN(num)) return '-'
+  const n = parseFloat(num)
+  if (n >= 1e12) {
+    return (n / 1e12).toFixed(2) + 'T'
+  } else if (n >= 1e9) {
+    return (n / 1e9).toFixed(2) + 'B'
+  } else if (n >= 1e6) {
+    return (n / 1e6).toFixed(2) + 'M'
+  }
+  return n.toFixed(2)
+}
+
+// Helper to format generic float values to 2 decimals
+function formatFloat(num, decimals = 2) {
+  if (!num || isNaN(num)) return '-'
+  return parseFloat(num).toFixed(decimals)
+}
+
+// We'll also interpret small margin/ratio values as e.g. "55.32%" if they are typically in fraction form. 
+// If a margin is 0.55 => display "55.00%"
+function formatPercentage(num, decimals = 2) {
+  if (!num || isNaN(num)) return '-'
+  const val = parseFloat(num) * 100
+  return val.toFixed(decimals) + '%'
+}
+
+// This function decides how to show a metric based on its key
+function formatMetricValue(key, value) {
+  // If "market_cap" => formatLargeNumber
+  if (key === 'market_cap') return formatLargeNumber(value)
+  // If "pe_ratio" / "ps_ratio" / "forward_pe" => just float, e.g. 2 decimals
+  if (['pe_ratio','ps_ratio','forward_pe','short_ratio','target_price','earnings_per_share'].includes(key)) {
+    return formatFloat(value, 2)
+  }
+  // If margins or yield => treat them as fraction => formatPercentage
+  if (['profit_margins','operating_margins','ebitda_margins','dividend_yield','revenue_growth','earnings_growth'].includes(key)) {
+    return formatPercentage(value, 2)
+  }
+  // fallback
+  return value || '-'
+}
 
 /**
- * onMounted => Initialize charts (if data is present)
- * watch => Re-initialize if 'report' changes
- * onBeforeUnmount => Destroy charts
+ * CREATE/UPDATE Charts
  */
 onMounted(() => {
   createOrUpdateCharts()
 })
 
-watch(() => props.report, () => {
-  createOrUpdateCharts()
+watch(() => props.report, async () => {
+  await createOrUpdateCharts()
 }, { deep: true })
 
 onBeforeUnmount(() => {
   destroyCharts()
 })
 
-function destroyCharts() {
-  if (competitorChart) {
-    competitorChart.destroy()
-    competitorChart = null
-  }
-  if (marginsChart) {
-    marginsChart.destroy()
-    marginsChart = null
-  }
-  if (dailyReturnsChart) {
-    dailyReturnsChart.destroy()
-    dailyReturnsChart = null
-  }
-}
-
-/**
- * createOrUpdateCharts => sets up:
- *   1) competitorChart (bar/line multi-axis)
- *   2) marginsChart (donut chart)
- *   3) dailyReturnsChart (line)
- */
-function createOrUpdateCharts() {
-  // Destroy existing
+async function createOrUpdateCharts() {
   destroyCharts()
+  // Wait for DOM
+  await nextTick()
 
   // 1) Competitor Chart
   if (competitorCanvasRef.value && props.report?.competitor?.competitor_details?.length) {
@@ -160,11 +208,10 @@ function createOrUpdateCharts() {
   if (marginsCanvasRef.value && props.report?.fundamental) {
     const f = props.report.fundamental
     // parse margin data
-    // We check if not null or empty, then parse float
     const pm = parseFloat(f.profit_margins || '0')
     const om = parseFloat(f.operating_margins || '0')
     const em = parseFloat(f.ebitda_margins || '0')
-    // if all zero, skip
+
     if (pm !== 0 || om !== 0 || em !== 0) {
       const ctx2 = marginsCanvasRef.value.getContext('2d')
       marginsChart = new Chart(ctx2, {
@@ -173,7 +220,7 @@ function createOrUpdateCharts() {
           labels: ['Profit Margin', 'Operating Margin', 'EBITDA Margin'],
           datasets: [
             {
-              data: [pm, om, em],
+              data: [pm * 100, om * 100, em * 100], // convert fraction => percent
               backgroundColor: [
                 'rgba(16, 185, 129, 0.7)', // green
                 'rgba(234, 179, 8, 0.7)',  // amber
@@ -192,20 +239,21 @@ function createOrUpdateCharts() {
     }
   }
 
-  // 3) Daily Returns line chart
-  if (dailyReturnsCanvasRef.value && props.report?.risk?.daily_returns?.length) {
+  // 3) Monthly Returns line chart (formerly daily returns)
+  if (monthlyReturnsCanvasRef.value && props.report?.risk?.daily_returns?.length) {
     const dailyData = props.report.risk.daily_returns
-    const xLabels = dailyData.map(d => d.date)
-    const returnsData = dailyData.map(d => parseFloat(d.daily_return || '0') * 100) // convert to % 
+    // The user has month-labeled data => rename them
+    const xLabels = dailyData.map(d => d.date)  // e.g. "2024-05"
+    const returnsData = dailyData.map(d => parseFloat(d.daily_return || '0') * 100) // convert fraction => percent
 
-    const ctx3 = dailyReturnsCanvasRef.value.getContext('2d')
-    dailyReturnsChart = new Chart(ctx3, {
+    const ctx3 = monthlyReturnsCanvasRef.value.getContext('2d')
+    monthlyReturnsChart = new Chart(ctx3, {
       type: 'line',
       data: {
         labels: xLabels,
         datasets: [
           {
-            label: 'Daily Return %',
+            label: 'Avg Monthly Return %',
             data: returnsData,
             borderColor: 'rgba(75, 192, 192, 0.8)',
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -220,7 +268,7 @@ function createOrUpdateCharts() {
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const val = ctx.parsed.y?.toFixed(4)
+                const val = ctx.parsed.y?.toFixed(2)
                 return ` ${val}%`
               }
             }
@@ -230,13 +278,13 @@ function createOrUpdateCharts() {
           y: {
             title: {
               display: true,
-              text: 'Daily Return (%)'
+              text: 'Avg Monthly Return (%)'
             }
           },
           x: {
             title: {
               display: true,
-              text: 'Date'
+              text: 'Month'
             }
           }
         }
@@ -245,8 +293,23 @@ function createOrUpdateCharts() {
   }
 }
 
+function destroyCharts() {
+  if (competitorChart) {
+    competitorChart.destroy()
+    competitorChart = null
+  }
+  if (marginsChart) {
+    marginsChart.destroy()
+    marginsChart = null
+  }
+  if (monthlyReturnsChart) {
+    monthlyReturnsChart.destroy()
+    monthlyReturnsChart = null
+  }
+}
+
 /**
- * "View Full Report" => open the modal
+ * Actions
  */
 function viewFullReport() {
   isFullReportOpen.value = true
@@ -254,68 +317,8 @@ function viewFullReport() {
 function closeFullReport() {
   isFullReportOpen.value = false
 }
-
-/**
- * Download PDF from the main "overview" (similar to the "ResearchReport" approach).
- * We will do minimal text-based PDF plus capturing the chart DOM using html2canvas.
- */
 async function downloadPDF() {
-  const container = document.createElement('div')
-  container.style.padding = '40px'
-  container.style.fontFamily = 'Arial, sans-serif'
-
-  // Some simple styling
-  const styleSheet = document.createElement('style')
-  styleSheet.textContent = `
-    .financial-section {
-      margin-bottom: 1.5rem;
-    }
-    .section-title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      color: #1a1a1a;
-    }
-    .chart-container {
-      margin: 1rem 0;
-      text-align: center;
-    }
-    .section-content {
-      margin-left: 1rem;
-      margin-bottom: 1rem;
-    }
-  `
-  container.appendChild(styleSheet)
-
-  // Title
-  const title = document.createElement('h1')
-  title.textContent = `Financial Analysis for ${props.report.company_name}`
-  title.style.fontSize = '24px'
-  title.style.marginBottom = '20px'
-  container.appendChild(title)
-
-  // We'll clone the existing DOM from this component's root
-  // so we can capture the charts visually.
-  // This approach: we create a wrapper, cloneNode from the main container
-  // or simply build partial text for data. Then we rely on html2canvas to 
-  // snapshot the chart canvases from the screen. 
-  // A simpler approach might be to do a direct .from() on the actual container 
-  // in the DOM. So let's do that approach: we have a ref to the entire container in the template.
-
-  // We'll just do text-based sections + we can also do a "clone" of the canvases if we want them in the PDF.
-  // A simpler approach: we point html2pdf at the .financial-analysis-pdf-target
-  // from the actual DOM.
-
-  // Let’s do that approach:
   const realElement = document.querySelector('#financial-analysis-report-root')
-  if (!realElement) {
-    console.warn('Could not find #financial-analysis-report-root in DOM. Falling back to minimal PDF content.')
-    // fallback to textual content only:
-    fallbackTextToContainer(container)
-    await html2pdf().set(pdfOpts).from(container).save()
-    return
-  }
-
   const pdfOpts = {
     margin: [10, 10],
     filename: 'financial_analysis.pdf',
@@ -332,6 +335,11 @@ async function downloadPDF() {
     }
   }
 
+  if (!realElement) {
+    console.warn('Could not find #financial-analysis-report-root in DOM.')
+    return
+  }
+
   try {
     await html2pdf().set(pdfOpts).from(realElement).save()
   } catch (error) {
@@ -339,27 +347,13 @@ async function downloadPDF() {
   }
 }
 
-// fallback if no DOM element found
-function fallbackTextToContainer(container) {
-  const basicsDiv = document.createElement('div')
-  basicsDiv.className = 'financial-section'
-  basicsDiv.innerHTML = `
-    <h2 class="section-title">Basic Info</h2>
-    <div class="section-content">
-      <p><strong>Ticker:</strong> ${props.report.ticker || ''}</p>
-      <p><strong>Company Name:</strong> ${props.report.company_name || ''}</p>
-    </div>
-  `
-  container.appendChild(basicsDiv)
-}
-
-function formatSummary(text = '') {
-  return DOMPurify.sanitize(marked(text))
-}
+const comprehensiveSummaryHtml = computed(() => {
+  return DOMPurify.sanitize(marked(props.report.comprehensive_summary || ''))
+})
 </script>
 
 <template>
-  <!-- We'll wrap the entire UI in a container we can snapshot for PDF (#financial-analysis-report-root) -->
+  <!-- We'll wrap the entire UI in a container we can snapshot for PDF -->
   <div 
     id="financial-analysis-report-root"
     class="bg-white rounded-lg shadow p-6 max-h-[calc(100vh-16rem)] overflow-y-auto"
@@ -382,59 +376,348 @@ function formatSummary(text = '') {
     </div>
 
     <!-- Competitor Analysis -->
-    <div class="mb-6">
+    <div class="mb-8">
       <div class="flex items-center space-x-2 mb-2">
         <UsersIcon class="w-5 h-5 text-gray-600" />
         <h4 class="font-semibold text-gray-800">Competitor Analysis</h4>
       </div>
 
       <!-- Combined bar+line chart for competitor data (market cap vs. PE ratio) -->
-      <div class="border border-gray-200 p-3 rounded-lg chart-container">
+      <div class="border border-gray-200 p-3 rounded-lg chart-container mb-6">
         <canvas ref="competitorCanvasRef" width="400" height="250"></canvas>
+      </div>
+
+      <!-- Grid of competitor cards, each with full metrics displayed -->
+      <div 
+        v-if="report.competitor?.competitor_details?.length"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+      >
+        <div
+          v-for="(comp, idx) in report.competitor.competitor_details"
+          :key="idx"
+          class="p-4 border rounded-lg shadow-sm bg-white"
+        >
+          <div class="mb-2">
+            <h5 class="font-semibold text-gray-700">
+              {{ comp.ticker }} - {{ comp.name }}
+            </h5>
+            <p class="text-xs text-gray-500">
+              {{ comp.industry }}, {{ comp.sector }}
+            </p>
+          </div>
+
+          <!-- Display each metric in a small row with icon, label, tooltip, and value -->
+          <div class="space-y-1 text-sm">
+            <div 
+              class="flex items-center justify-between"
+              title="Total market value of all outstanding shares."
+            >
+              <div class="flex items-center space-x-1">
+                <BanknotesIcon class="w-4 h-4 text-gray-500" />
+                <span>Market Cap</span>
+              </div>
+              <strong>{{ formatMetricValue('market_cap', comp.market_cap) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['pe_ratio']"
+            >
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-gray-500" />
+                <span>PE Ratio</span>
+              </div>
+              <strong>{{ formatMetricValue('pe_ratio', comp.pe_ratio) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['ps_ratio']"
+            >
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-gray-500" />
+                <span>PS Ratio</span>
+              </div>
+              <strong>{{ formatMetricValue('ps_ratio', comp.ps_ratio) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['profit_margins']"
+            >
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-gray-500" />
+                <span>Profit Margin</span>
+              </div>
+              <strong>{{ formatPercentage(comp.profit_margins, 2) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['ebitda_margins']"
+            >
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-gray-500" />
+                <span>EBITDA Margin</span>
+              </div>
+              <strong>{{ formatPercentage(comp.ebitda_margins, 2) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['revenue_growth']"
+            >
+              <div class="flex items-center space-x-1">
+                <LightBulbIcon class="w-4 h-4 text-gray-500" />
+                <span>Rev Growth</span>
+              </div>
+              <strong>{{ formatPercentage(comp.revenue_growth, 2) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['earnings_growth']"
+            >
+              <div class="flex items-center space-x-1">
+                <LightBulbIcon class="w-4 h-4 text-gray-500" />
+                <span>EPS Growth</span>
+              </div>
+              <strong>{{ formatPercentage(comp.earnings_growth, 2) }}</strong>
+            </div>
+
+            <div 
+              class="flex items-center justify-between"
+              :title="metricTooltips['short_ratio']"
+            >
+              <div class="flex items-center space-x-1">
+                <ExclamationTriangleIcon class="w-4 h-4 text-gray-500" />
+                <span>Short Ratio</span>
+              </div>
+              <strong>{{ formatFloat(comp.short_ratio, 2) }}</strong>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Fundamentals with Margins Donut -->
-    <div class="mb-6">
+    <!-- Fundamentals & Margins -->
+    <div class="mb-8">
       <div class="flex items-center space-x-2 mb-2">
         <ChartPieIcon class="w-5 h-5 text-gray-600" />
         <h4 class="font-semibold text-gray-800">Fundamentals & Margins</h4>
       </div>
 
-      <div class="text-sm grid grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-4">
-        <p><strong>Market Cap:</strong> {{ report.fundamental?.market_cap }}</p>
-        <p><strong>PE Ratio:</strong> {{ report.fundamental?.pe_ratio }}</p>
-        <p><strong>Forward PE:</strong> {{ report.fundamental?.forward_pe }}</p>
-        <p><strong>PS Ratio:</strong> {{ report.fundamental?.ps_ratio }}</p>
-        <p><strong>Dividend Yield:</strong> {{ report.fundamental?.dividend_yield }}</p>
-        <p><strong>Analyst Rec:</strong> {{ report.fundamental?.analyst_recommendation }}</p>
-        <p><strong>Target Price:</strong> {{ report.fundamental?.target_price }}</p>
-        <p><strong>Earnings/Share:</strong> {{ report.fundamental?.earnings_per_share }}</p>
-      </div>
+      <!-- Grid of fundamentals using small "indicator cards" -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Market Cap -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['market_cap']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <BanknotesIcon class="w-5 h-5 text-gray-500" />
+            <span>Market Cap</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('market_cap', report.fundamental?.market_cap) }}
+          </div>
+        </div>
 
-      <!-- donut chart for margins: profit, operating, ebitda -->
-      <div class="border border-gray-200 p-3 rounded-lg chart-container">
-        <canvas ref="marginsCanvasRef" width="300" height="250"></canvas>
+        <!-- PE Ratio -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['pe_ratio']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>PE Ratio</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('pe_ratio', report.fundamental?.pe_ratio) }}
+          </div>
+        </div>
+
+        <!-- Forward PE -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['forward_pe']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>Forward PE</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('forward_pe', report.fundamental?.forward_pe) }}
+          </div>
+        </div>
+
+        <!-- PS Ratio -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['ps_ratio']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>PS Ratio</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('ps_ratio', report.fundamental?.ps_ratio) }}
+          </div>
+        </div>
+
+        <!-- Dividend Yield -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['dividend_yield']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingDownIcon class="w-5 h-5 text-gray-500" />
+            <span>Dividend Yield</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('dividend_yield', report.fundamental?.dividend_yield) }}
+          </div>
+        </div>
+
+        <!-- Analyst Recommendation -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['analyst_recommendation']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <LightBulbIcon class="w-5 h-5 text-gray-500" />
+            <span>Recommendation</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800 capitalize">
+            {{ report.fundamental?.analyst_recommendation || '-' }}
+          </div>
+        </div>
+
+        <!-- Target Price -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['target_price']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>Target Price</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatMetricValue('target_price', report.fundamental?.target_price) }}
+          </div>
+        </div>
+
+        <!-- Earnings Per Share -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          title="Earnings Per Share: net income / outstanding shares."
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>EPS</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatFloat(report.fundamental?.earnings_per_share, 2) }}
+          </div>
+        </div>
+
+        <!-- Margins donut chart -->
+        <div class="col-span-full md:col-span-2 lg:col-span-2 xl:col-span-2 border border-gray-200 p-3 rounded-md bg-white shadow-sm flex flex-col">
+          <div class="flex items-center space-x-1 mb-2 text-sm text-gray-600">
+            <ChartPieIcon class="w-5 h-5 text-gray-500" />
+            <span>Margin Distribution</span>
+          </div>
+          <div class="chart-container mx-auto">
+            <canvas ref="marginsCanvasRef" width="300" height="250"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Risk Section + daily returns chart -->
-    <div class="mb-6">
+    <!-- Risk & Avg Monthly Returns -->
+    <div class="mb-8">
       <div class="flex items-center space-x-2 mb-2">
         <ShieldCheckIcon class="w-5 h-5 text-gray-600" />
-        <h4 class="font-semibold text-gray-800">Risk & Daily Returns</h4>
-      </div>
-      <div class="text-sm grid grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-4">
-        <p><strong>Beta:</strong> {{ report.risk?.beta }}</p>
-        <p><strong>Sharpe Ratio:</strong> {{ report.risk?.sharpe_ratio }}</p>
-        <p><strong>VaR (95%):</strong> {{ report.risk?.value_at_risk_95 }}</p>
-        <p><strong>Max Drawdown:</strong> {{ report.risk?.max_drawdown }}</p>
-        <p><strong>Volatility:</strong> {{ report.risk?.volatility }}</p>
+        <h4 class="font-semibold text-gray-800">Risk & Avg Monthly Returns</h4>
       </div>
 
-      <!-- daily returns line chart -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+        <!-- Beta -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['beta']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>Beta</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatFloat(report.risk?.beta, 2) }}
+          </div>
+        </div>
+
+        <!-- Sharpe Ratio -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['sharpe_ratio']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingUpIcon class="w-5 h-5 text-gray-500" />
+            <span>Sharpe Ratio</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatFloat(report.risk?.sharpe_ratio, 2) }}
+          </div>
+        </div>
+
+        <!-- Value at Risk 95% -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['value_at_risk_95']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ExclamationTriangleIcon class="w-5 h-5 text-gray-500" />
+            <span>VaR (95%)</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatFloat(report.risk?.value_at_risk_95, 4) }}
+          </div>
+        </div>
+
+        <!-- Max Drawdown -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['max_drawdown']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingDownIcon class="w-5 h-5 text-gray-500" />
+            <span>Max Drawdown</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatPercentage(report.risk?.max_drawdown, 2) }}
+          </div>
+        </div>
+
+        <!-- Volatility -->
+        <div 
+          class="p-3 border border-gray-200 rounded-md bg-white shadow-sm"
+          :title="metricTooltips['volatility']"
+        >
+          <div class="flex items-center space-x-2 mb-1 text-sm font-semibold text-gray-700">
+            <ArrowTrendingDownIcon class="w-5 h-5 text-gray-500" />
+            <span>Volatility</span>
+          </div>
+          <div class="text-lg font-bold text-gray-800">
+            {{ formatPercentage(report.risk?.volatility, 2) }}
+          </div>
+        </div>
+
+        <!-- (Optional) Could show more risk stats if present -->
+      </div>
+
+      <!-- line chart: average monthly returns -->
       <div class="border border-gray-200 p-3 rounded-lg chart-container">
-        <canvas ref="dailyReturnsCanvasRef" width="300" height="250"></canvas>
+        <canvas ref="monthlyReturnsCanvasRef" width="300" height="250"></canvas>
       </div>
     </div>
 
@@ -445,7 +728,7 @@ function formatSummary(text = '') {
         <h4 class="font-semibold text-gray-800">Comprehensive Summary</h4>
       </div>
       <div class="text-sm text-gray-700 prose max-w-none">
-        <div v-html="formatSummary(report.comprehensive_summary)"></div>
+        <div v-html="comprehensiveSummaryHtml"></div>
       </div>
     </div>
 

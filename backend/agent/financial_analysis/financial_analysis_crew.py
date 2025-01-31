@@ -22,12 +22,11 @@ from utils.agent_thought import RedisConversationLogger
 from crewai.tools import tool
 from crewai_tools import SerperDevTool
 
-###################### RISK ASSESSMENT TOOL (unchanged, used for 1-year period) ######################
+###################### RISK ASSESSMENT TOOL ######################
 @tool('Risk Assessment Tool')
 def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "1y") -> Dict[str, Any]:
     """
-    Compute Beta, Sharpe, VaR, Max Drawdown, Volatility, plus daily_returns CSV for advanced plotting.
-    We do monthly averages to reduce tokens. Period defaults to '1y'.
+    Compute Beta, Sharpe, VaR, Max Drawdown, Volatility, plus monthly-averaged daily_returns for plotting.
     """
     stock = yf.Ticker(ticker)
     bench = yf.Ticker(benchmark)
@@ -41,15 +40,17 @@ def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "1
     stock_returns = stock_close.pct_change().dropna()
     bench_returns = bench_close.pct_change().dropna()
 
+    # Align indexes
     common_idx = stock_returns.index.intersection(bench_returns.index)
     stock_returns = stock_returns.loc[common_idx]
     bench_returns = bench_returns.loc[common_idx]
 
+    # Beta
     cov = np.cov(stock_returns, bench_returns)[0][1]
     var_bench = np.var(bench_returns)
-    beta = float(cov/var_bench) if var_bench != 0 else 0.0
+    beta = float(cov / var_bench) if var_bench != 0 else 0.0
 
-    # Sharpe ratio
+    # Sharpe
     risk_free_annual = 0.02
     risk_free_daily = risk_free_annual / 252
     excess = stock_returns - risk_free_daily
@@ -58,48 +59,50 @@ def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "1
     else:
         sharpe = float(np.sqrt(252) * excess.mean() / excess.std())
 
-    # VaR @ 95
+    # VaR
     var_95 = float(np.percentile(stock_returns, 5))
+
     # Max Drawdown
     cumul = (1 + stock_returns).cumprod()
     peak = cumul.cummax()
-    dd = (cumul - peak)/peak
+    dd = (cumul - peak) / peak
     max_dd = float(dd.min())
+
     # annual vol
     vol = float(stock_returns.std() * np.sqrt(252))
 
-    # monthly average returns
+    # monthly average
     monthly_group = stock_returns.groupby([stock_returns.index.year, stock_returns.index.month]).mean()
     returns_csv = []
     for (year, month), ret in monthly_group.items():
         date_str = f"{year}-{month:02d}"
         returns_csv.append({
             "date": date_str,
-            "daily_return": float(ret)
+            "daily_return": str(ret)
         })
 
     return {
         "beta": beta,
-        "sharpe_ratio": sharpe,
-        "value_at_risk_95": var_95,
-        "max_drawdown": max_dd,
-        "volatility": vol,
+        "sharpe_ratio": f"{sharpe:.4f}",
+        "value_at_risk_95": f"{var_95:.4f}",
+        "max_drawdown": f"{max_dd:.4f}",
+        "volatility": f"{vol:.4f}",
         "daily_returns": returns_csv
     }
 
-###################### FUNDAMENTAL ANALYSIS TOOL (unchanged from the last version) ######################
+###################### FUNDAMENTAL ANALYSIS TOOL ######################
 @tool('Fundamental Analysis Tool')
 def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
     """
-    Expanded fundamental analysis with additional metrics from yfinance.
-    We also retrieve 'quarterly_fundamentals' plus new advanced data:
-    - dividend history
-    - advanced_fundamentals (like shares outstanding, float shares, etc.)
+    Retrieve fundamentals from yfinance: 
+    - standard fields
+    - advanced_fundamentals
+    - dividend_history
+    - quarterly_fundamentals
     """
     data = yf.Ticker(ticker)
     info = data.info
 
-    # Basic fields
     result = {
         "ticker": ticker,
         "company_name": info.get("longName",""),
@@ -149,6 +152,7 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
                 te = bs.loc["Total Stockholder Equity"].iloc[0]
                 if te != 0:
                     debt_to_equity = float(tl)/float(te)
+
         if fin is not None and not fin.empty:
             if "Net Income" in fin.index and "Total Revenue" in fin.index:
                 ni = fin.loc["Net Income"]
@@ -163,6 +167,7 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
                     curr = tr.iloc[0]
                     if abs(prev) > 0:
                         revenue_growth = (curr - prev)/abs(prev)
+
             if "Net Income" in fin.index and "Total Stockholder Equity" in bs.index:
                 neti_latest = fin.loc["Net Income"].iloc[0]
                 eq_latest = bs.loc["Total Stockholder Equity"].iloc[0]
@@ -173,6 +178,7 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
                 assets_latest = bs.loc["Total Assets"].iloc[0]
                 if assets_latest != 0:
                     roa = float(neti_latest)/float(assets_latest)
+
         if cf is not None and not cf.empty:
             if "Operating Cash Flow" in cf.index and "Capital Expenditures" in cf.index:
                 ocf = cf.loc["Operating Cash Flow"].iloc[0]
@@ -189,7 +195,6 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
     result["net_income_growth"] = str(net_income_growth if net_income_growth else "")
     result["free_cash_flow"] = str(free_cash_flow if free_cash_flow else "")
 
-    # Attempt to retrieve quarterly_fundamentals
     quarterly_csv = []
     try:
         qfin = data.quarterly_financials
@@ -199,26 +204,25 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
                 total_rev = None
                 net_inc = None
                 if "Total Revenue" in qfin.index:
-                    total_rev = float(qfin.loc["Total Revenue", date_col])
+                    total_rev = qfin.loc["Total Revenue", date_col]
                 if "Net Income" in qfin.index:
-                    net_inc = float(qfin.loc["Net Income", date_col])
+                    net_inc = qfin.loc["Net Income", date_col]
                 quarterly_csv.append({
                     "date": col_str,
-                    "total_revenue": total_rev,
-                    "net_income": net_inc
+                    "total_revenue": str(total_rev) if total_rev else None,
+                    "net_income": str(net_inc) if net_inc else None
                 })
     except:
         pass
+
     result["quarterly_fundamentals"] = quarterly_csv
 
-    # Additional advanced data from yfinance: e.g. share count, float shares, etc.
     adv_data = {}
     adv_data["shares_outstanding"] = str(info.get("sharesOutstanding",""))
     adv_data["float_shares"] = str(info.get("floatShares",""))
     adv_data["enterprise_value"] = str(info.get("enterpriseValue",""))
     adv_data["book_value"] = str(info.get("bookValue",""))
 
-    # Attempt to gather dividends
     div_hist = []
     try:
         dividends = data.dividends
@@ -238,11 +242,9 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
 @tool('EnhancedCompetitorTool')
 def enhanced_competitor_tool(company_name: str, ticker: str) -> Dict[str, Any]:
     """
-    Attempts to find relevant competitor tickers using yfinance's peers or 'info' data.
-    If that fails, it uses a small LLM-based approach to guess the top 3.
-    Return a list of competitor tickers and an empty competitor_details[] (the competitor_analysis tool will fill them).
+    Attempt to find 3 best competitor tickers from yfinance, fallback LLM guess if not found.
+    Return: competitor_tickers[], competitor_details[] = []
     """
-    # For demonstration, we do an approximate approach:
     fallback_competitors = []
     y = yf.Ticker(ticker)
     inf = y.info
@@ -253,7 +255,7 @@ def enhanced_competitor_tool(company_name: str, ticker: str) -> Dict[str, Any]:
     elif sector and "Energy" in sector:
         fallback_competitors = ["XOM","CVX","BP"]
     else:
-        fallback_competitors = ["GOOGL","AMZN","META"]  # fallback guess
+        fallback_competitors = ["GOOGL","AMZN","META"]
 
     return {
       "competitor_tickers": fallback_competitors[:3],
@@ -264,9 +266,9 @@ def enhanced_competitor_tool(company_name: str, ticker: str) -> Dict[str, Any]:
 @tool('Competitor Analysis Tool')
 def competitor_analysis_tool(tickers: List[str]) -> Dict[str, Any]:
     """
-    For each ticker in 'tickers', fetch basic fundamentals from yfinance to produce:
-    {ticker, name, market_cap, pe_ratio, ps_ratio, ebitda_margins, profit_margins, revenue_growth, earnings_growth, short_ratio, industry, sector}
-    Return competitor_details[] plus competitor_tickers[] = tickers
+    For each competitor ticker in 'tickers', fetch fundamental info from yfinance.
+    Return competitor_tickers plus competitor_details[] with fields:
+    {ticker, name, market_cap, pe_ratio, ps_ratio, ebitda_margins, profit_margins, revenue_growth, earnings_growth, short_ratio, industry, sector}.
     """
     details = []
     for t in tickers:
@@ -291,13 +293,11 @@ def competitor_analysis_tool(tickers: List[str]) -> Dict[str, Any]:
       "competitor_details": details
     }
 
-###################### TECHNICAL ANALYSIS TOOL (6mo weekly now) #####
+###################### TECHNICAL ANALYSIS TOOL (3mo weekly) #####
 @tool('Technical Analysis Tool')
-def yf_tech_analysis(ticker: str, period: str = "6mo") -> Dict[str, Any]:
+def yf_tech_analysis(ticker: str, period: str = "3mo") -> Dict[str, Any]:
     """
-    Perform technical analysis on ticker. Now retrieving 6-month weekly intervals
-    to save on tokens.
-    Returns standard fields plus 'stock_price_data': an array of {date, open, high, low, close, volume}.
+    Get 3-month weekly intervals from yfinance for the ticker, returning standard fields plus stock_price_data.
     """
     data = yf.Ticker(ticker)
     hist = data.history(period=period, interval='1wk')
@@ -306,11 +306,11 @@ def yf_tech_analysis(ticker: str, period: str = "6mo") -> Dict[str, Any]:
         date_str = dt.strftime("%Y-%m-%d")
         stock_price_data.append({
             "date": date_str,
-            "open": float(row["Open"]),
-            "high": float(row["High"]),
-            "low": float(row["Low"]),
-            "close": float(row["Close"]),
-            "volume": float(row["Volume"])
+            "open": str(row["Open"]),
+            "high": str(row["High"]),
+            "low": str(row["Low"]),
+            "close": str(row["Close"]),
+            "volume": str(row["Volume"])
         })
     return {
         "moving_averages": {"ma50": None,"ma200": None},
@@ -326,8 +326,8 @@ def yf_tech_analysis(ticker: str, period: str = "6mo") -> Dict[str, Any]:
         "stock_price_data": stock_price_data
     }
 
-############# NEWS Pydantic + Tool + Agent to gather & analyze recent news #############
-from pydantic import BaseModel, Field
+###################### NEWS MODELS & (SERPER) WRAPPER ######################
+from pydantic import BaseModel
 
 class NewsItem(BaseModel):
     title: str
@@ -339,9 +339,7 @@ class NewsItem(BaseModel):
 class YahooNewsData(BaseModel):
     news_items: List[NewsItem]
 
-
-
-########################## Additional Pydantic Models for the aggregator ###############
+########################## Additional Pydantic Models for aggregator ###############
 class QuarterlyFundamentals(BaseModel):
     date: str
     total_revenue: Optional[str] = None
@@ -359,8 +357,8 @@ class FundamentalData(BaseModel):
     price_to_book: str = ""
     dividend_yield: str = ""
     beta: str = ""
-    year_high: str = Field("", alias="52_week_high")
-    year_low: str = Field("", alias="52_week_low")
+    year_high: str = ""
+    year_low: str = ""
     analyst_recommendation: str = ""
     target_price: str = ""
     earnings_per_share: str = ""
@@ -380,12 +378,12 @@ class FundamentalData(BaseModel):
     dividend_history: List[Dict[str,Any]] = []
 
 class TechnicalChartData(BaseModel):
-    date: str = ""
-    open: str = ""
-    high: str = ""
-    low: str = ""
-    close: str = ""
-    volume: str = ""
+    date: str
+    open: str
+    high: str
+    low: str
+    close: str
+    volume: str
 
 class TechnicalData(BaseModel):
     moving_averages: Dict[str, Optional[str]] = {}
@@ -431,15 +429,12 @@ class CompetitorBlock(BaseModel):
     competitor_details: List[CompetitorInfo] = []
 
 class WeeklyPriceData(BaseModel):
-    date: str = ""
-    open: str = ""
-    high: str = ""
-    low: str = ""
-    close: str = ""
-    volume: str = ""
-
-class YahooNewsData(BaseModel):
-    news_items: List[NewsItem]
+    date: str
+    open: str
+    high: str
+    low: str
+    close: str
+    volume: str
 
 class FinancialAnalysisResult(BaseModel):
     ticker: str
@@ -450,19 +445,20 @@ class FinancialAnalysisResult(BaseModel):
     stock_price_data: List[WeeklyPriceData] = []
     comprehensive_summary: str = ""
 
-########################### THE CREW CLASS (with News Agent & Task) ###########################
+########################### The Main Crew Class ###########################
 load_dotenv()
 
 class FinancialAnalysisCrew:
     """
-    Multi-agent pipeline:
-      1) Enhanced competitor step
-      2) competitor_analysis -> competitor_details
-      3) fundamental
-      4) technical (6-month weekly stock data)
-      5) risk
-      6) news => gather top stories & produce ~10 items if possible
-      7) aggregator => merges everything into final JSON, referencing the news, advanced_fundamentals, etc.
+    Multi-agent pipeline for advanced financial analysis:
+      1) Enhanced competitor (LLM fallback if needed)
+      2) Competitor analysis
+      3) Fundamentals
+      4) Technical (3mo weekly)
+      5) Risk (1y)
+      6) News
+      7) Aggregator => merges all into final JSON, at least 700 words in summary.
+    Using partial concurrency to speed up tasks that do not depend on each other.
     """
 
     def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = ""):
@@ -473,7 +469,7 @@ class FinancialAnalysisCrew:
             api_key=sambanova_key
         )
         self.aggregator_llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model="sambanova/Meta-Llama-3.1-8B-Instruct",
             temperature=0.0,
             max_tokens=8192,
             api_key=sambanova_key
@@ -488,95 +484,86 @@ class FinancialAnalysisCrew:
         self._init_tasks()
 
     def _init_agents(self):
-        # Enhanced competitor agent
+        # 1) competitor finder
         self.enhanced_competitor_agent = Agent(
             role="Enhanced Competitor Finder",
-            goal=(
-                "Identify 3 MOST  relevant competitor tickers for the target company {ticker}. Be sure to match the industry and sector of the target company, this is crucial they should be in the same industry are going for the same market share."
-            ),
-            backstory="You are an experienced financial analyst and you know the industry and sector of the target company. You are also an expert in the field of finance and you know the market share of the target company and the competitors. You are also an expert in the field of finance and you know the market share of the target company and the competitors.",
+            goal="Identify 3 closest competitor tickers for the same industry and sector as {ticker}.",
+            backstory="Expert in analyzing sector, fallback to LLM guess if yfinance fails. No extraneous calls needed.",
             llm=self.llm,
             allow_delegation=False,
             verbose=True,
-            #output_pydantic=CompetitorBlock
         )
 
-        # Competitor analysis
+        # 2) competitor analysis
         self.competitor_analysis_agent = Agent(
             role="Competitor Analysis Agent",
-            goal="Perform detailed analysis of competitor fundamentals from yfinance. Output competitor_info objects.",
-            backstory="Retained from old pipeline, obtains competitor metrics.",
+            goal="Given competitor_tickers, produce competitor_details from yfinance fundamentals.",
+            backstory="Focus on market_cap, margins, growth, short_ratio, etc. Must be quick and direct.",
             llm=self.llm,
             tools=[competitor_analysis_tool],
             allow_delegation=False,
             verbose=True,
         )
 
-        # Fundamental
+        # 3) fundamental
         self.fundamental_agent = Agent(
             role="Fundamental Analysis Agent",
-            goal="Analyze fundamental data plus advanced statements, dividend history, etc. from yfinance for the target ticker.",
-            backstory="Extended with advanced_fundamentals & dividend_history. Output FundamentalData.",
+            goal="Retrieve fundamental data from yfinance including advanced_fundamentals, dividend_history. for {ticker}",
+            backstory="Focus on a single pass to avoid overhead. Return structured data quickly.",
             llm=self.llm,
             tools=[fundamental_analysis_tool],
             allow_delegation=False,
             verbose=True,
         )
 
-        # Technical
+        # 4) technical
         self.technical_agent = Agent(
             role="Technical Analysis Agent",
-            goal="Fetch 3-month weekly stock price plus standard technical fields. Output a TechnicalData object with stock_price_data[].",
-            backstory="Using 3-month weekly intervals to reduce token usage. We keep old disclaimers.",
+            goal="Gather 3-month weekly price data plus standard technical fields from yfinance. for {ticker}",
+            backstory="No repeated calls. Provide stock_price_data for front-end charting.",
             llm=self.llm,
             tools=[yf_tech_analysis],
             allow_delegation=False,
             verbose=True,
-            #output_pydantic=TechnicalData
         )
 
-        # Risk
+        # 5) risk
         self.risk_agent = Agent(
             role="Risk Assessment Agent",
-            goal="Compute advanced risk metrics from yfinance returns. Return monthly average returns in daily_returns array.",
-            backstory="Same as old approach, 1-year period. Output RiskData.",
+            goal="Compute Beta, Sharpe, VaR, Max Drawdown, Volatility over 1 year for {ticker}.",
+            backstory="Return monthly-averaged daily returns quickly. No extraneous calls.",
             llm=self.llm,
             tools=[risk_assessment_tool],
             allow_delegation=False,
             verbose=True,
         )
 
-        # News agent
-        # We'll use 'Yahoo Finance News Tool' or 'SerperDevTool'. 
+        # 6) news
         os.environ["SERPER_API_KEY"] = self.serper_key
         self.news_agent = Agent(
             role="Financial News Agent",
-            goal=(
-                "Gather and analyze recent news and market sentiment data for {company_name}. You focus on the latest news and market sentiment data for {company_name}. Especially on stories that may affect the stock price or metrics. Summarize competitor angles, product announcements, etc."
-            ),
-            backstory=(
-                "You are a seasoned news reporter for companies you are familiar with all companiesover the world. You are an expert in the field of cause and effect and you can analyze the news and market sentiment data for {company_name} and summarize the competitor angles, product announcements, etc."
-            ),
+            goal="Gather recent news for {ticker}, focusing on recent events that could affect stock price. Must be quick.",
+            backstory="Search for top ~10 items, do minimal overhead. Summaries used by aggregator. No re-calls.",
             llm=self.aggregator_llm,
-            tools=[SerperDevTool()], 
+            tools=[SerperDevTool()],
             allow_delegation=False,
-            verbose=True
+            verbose=True,
+            max_iter=2
         )
 
-        # aggregator
+        # 7) aggregator
         self.aggregator_agent = Agent(
             role="Aggregator Agent",
             goal=(
-                "Combine competitor, fundamental, technical, risk, and news data into a single final JSON. We keep old aggregator instructions plus new references to advanced_fundamentals, dividend_history, 6-month stock_price_data, and the 'news' array. Summaries must be at least 700 words referencing major news items or competitor events. The final JSON must match:  ticker, company_name, competitor, fundamental, risk, stock_price_data, news, comprehensive_summary "
+                "Combine competitor, fundamental, technical, risk, and news into final JSON. Summaries must be at least 700 words referencing all tasks."
             ),
-            backstory="We keep old disclaimers: thorough 700+ words referencing all new data, competitor moves, news items. Must not remove any field from the final schema.",
+            backstory="One-pass aggregator. Minimizes tokens by being succinct. Output must match FinancialAnalysisResult pydantic exactly.",
             llm=self.aggregator_llm,
             allow_delegation=False,
             verbose=True,
-
         )
 
-        # attach redis logs
+        # Redis logs
         self.enhanced_competitor_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
         self.competitor_analysis_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Competitor Analysis Agent")
         self.fundamental_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Fundamental Agent")
@@ -586,68 +573,77 @@ class FinancialAnalysisCrew:
         self.aggregator_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
 
     def _init_tasks(self):
-        # 1) competitor finding
+        # 1) competitor tasks => sequential
         self.enhanced_competitor_task = Task(
-            description="Find competitor tickers for {ticker} using the EnhancedCompetitorTool. Return competitor_tickers plus competitor_details=[].",
+            description="Find competitor tickers for {ticker} with EnhancedCompetitorTool. Return competitor_tickers plus competitor_details=[].",
             agent=self.enhanced_competitor_agent,
-            expected_output="competitor_tickers[] plus competitor_details=[]"
+            expected_output="competitor_tickers[] + competitor_details[] (empty).",
+            max_iterations=1
         )
-        # 2) competitor analysis
         self.competitor_analysis_task = Task(
-            description="Use competitor_analysis_tool on those competitor tickers to produce competitor_details.",
+            description="Analyze competitor fundamentals for those tickers with competitor_analysis_tool. Return competitor_details array.",
             agent=self.competitor_analysis_agent,
             context=[self.enhanced_competitor_task],
-            expected_output="competitor_tickers plus competitor_details array with ticker,name,market_cap,..."
+            expected_output="competitor_tickers plus competitor_details array with fundamentals.",
+            max_iterations=1
         )
-        # 3) fundamental
+
+        # 2) fundamentals + technical + risk + news => parallel
         self.fundamental_task = Task(
-            description="Retrieve fundamentals from fundamental_analysis_tool for {ticker}, including advanced_fundamentals & dividend_history.",
+            description="Get fundamental data from fundamental_analysis_tool for {ticker}. Return FundamentalData quickly.",
             agent=self.fundamental_agent,
-            expected_output="FundamentalData"
-        )
-        # 4) technical
-        self.technical_task = Task(
-            description="Get 6-month weekly data from yf_tech_analysis for {ticker}. Invoke the tool with the ticker, the period ie '3mo'.",
-            agent=self.technical_agent,
-            expected_output="TechnicalData ie moving_averages, rsi, macd, bollinger_bands, volatility, momentum, support_levels, resistance_levels, detected_patterns, chart_data, stock_price_data",
-            async_execution=True
-        )
-        # 5) risk
-        self.risk_task = Task(
-            description="Compute risk metrics for {ticker} over 1-year from risk_assessment_tool. Invoke the tool with the ticker, the period ie '1y' and the benchmark: str = '^GSPC' ",
-            agent=self.risk_agent, 
-            expected_output="RiskData ie beta, sharpe_ratio, value_at_risk_95, max_drawdown, volatility, daily_returns",
-            async_execution=True
-        )
-        # 6) news
-        self.news_task = Task(
-            description=(
-                "Gather and analyze recent news for {company_name} from the last ~3 months, referencing competitor news as well. ReturnTitle, content, link, published_time, named_entities."
-            ),
-            agent=self.news_agent,
-            expected_output="All of the recent news items about {company_name} focusing on competitor news, product announcements, etc.",
+            expected_output="FundamentalData object including advanced_fundamentals, etc.",
             async_execution=True,
             max_iterations=1
         )
-        # 7) aggregator
+        self.technical_task = Task(
+            description="Use yf_tech_analysis with period='3mo' to get stock_price_data. Return TechnicalData.",
+            agent=self.technical_agent,
+            expected_output="TechnicalData with stock_price_data.",
+            async_execution=True,
+            max_iterations=1
+        )
+        self.risk_task = Task(
+            description="Compute risk metrics from risk_assessment_tool for {ticker}, period='1y'. Return RiskData.",
+            agent=self.risk_agent,
+            expected_output="Beta, Sharpe, VaR, Max Drawdown, Volatility, daily_returns array",
+            async_execution=True,
+            max_iterations=1
+        )
+        self.news_task = Task(
+            description="Get ~10 recent news items for {ticker} via SerperDevTool. Return them quickly.",
+            agent=self.news_agent,
+            expected_output="List of news items with title, content, link, published_time, named_entities.",
+            async_execution=True,
+            max_iterations=1
+        )
+
+        # 3) aggregator => sequential
         self.aggregator_task = Task(
             description=(
-                "Aggregate competitor, fundamental, technical, risk, and comprehensive_summary data into final JSON. The Comprehensive_summary must be >=700 words summarizing all financial data and metrics and espcially latest stories and data from the previous steps. You do NOT need to include the news in the final JSON. The news is only for the news_agent and is replaced by the comprehensive_summary."
+                "Aggregate all previous steps => final JSON with fields: ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary. Comprehensive Summary should be ~700 words referencing everything. Must match FinancialAnalysisResult exactly. You MUST focus on recent news and events that may affect the stock price or metrics of {ticker} not just financial data. Name entities that are mentioned in the news."
             ),
             agent=self.aggregator_agent,
-            context=[self.competitor_analysis_task, self.fundamental_task, self.technical_task, self.risk_task, self.news_task],
-            expected_output="A legal json containing ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary and nothing else no comments or other text or backticks or anything else",
+            context=[
+                self.competitor_analysis_task, 
+                self.fundamental_task, 
+                self.technical_task, 
+                self.risk_task, 
+                self.news_task
+            ],
+            expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary",
+            max_iterations=1,
             output_pydantic=FinancialAnalysisResult
         )
 
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> str:
         """
-        The full pipeline in sequence:
-          1) competitor tasks
-          2) fundamentals + technical + risk + news
-          3) aggregator => merges everything
-        Returns a JSON string matching 'FinancialAnalysisResult'.
+        1) Competitor tasks => sequential
+        2) Fundamentals + Technical + Risk + News => parallel
+        3) Aggregator => merges
+        Return final JSON as string (pydantic).
         """
+        # Parallel after competitor tasks => speeds up
         crew = Crew(
             agents=[
                 self.enhanced_competitor_agent,
@@ -661,18 +657,19 @@ class FinancialAnalysisCrew:
             tasks=[
                 self.enhanced_competitor_task,
                 self.competitor_analysis_task,
+                # concurrency on these four
                 self.fundamental_task,
                 self.technical_task,
                 self.risk_task,
                 self.news_task,
+                # aggregator last
                 self.aggregator_task
             ],
-            process=Process.sequential,
+            process=Process.sequential,  # now we use parallel for tasks, aggregator last
             verbose=True
         )
         final = crew.kickoff(inputs=inputs)
-        final = final.pydantic.model_dump_json()
-        return final
+        return final.pydantic.model_dump_json()
 
 ########## EXAMPLE MAIN ##############
 def main():

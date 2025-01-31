@@ -53,7 +53,7 @@
         <!-- RESULTS SECTION -->
         <div v-if="hasResults" class="mt-6 space-y-6">
           <div class="grid grid-cols-1 gap-6">
-            <!-- Sales Leads Results -->
+            <!-- SALES LEADS Results -->
             <template v-if="queryType === 'sales_leads'">
               <CompanyResultCard 
                 v-for="(result, index) in results.results" 
@@ -62,14 +62,19 @@
               />
             </template>
 
-            <!-- Educational Content Results -->
-            <template v-else>
+            <!-- EDUCATIONAL CONTENT (Research) Results -->
+            <template v-else-if="queryType === 'educational_content'">
               <ResearchReport :report="results" />
+            </template>
+
+            <!-- FINANCIAL ANALYSIS Results -->
+            <template v-else-if="queryType === 'financial_analysis'">
+              <FinancialAnalysisReport :report="results" />
             </template>
           </div>
         </div>
 
-        <!-- FULL REPORT MODAL -->
+        <!-- FULL REPORT MODAL for "ResearchReport" only -->
         <FullReportModal
           v-if="selectedReport"
           :open="reportModalOpen"
@@ -98,6 +103,7 @@ import SearchNotification from '@/components/SearchNotification.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import CompanyResultCard from '@/components/CompanyResultCard.vue'
 import ResearchReport from '@/components/ResearchReport.vue'
+import FinancialAnalysisReport from '@/components/FinancialAnalysisReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
 import Sidebar from '@/components/Sidebar.vue'
@@ -189,15 +195,9 @@ onBeforeUnmount(() => {
 /**
  * Called when SearchSection triggers "searchStart"
  * The first argument is the "detected route type"
- * e.g. "routing_query", "sales_leads", "educational_content"
  */
 function handleSearchStart(type) {
-  
-
   // If we are starting a brand-new search, generate a new runId
-  // We do this only once per search cycle
-  // If "routing_query" then a second "searchStart" with "sales_leads" will happen,
-  // so we only set runId if not already set, or always set anew on each brand-new search.
   if (type === 'routing_query' || !currentRunId.value) {
     currentRunId.value = uuidv4()
   }
@@ -234,6 +234,14 @@ watch(queryType, (newVal, oldVal) => {
         'Writing content...'
       ])
       break
+    case 'financial_analysis':
+      loadingMessage.value = 'Financial Analysis...'
+      startSubMessageCycle([
+        'Gathering financial data...',
+        'Performing competitor comparisons...',
+        'Assessing risk...'
+      ])
+      break
     default:
       loadingMessage.value = 'Determining route...'
       loadingSubMessage.value = ''
@@ -257,15 +265,17 @@ function handleSearchComplete(searchResults) {
   searchTime.value = elapsed.toFixed(1)
 
   if (Array.isArray(searchResults.results)) {
+    // Typically for sales leads
     resultCount.value = searchResults.results.length
   } else if (searchResults.results?.results && Array.isArray(searchResults.results.results)) {
+    // In case the data was further nested
     resultCount.value = searchResults.results.results.length
   } else {
-    resultCount.value = 0
+    // for financial_analysis or others that might not be arrays
+    resultCount.value = Object.keys(searchResults.results || {}).length
   }
 
   showNotification.value = true
-
   setTimeout(() => {
     showNotification.value = false
   }, 5000)
@@ -305,7 +315,14 @@ const hasResults = computed(() => {
   if (queryType.value === 'sales_leads') {
     return results.value?.results && Array.isArray(results.value.results) && results.value.results.length > 0
   }
-  return Array.isArray(results.value) && results.value.length > 0
+  if (queryType.value === 'educational_content') {
+    return Array.isArray(results.value) && results.value.length > 0
+  }
+  if (queryType.value === 'financial_analysis') {
+    // If there's a ticker, competitor, etc. basically check if results object is non-empty
+    return !!(results.value && Object.keys(results.value).length > 0)
+  }
+  return false
 })
 </script>
 

@@ -45,6 +45,8 @@
               <option value="all">All</option>
               <option value="educational_content">Research</option>
               <option value="sales_leads">Sales Leads</option>
+              <!-- NEW OPTION FOR FINANCIAL ANALYSIS -->
+              <option value="financial_analysis">Financial Analysis</option>
             </select>
           </div>
         </div>
@@ -83,7 +85,9 @@
             <!-- Collapsed View -->
             <div v-if="isCollapsed" class="flex flex-col items-center w-full">
               <component 
-                :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
+                :is="report.type === 'educational_content' ? BookOpenIcon : 
+                      report.type === 'sales_leads' ? UserGroupIcon : 
+                      'BanknotesIcon'"
                 :class="['w-6', 'h-6', reportTextColor(report.type)]"
                 class="mb-1"
               />
@@ -104,7 +108,9 @@
               <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
                 <span class="flex items-center space-x-1">
                   <component 
-                    :is="report.type === 'educational_content' ? BookOpenIcon : UserGroupIcon"
+                    :is="report.type === 'educational_content' ? BookOpenIcon : 
+                          report.type === 'sales_leads' ? UserGroupIcon : 
+                          'BanknotesIcon'"
                     :class="['w-4', 'h-4', reportTextColor(report.type)]"
                   />
                   <span :class="reportTextColor(report.type)">
@@ -158,7 +164,8 @@ import {
   BookOpenIcon,
   UserGroupIcon,
   ArchiveBoxArrowDownIcon,
-  TrashIcon
+  TrashIcon,
+  BanknotesIcon
 } from '@heroicons/vue/24/outline'
 
 const reportStore = useReportStore()
@@ -176,7 +183,10 @@ function selectReport(report) {
 }
 
 function formatType(type) {
-  return type === 'educational_content' ? 'Research' : 'Sales Leads'
+  if (type === 'educational_content') return 'Research'
+  if (type === 'sales_leads') return 'Sales Leads'
+  if (type === 'financial_analysis') return 'Financial Analysis'
+  return 'Unknown'
 }
 
 function formatDate(timestamp) {
@@ -192,9 +202,12 @@ function capitalizeFirstLetter(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
-// Color code based on type: green for research, blue for sales leads
+// Color code based on type
 function reportTextColor(type) {
-  return type === 'educational_content' ? 'text-green-600' : 'text-blue-600'
+  if (type === 'educational_content') return 'text-green-600'
+  if (type === 'sales_leads') return 'text-blue-600'
+  if (type === 'financial_analysis') return 'text-purple-600'
+  return 'text-gray-600'
 }
 
 // Computed filtered reports

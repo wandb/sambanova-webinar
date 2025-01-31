@@ -13,6 +13,7 @@
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
     "axios": "^1.7.9",
+    "chart.js": "^4.4.7",
     "dompurify": "^3.2.3",
     "html2pdf.js": "^0.10.2",
     "jspdf": "^2.5.2",

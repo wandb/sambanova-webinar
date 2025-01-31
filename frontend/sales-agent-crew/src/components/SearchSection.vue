@@ -200,7 +200,6 @@ async function performSearch() {
 
     const detectedType = routeResp.data.type
    
-
     // 3) Tell parent "searchStart" with final type
     emit('searchStart', detectedType || 'unknown')
 

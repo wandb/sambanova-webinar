@@ -268,13 +268,13 @@ class FinancialAnalysisCrew:
         )
 
         # attach Redis logs
-        self.competitor_llm_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "CompLLM")
-        self.competitor_analysis_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "CompAnalysis")
-        self.fundamental_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "FundAgent")
+        self.competitor_llm_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial Competitor Extactor Agent")
+        self.competitor_analysis_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial Competitor Analysis Agent")
+        self.fundamental_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial Fundamentals Agent")
         #self.technical_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "TechAgent")
-        self.risk_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "RiskAgent")
-        self.news_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "NewsAgent")
-        self.aggregator_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Aggregator")
+        self.risk_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial Risk Agent")
+        self.news_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial News Agent")
+        self.aggregator_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Financial Aggregator Agent")
 
     def _init_tasks(self):
         # 1) competitor_llm_task
@@ -384,9 +384,9 @@ class FinancialAnalysisCrew:
         return final.pydantic.model_dump_json()
 
 def main():
-    example_samba_key = "4957c8f9-2468-4cbd-9899-7ba15bd046b4"
-    exa_key = "f2f5b5bf-84da-472f-8711-088dfbe9e04c"
-    serper_key = "fa053a785d306bc110c0dd657d220b1825338f67"
+    example_samba_key = "YOUR_SAMBANOVA_KEY"
+    exa_key = "YOUR_EXA_KEY"
+    serper_key = "YOUR_SERPER_KEY"
     user_id = "demo_user"
     run_id = str(uuid.uuid4())
 

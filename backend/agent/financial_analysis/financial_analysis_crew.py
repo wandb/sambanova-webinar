@@ -469,7 +469,7 @@ class FinancialAnalysisCrew:
             api_key=sambanova_key
         )
         self.aggregator_llm = LLM(
-            model="sambanova/Meta-Llama-3.1-8B-Instruct",
+            model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.0,
             max_tokens=8192,
             api_key=sambanova_key

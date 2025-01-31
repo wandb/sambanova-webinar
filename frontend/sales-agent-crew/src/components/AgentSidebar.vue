@@ -56,7 +56,11 @@
     </div>
 
     <!-- MESSAGES SCROLL CONTAINER -->
-    <div v-if="!collapsed" class="flex-1 overflow-y-auto p-2 space-y-2">
+    <div
+      v-if="!collapsed"
+      class="flex-1 overflow-y-auto p-2 space-y-2"
+      ref="scrollContainer"
+    >
       <!-- Each message card -->
       <div
         v-for="(msg, index) in messages"
@@ -86,7 +90,6 @@
           <template v-if="segment.type === 'thought'">
             <div class="flex items-start space-x-2">
               <span v-html="icons.thought" class="inline-block text-yellow-600"></span>
-              <!-- Stage name in italic, then content on the same line -->
               <div class="whitespace-pre-wrap">
                 <span class="italic text-yellow-600 mr-1">Thought:</span>
                 {{ segment.content }}
@@ -189,7 +192,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 // PROPS
 const props = defineProps({
@@ -203,19 +206,22 @@ const props = defineProps({
   }
 })
 
-// Collapsed by default; user or code can expand
 const collapsed = ref(true)
 
-// SSE management
+// SSE
 const messages = ref([])
 let eventSource = null
 let firstMessageArrived = false
-let lastFinalAnswer = '' // For deduping repeated final answers
+let lastFinalAnswer = '' // for deduping repeated final answers
 
-// Icons for each stage, color-coded.
+// Refs
+const scrollContainer = ref(null)
+
+// ICONS
 const icons = {
   thought: `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M15 8a3 3 0 00-6 0v1a3 3 0 00-3 3v1.17
                a2 2 0 01-.586 1.414l-1 1
@@ -225,13 +231,15 @@ const icons = {
     </svg>
   `,
   action: `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M13 10V3L4 14h7v7l9-11h-7z"/>
     </svg>
   `,
   actionInput: `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 20h9m-9-4h9m-9-4h9M3 4h1
                a2 2 0 012 2v12a2 2 0 01-2 2H3
@@ -239,7 +247,8 @@ const icons = {
     </svg>
   `,
   observation: `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M5 3c-1.1 0-2 .9-2 2v13
                a2 2 0 002 2h14
@@ -248,7 +257,8 @@ const icons = {
     </svg>
   `,
   finalAnswer: `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M19 9l-7 7-4-4"/>
     </svg>
@@ -257,18 +267,10 @@ const icons = {
 
 // Agent color mapping
 const agentStyleMap = {
-  'Aggregator Search Agent': {
-    backgroundColor: '#F3E8FF'
-  },
-  'Data Extraction Agent': {
-    backgroundColor: '#E7F9F1'
-  },
-  'Market Trends Analyst': {
-    backgroundColor: '#FFFBEA'
-  },
-  'Outreach Specialist': {
-    backgroundColor: '#E7F3FF'
-  }
+  'Aggregator Search Agent': { backgroundColor: '#F3E8FF' },
+  'Data Extraction Agent': { backgroundColor: '#E7F9F1' },
+  'Market Trends Analyst': { backgroundColor: '#FFFBEA' },
+  'Outreach Specialist': { backgroundColor: '#E7F3FF' }
 }
 
 function getAgentStyle(agentName) {
@@ -276,15 +278,12 @@ function getAgentStyle(agentName) {
   if (style) {
     return { 'background-color': style.backgroundColor }
   }
-  // fallback
   return { 'background-color': '#F1F5F9' }
 }
-
 function getAgentIcon(agentName) {
-  // If you wanted specific icons per agent, you could do so here
-  // We'll just keep a default for now.
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600"
+         fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 4v16m8-8H4"/>
     </svg>
@@ -292,8 +291,8 @@ function getAgentIcon(agentName) {
 }
 
 /**
- * parseMessage => splits text into segments: Thought, Action, Action Input, Observation, Final Answer
- * with additional logic to handle truncation for Observation
+ * parseMessage => splits text into segments: Thought, Action, etc.
+ * Also handles truncation for "observation" segments.
  */
 function parseMessage(fullText) {
   const segments = []
@@ -302,25 +301,19 @@ function parseMessage(fullText) {
   let currentContent = ''
 
   function pushSegment(type, content) {
-    // deduplicate repeated final answers
     if (type === 'final_answer') {
       if (content.trim() === lastFinalAnswer.trim()) return
       lastFinalAnswer = content.trim()
     }
-
     const segment = {
       type,
       content,
-      show: (type !== 'final_answer'), // final answer hidden by default
+      show: (type !== 'final_answer'),
       truncated: false,
       expanded: false,
       firstLines: [],
       remainingLines: []
     }
-
-    // Additional check for observation truncation:
-    // 1) if multi-line and lines > 3 => truncate
-    // 2) if single-line but length > 200 => also truncate
     if (type === 'observation') {
       let obsLines = content.split('\n')
       if (obsLines.length > 3) {
@@ -328,62 +321,44 @@ function parseMessage(fullText) {
         segment.firstLines = obsLines.slice(0, 3)
         segment.remainingLines = obsLines.slice(3)
       } else if (obsLines.length === 1 && content.length > 200) {
-        // single line but very long
         segment.truncated = true
         segment.firstLines = [content.slice(0, 200)]
         segment.remainingLines = [content.slice(200)]
       }
     }
-
     segments.push(segment)
   }
 
   for (let line of lines) {
     let trimmed = line.trim()
     if (/^Thought:\s*/i.test(trimmed)) {
-      if (currentContent.trim()) {
-        pushSegment(currentType, currentContent)
-      }
+      if (currentContent.trim()) pushSegment(currentType, currentContent)
       currentType = 'thought'
       currentContent = trimmed.replace(/^Thought:\s*/i, '').trim()
     } else if (/^Action:\s*/i.test(trimmed)) {
-      if (currentContent.trim()) {
-        pushSegment(currentType, currentContent)
-      }
+      if (currentContent.trim()) pushSegment(currentType, currentContent)
       currentType = 'action'
       currentContent = trimmed.replace(/^Action:\s*/i, '').trim()
     } else if (/^Action Input:\s*/i.test(trimmed)) {
-      if (currentContent.trim()) {
-        pushSegment(currentType, currentContent)
-      }
+      if (currentContent.trim()) pushSegment(currentType, currentContent)
       currentType = 'action_input'
       currentContent = trimmed.replace(/^Action Input:\s*/i, '').trim()
     } else if (/^Observation:\s*/i.test(trimmed)) {
-      if (currentContent.trim()) {
-        pushSegment(currentType, currentContent)
-      }
+      if (currentContent.trim()) pushSegment(currentType, currentContent)
       currentType = 'observation'
       currentContent = trimmed.replace(/^Observation:\s*/i, '').trim()
     } else if (/^Final Answer:\s*/i.test(trimmed)) {
-      if (currentContent.trim()) {
-        pushSegment(currentType, currentContent)
-      }
+      if (currentContent.trim()) pushSegment(currentType, currentContent)
       currentType = 'final_answer'
       currentContent = trimmed.replace(/^Final Answer:\s*/i, '').trim()
     } else {
-      if (!currentContent) {
-        currentContent = trimmed
-      } else {
-        currentContent += '\n' + trimmed
-      }
+      if (!currentContent) currentContent = trimmed
+      else currentContent += '\n' + trimmed
     }
   }
 
-  // push leftover
-  if (currentContent.trim()) {
-    pushSegment(currentType, currentContent)
-  }
-
+  // leftover
+  if (currentContent.trim()) pushSegment(currentType, currentContent)
   return segments
 }
 
@@ -395,8 +370,6 @@ function connectToSSE() {
     console.log('[AgentSidebar] Missing userId or runId:', { userId: props.userId, runId: props.runId })
     return
   }
-
-  // close existing
   if (eventSource) {
     eventSource.close()
     eventSource = null
@@ -411,14 +384,11 @@ function connectToSSE() {
   eventSource.onopen = () => {
     console.log('[AgentSidebar] SSE opened successfully')
   }
-
   eventSource.onerror = (err) => {
     console.error('[AgentSidebar] SSE error:', err)
     if (eventSource.readyState === EventSource.CLOSED) {
-      console.log('[AgentSidebar] SSE closed, attempt reconnect in 5s')
-      setTimeout(() => {
-        connectToSSE()
-      }, 5000)
+      console.log('[AgentSidebar] SSE closed => reconnect in 5s')
+      setTimeout(() => connectToSSE(), 5000)
     }
   }
 
@@ -429,9 +399,7 @@ function connectToSSE() {
         console.log('[AgentSidebar] SSE connection established')
         return
       }
-      if (data.type === 'ping') {
-        return
-      }
+      if (data.type === 'ping') return
 
       // normal message
       const messageData = data
@@ -439,8 +407,6 @@ function connectToSSE() {
         console.log('[AgentSidebar] Missing fields => ignoring:', messageData)
         return
       }
-
-      // check match
       if (messageData.user_id === props.userId && messageData.run_id === props.runId) {
         if (!firstMessageArrived) {
           firstMessageArrived = true
@@ -451,27 +417,42 @@ function connectToSSE() {
           .replace(/\n{3,}/g, '\n\n')
           .replace(/You ONLY have access.*$/s, '')
           .trim()
+        let segs = parseMessage(cleaned)
 
-        let segments = parseMessage(cleaned)
         messages.value.push({
           agent_name: messageData.agent_name,
           timestamp: messageData.timestamp,
-          parsedSegments: segments
+          parsedSegments: segs
         })
 
-        // auto-scroll
-        setTimeout(() => {
-          const container = document.querySelector('.overflow-y-auto')
-          if (container) {
-            container.scrollTop = container.scrollHeight
-          }
-        }, 100)
+        // Auto-scroll #1 (immediate)
+        autoScrollToBottom()
       }
     } catch (err) {
       console.error('[AgentSidebar] SSE parse error:', err, 'Raw:', event.data)
     }
   }
 }
+
+/**
+ * Actually scroll to bottom of the container
+ */
+function autoScrollToBottom() {
+  if (!scrollContainer.value) return
+  // nextTick => setTimeout => do scroll
+  nextTick(() => {
+    setTimeout(() => {
+      scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight
+    }, 50)
+  })
+}
+
+/**
+ * Watch messages => autoScroll #2 (in case SSE immediate wasn't enough)
+ */
+watch(messages, () => {
+  autoScrollToBottom()
+})
 
 // Lifecycle
 onMounted(() => {
@@ -484,7 +465,7 @@ onBeforeUnmount(() => {
   }
 })
 
-// Watch runId => if changes => reset + reconnect
+// watch runId => if changes => reset + reconnect
 watch(() => props.runId, (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
@@ -495,7 +476,7 @@ watch(() => props.runId, (newVal, oldVal) => {
   }
 })
 
-// Watch userId => if changes => reset + reconnect
+// watch userId => reset + reconnect
 watch(() => props.userId, (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []

@@ -14,7 +14,7 @@ const api = axios.create({
 })
 
 /**
- * Unified query endpoint that handles both sales leads and research
+ * Unified query endpoint that handles both sales leads and research and financial analysis
  */
 export const unifiedQuery = async (query, apiKeys) => {
   const response = await fetch('/api/query', {

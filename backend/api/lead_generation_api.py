@@ -1,5 +1,3 @@
-# lead_generation_api.py
-
 from fastapi import FastAPI, Request, BackgroundTasks
 from pydantic import BaseModel
 import json
@@ -27,7 +25,7 @@ from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 
-# New
+# For financial analysis
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
 
@@ -48,7 +46,7 @@ class LeadGenerationAPI:
         # For concurrency
         self.executor = ThreadPoolExecutor(max_workers=2)
 
-        # Redis connection for route logs / SSE (read env or default)
+        # Redis connection for route logs / SSE
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
         self.redis_client = redis.Redis(
@@ -126,6 +124,7 @@ class LeadGenerationAPI:
 
             try:
                 if query_type == "sales_leads":
+                    # Sales route
                     if not exa_key:
                         return JSONResponse(
                             status_code=401,
@@ -143,6 +142,7 @@ class LeadGenerationAPI:
                     return JSONResponse(content={"results": outreach_list})
 
                 elif query_type == "educational_content":
+                    # Educational content route
                     if not serper_key:
                         return JSONResponse(
                             status_code=401,
@@ -170,42 +170,22 @@ class LeadGenerationAPI:
                     return JSONResponse(content=sections_with_content)
 
                 elif query_type == "financial_analysis":
+                    # New financial route, align with sales_leads approach
                     if not exa_key or not serper_key:
                         return JSONResponse(
                             status_code=401,
                             content={"error": "Missing required Exa or Serper API keys for financial analysis"}
                         )
-                    
-                    try:
-                        # Extract ticker/company from user query
-                        extractor = FinancialPromptExtractor(sambanova_key)
-                        print(f'Extractor: {extractor}')
-                        ticker, company = extractor.extract_info(parameters.get("query_text", ""))
-                        
-                        # Create proper inputs dictionary
-                        analysis_inputs = {
-                            "ticker": ticker,
-                            "company_name": company
-                        }
-                        
-                        crew = FinancialAnalysisCrew(
-                            sambanova_key=sambanova_key,
-                            exa_key=exa_key,
-                            serper_key=serper_key,
-                            user_id=user_id,
-                            run_id=run_id
-                        )
-                        
-                        result = crew.execute_financial_analysis(analysis_inputs)
-                        parsed_fin = json.loads(result)
-                        return JSONResponse(content=parsed_fin)
-                        
-                    except Exception as e:
-                        print(f"[/execute/financial_analysis] Error: {str(e)}")
-                        return JSONResponse(
-                            status_code=500,
-                            content={"error": str(e)}
-                        )
+                    crew = FinancialAnalysisCrew(
+                        sambanova_key=sambanova_key,
+                        exa_key=exa_key,
+                        serper_key=serper_key,
+                        user_id=user_id,
+                        run_id=run_id
+                    )
+                    raw_result = await self.execute_financial(crew, parameters)
+                    parsed_fin = json.loads(raw_result)
+                    return JSONResponse(content=parsed_fin)
 
                 else:
                     return JSONResponse(
@@ -226,7 +206,6 @@ class LeadGenerationAPI:
             print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}, channel={channel}")
 
             try:
-                # Use environment-based config
                 redis_host = os.getenv("REDIS_HOST", "localhost")
                 redis_port = int(os.getenv("REDIS_PORT", "6379"))
                 local_redis = redis.Redis(
@@ -284,6 +263,10 @@ class LeadGenerationAPI:
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
     async def execute_research(self, crew, parameters: Dict[str,Any]):
+        """
+        Helper for 'sales_leads' route.
+        Extract lead info from parameters, run crew.execute_research in a thread.
+        """
         extractor = UserPromptExtractor(crew.sambanova_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
@@ -300,14 +283,12 @@ class LeadGenerationAPI:
         result = await loop.run_in_executor(None, future.result)
         return result
 
-    async def execute_financial_analysis(self, sambanova_key: str, exa_key: str, serper_key: str,
-                                         user_id: str, run_id: str,
-                                         parameters: Dict[str,Any]):
+    async def execute_financial(self, crew, parameters: Dict[str,Any]):
         """
-        Instantiates FinancialAnalysisCrew and runs the pipeline.
-        We parse ticker + company_name from the user prompt with FinancialPromptExtractor.
+        Helper for 'financial_analysis' route.
+        Extract ticker/company from parameters, then run crew.execute_financial_analysis in a thread.
         """
-        fextractor = FinancialPromptExtractor(sambanova_key)
+        fextractor = FinancialPromptExtractor(crew.sambanova_key)
         query_text = parameters.get("query_text","")
         (extracted_ticker, extracted_company) = fextractor.extract_info(query_text)
 
@@ -321,13 +302,12 @@ class LeadGenerationAPI:
         if not extracted_company:
             extracted_company = "Apple Inc"
 
-        fac = FinancialAnalysisCrew(sambanova_key, exa_key, serper_key, user_id, run_id)
-        input_vars = {"ticker": extracted_ticker, "company_name": extracted_company}
+        inputs = {"ticker": extracted_ticker, "company_name": extracted_company}
 
         loop = asyncio.get_running_loop()
-        future = self.executor.submit(fac.execute_financial_analysis, input_vars)
-        raw = await loop.run_in_executor(None, future.result)
-        return raw
+        future = self.executor.submit(crew.execute_financial_analysis, inputs)
+        raw_result = await loop.run_in_executor(None, future.result)
+        return raw_result
 
 def create_app():
     api = LeadGenerationAPI()

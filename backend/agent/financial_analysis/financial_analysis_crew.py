@@ -563,14 +563,23 @@ class FinancialAnalysisCrew:
             verbose=True,
         )
 
+        enhanced_competitor_logger = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
+        competitor_analysis_logger = RedisConversationLogger(self.user_id, self.run_id, "Competitor Analysis Agent")
+        fundamental_logger = RedisConversationLogger(self.user_id, self.run_id, "Fundamental Agent")
+        technical_logger = RedisConversationLogger(self.user_id, self.run_id, "Technical Agent")
+        risk_logger = RedisConversationLogger(self.user_id, self.run_id, "Risk Agent")
+        news_logger = RedisConversationLogger(self.user_id, self.run_id, "News Agent")
+        aggregator_logger = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
+
         # Redis logs
-        self.enhanced_competitor_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
-        self.competitor_analysis_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Competitor Analysis Agent")
-        self.fundamental_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Fundamental Agent")
-        self.technical_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Technical Agent")
-        self.risk_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Risk Agent")
-        self.news_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "News Agent")
-        self.aggregator_agent.step_callback = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
+
+        self.enhanced_competitor_agent.step_callback = enhanced_competitor_logger
+        self.competitor_analysis_agent.step_callback = competitor_analysis_logger
+        self.fundamental_agent.step_callback = fundamental_logger
+        self.technical_agent.step_callback = technical_logger
+        self.risk_agent.step_callback = risk_logger
+        self.news_agent.step_callback = news_logger
+        self.aggregator_agent.step_callback = aggregator_logger
 
     def _init_tasks(self):
         # 1) competitor tasks => sequential

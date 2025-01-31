@@ -122,6 +122,7 @@ class NewsItem(BaseModel):
     content: str
     link: str
     published_time: str
+    named_entities: List[str] = []
 
 class YahooNewsData(BaseModel):
     news_items: List[NewsItem]
@@ -139,7 +140,6 @@ class FinancialAnalysisResult(BaseModel):
     company_name: str
     competitor: CompetitorBlock
     fundamental: FundamentalData
-    technical: TechnicalData
     risk: RiskData
     comprehensive_summary: str = ""
 
@@ -165,7 +165,7 @@ class FinancialAnalysisCrew:
             api_key=sambanova_key
         )
         self.aggregator_llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model="sambanova/Qwen2.5-72B-Instruct",
             temperature=0.0,
             max_tokens=4096,
             api_key=sambanova_key
@@ -217,18 +217,16 @@ class FinancialAnalysisCrew:
             output_pydantic=FundamentalData
         )
 
-        # # 4) technical agent
-        # self.technical_agent = Agent(
-        #     role="Technical Analysis Agent",
-        #     goal="Evaluate price patterns, momentum indicators, and market trends through technical analysis",
-        #     backstory="Technical analysis specialist with deep expertise in chart patterns, technical indicators, and trend analysis for market timing and price movement prediction.",
-        #     llm=self.llm,
-        #     tools=[yf_tech_analysis],
-        #     allow_delegation=False,
-        #     verbose=True,
-        #     allow_code_execution=True,
-        #     output_pydantic=TechnicalData
-        # )
+        # 4) technical agent
+        self.technical_agent = Agent(
+            role="Technical Analysis Agent",
+            goal="Evaluate price patterns, momentum indicators, and market trends through technical analysis",
+            backstory="Technical analysis specialist with deep expertise in chart patterns, technical indicators, and trend analysis for market timing and price movement prediction.",
+            llm=self.llm,
+            tools=[yf_tech_analysis],
+            allow_delegation=False,
+            verbose=True,
+        )
 
         # 5) risk agent
         self.risk_agent = Agent(
@@ -250,19 +248,19 @@ class FinancialAnalysisCrew:
         self.news_agent = Agent(
             role="Financial News Agent",
             goal="Gather and analyze recent news, market sentiment, and media coverage affecting the ticker {ticker}",
-            backstory="Market intelligence specialist focusing on news analysis, sentiment evaluation, and media impact assessment on company performance.",
-            llm=self.aggregator_llm,
+            backstory="Market intelligence  specialist with 15 years experience focusing on news analysis, sentiment evaluation, and media impact assessment on company performance. You MUST reference the news exhaustively in the summary and name any events including named entities ie companies, people, etc that may affect the stock price and other metrics",
+            llm=self.llm,
             tools=[SerperDevTool()],
             allow_delegation=False,
             verbose=True,
-            output_pydantic=YahooNewsData
+            #output_pydantic=YahooNewsData
         )
 
         # aggregator
         self.aggregator_agent = Agent(
             role="Aggregator Agent",
             goal="Synthesize all analysis components into a comprehensive financial assessment",
-            backstory="Senior financial advisor specializing in comprehensive market analysis, combining multiple analytical perspectives into actionable investment insights.",
+            backstory="Senior financial advisor with 15 years of experience specializing in comprehensive market analysis, competitor analysis, fundamental analysis, technical analysis, risk analysis, and news analysis, combining multiple analytical perspectives into actionable investment insights. You MUST reference the news exhaustively in the summary and name any events including named entities ie companies, people, etc that may affect the stock price and other metrics",
             llm=self.aggregator_llm,
             allow_delegation=False,
             verbose=True,
@@ -299,39 +297,43 @@ class FinancialAnalysisCrew:
         self.fundamental_task = Task(
             description="Analyze company fundamentals through comprehensive financial metrics and ratios for the following company: Company Ticker: {ticker}. Pass in this ticker to the fundamental_analysis_tool as a string",
             agent=self.fundamental_agent,
-            expected_output="Expected fields: company_name, sector, industry, market_cap, pe_ratio, forward_pe, peg_ratio, ps_ratio, price_to_book, dividend_yield, beta, quarterly_fundamentals"
+            expected_output="Expected fields: company_name, sector, industry, market_cap, pe_ratio, forward_pe, peg_ratio, ps_ratio, price_to_book, dividend_yield, beta, quarterly_fundamentals",
+            async_execution=True
         )
 
-        # # 4) technical_task
-        # self.technical_task = Task(
-        #     description=(
-        #     "Perform technical analysis on {ticker}. Include:\n"
-        #     "1. 50-day and 200-day moving averages (1 year).\n"
-        #     "2. Key support and resistance levels (3 each).\n"
-        #     "3. RSI and MACD indicators.\n"
-        #     "4. Volume analysis (3 months).\n"
-        #     "5. Significant chart patterns (6 months).\n"
-        #     "6. Fibonacci retracement levels.\n"
-        #     "7. Comparison with sector's average.\n"
-        #     "Use the yf_tech_analysis tool for data."
-        # ),
-        #     agent=self.technical_agent,
-        #     expected_output="Expected fields: moving_averages, rsi, macd, bollinger_bands, volatility, momentum, support_levels, resistance_levels, detected_patterns, chart_data"
-        # )
+        # 4) technical_task
+        self.technical_task = Task(
+            description=(
+            "Perform technical analysis on {ticker}. Include:\n"
+            "1. 50-day and 200-day moving averages (1 year).\n"
+            "2. Key support and resistance levels (3 each).\n"
+            "3. RSI and MACD indicators.\n"
+            "4. Volume analysis (3 months).\n"
+            "5. Significant chart patterns (6 months).\n"
+            "6. Fibonacci retracement levels.\n"
+            "7. Comparison with sector's average.\n"
+            "Use the yf_tech_analysis tool for data. Pass in the ticker as a string to the tool as well as the period as a string ie '1y'"
+        ),
+            agent=self.technical_agent,
+            expected_output="Expected fields: moving_averages, rsi, macd, bollinger_bands, volatility, momentum, support_levels, resistance_levels, detected_patterns, chart_data",
+            output_pydantic=TechnicalData
+        )
 
         # 5) risk_task
         self.risk_task = Task(
             description="Calculate and analyze key risk metrics and market exposure indicators for the following company: Company Ticker: {ticker}. Pass in this ticker to the risk_assessment_tool as a string and period as a string ie '1y' and benchmark as a string ie '^GSPC' for the S&P 500",
             agent=self.risk_agent,
-            expected_output="Expected fields: beta, sharpe_ratio, value_at_risk_95, max_drawdown, volatility, daily_returns"
+            expected_output="Expected fields: beta, sharpe_ratio, value_at_risk_95, max_drawdown, volatility, daily_returns",
+            async_execution=True
         )
 
         # 6) news_task
         self.news_task = Task(
-            description="Gather and analyze recent news and market sentiment data for the following company: Company Name: {company_name}. Pass in this company name to the tool as a string and search for the LATEST financial news, this is key, analyze all the snippets, retrieve original urls from the link key and turn them all into a single list of news items ad detailed as possible, pay special attention to recent events that may affect the stock price and other metrics  postiv",
+            description="Gather and analyze recent news and market sentiment data for the following company: Company Name: {company_name}. Pass in this company name to the tool as a string and search for the LATEST company news, this is key, analyze all the snippets, retrieve original urls from the link key and turn them all into a single list of news items ad detailed as possible, pay special attention to recent events that may affect the stock price and other metrics and name any events including named entities ie companies, people, etc that may affect the stock price and other metrics. This is very important, you must use the most recent news at top stories affecting {ticker} stock price and other metrics. Favour stories that are directly related to the company and its products, services, or market position, ESPECIALLY cometitor news  make sure you have diverse stories not just investment news",
             agent=self.news_agent,
-            expected_output="A list of news items with the title, content, link, and published_time",
-            output_pydantic=YahooNewsData
+            expected_output="ALL news items with the title, content, link, and published_time, comeptitor news is key, you must have at least 10 news items", 
+            #output_pydantic=YahooNewsData,
+            async_execution=True
         )
 
         # 7) aggregator_task
@@ -339,11 +341,11 @@ class FinancialAnalysisCrew:
             description=(
                 "Synthesize analyses from all components into a comprehensive financial assessment for the following company: Company Ticker: {ticker}. "
                 "Combine data from competitor analysis, fundamental metrics, technical indicators, "
-                "risk metrics, and market sentiment into a structured report as well a comprehensive summary including the latest news affecting the company, be sure to cross reference the news and events with the stock price and other metrics"
+                "risk metrics, and market sentiment into a structured report as well a comprehensive summary including the latest news affecting the company, be sure to cross reference the news and events with the stock price and other metrics. You MUST reference the news exhaustively in the summary and name any events including named entities that may affect the stock price and other metricss"
             ),
             agent=self.aggregator_agent,
             context=[self.competitor_analysis_task, self.fundamental_task, self.risk_task, self.news_task],
-            expected_output="Expected json fields with nested objects: ticker, company_name, competitor, fundamental, technical, risk, comprehensive_summary (at least 700 words) This summary should be a comprehensive summary of the entire analysis paying close attention to referencing the news in the previous tasks events that may affect the stock price and other metrics, you MUST reference the news exhaustively in the summary",
+            expected_output="Expected json fields with nested objects: ticker, company_name, competitor, fundamental, risk, comprehensive_summary (at least 700 words) This summary should be a comprehensive summary of the entire analysis using the news and events from the previous tasks to reference events that may affect the stock price and other metrics, you MUST reference the news exhaustively in the summary",
             output_pydantic=FinancialAnalysisResult
         )
        

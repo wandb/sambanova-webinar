@@ -16,6 +16,9 @@ if parent_of_parent_dir not in sys.path:
 
 from dotenv import load_dotenv
 
+from langtrace_python_sdk import langtrace
+langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
+
 # crewai imports
 from crewai import Agent, Task, Crew, LLM, Process
 from utils.agent_thought import RedisConversationLogger

@@ -477,9 +477,7 @@ async function downloadPDF() {
   
   try {
     isGeneratingPDF.value = true;
-    // Show loading state (you might want to add a loading indicator)
-    const loading = true;
-
+    
     // Create PDF document
     const doc = new jsPDF('p', 'pt', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -566,10 +564,9 @@ async function downloadPDF() {
     const fileName = `${props.reportData.company_name || 'financial'}_analysis.pdf`;
     doc.save(fileName);
 
-    loading = false;
+    isGeneratingPDF.value = false;
   } catch (error) {
     console.error('Error generating PDF:', error);
-  } finally {
     isGeneratingPDF.value = false;
   }
 }

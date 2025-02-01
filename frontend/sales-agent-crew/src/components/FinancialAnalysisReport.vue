@@ -21,12 +21,12 @@ import {
   ChartBarIcon,
   Bars3Icon,
   GlobeAmericasIcon,
-  CircleStackIcon,
-  NewspaperIcon
+  CircleStackIcon
 } from '@heroicons/vue/24/outline'
 
 import FullFinancialReportModal from './FullFinancialReportModal.vue'
 
+// Props
 const props = defineProps({
   report: {
     type: Object,
@@ -34,6 +34,7 @@ const props = defineProps({
   }
 })
 
+// Control for the "View Full Report" modal
 const isFullReportOpen = ref(false)
 
 // Chart references
@@ -42,11 +43,50 @@ let monthlyReturnsChart = null
 let quarterlyFundamentalsChart = null
 let stockPriceChart = null
 
-// Canvas refs
+// Canvas element refs
 const competitorCanvasRef = ref(null)
 const monthlyReturnsCanvasRef = ref(null)
 const quarterlyFundCanvasRef = ref(null)
 const stockPriceCanvasRef = ref(null)
+
+/**
+ * Helper to break a large block of text into smaller paragraphs by adding extra newlines.
+ * Very naive approach: insert double newlines every ~3-4 sentences.
+ */
+function breakLargeBlocks(text) {
+  if (!text) return ''
+  // Split on sentence ends (., ?, !) but keep the delimiter
+  const chunks = text.split(/([.?!])(\s+|$)/)
+  if (chunks.length <= 6) return text // short enough
+
+  let paragraphs = []
+  let current = []
+
+  for (let i = 0; i < chunks.length; i += 2) {
+    const sentence = (chunks[i] || '').trim()
+    const delimiter = (chunks[i+1] || '').trim()
+    if (sentence) {
+      current.push(sentence + delimiter)
+    }
+    // Group ~3 sentences per paragraph
+    if (current.length >= 3) {
+      paragraphs.push(current.join(' '))
+      current = []
+    }
+  }
+  // leftover
+  if (current.length) {
+    paragraphs.push(current.join(' '))
+  }
+  return paragraphs.join('\n\n')
+}
+
+// Create sanitized HTML from the comprehensive summary, but with paragraph splitting first
+const comprehensiveSummaryHtml = computed(() => {
+  let raw = props.report.comprehensive_summary || ''
+  let splitted = breakLargeBlocks(raw)
+  return DOMPurify.sanitize(marked(splitted))
+})
 
 // Formatters
 function formatLargeNumber(num) {
@@ -57,18 +97,15 @@ function formatLargeNumber(num) {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M'
   return n.toFixed(2)
 }
-
 function formatFloat(num, decimals=2) {
   if (!num || isNaN(num)) return '-'
   return parseFloat(num).toFixed(decimals)
 }
-
 function formatPercentage(num, decimals=2) {
   if (!num || isNaN(num)) return '-'
   const val = parseFloat(num)*100
   return val.toFixed(decimals) + '%'
 }
-
 function formatMetric(key, value) {
   if (key === 'market_cap') return formatLargeNumber(value)
   if (['pe_ratio','ps_ratio','forward_pe','price_to_book','short_ratio','target_price','earnings_per_share','beta'].includes(key)) {
@@ -80,21 +117,22 @@ function formatMetric(key, value) {
   return value || '-'
 }
 
-const comprehensiveSummaryHtml = computed(() => {
-  return DOMPurify.sanitize(marked(props.report.comprehensive_summary || ''))
-})
-
-// CHART creation
+// Chart creation/destroy watchers
 onMounted(() => {
   createOrUpdateCharts()
 })
 onBeforeUnmount(() => {
   destroyCharts()
 })
-watch(() => props.report, async () => {
-  await createOrUpdateCharts()
-}, { deep: true })
+watch(
+  () => props.report,
+  async () => {
+    await createOrUpdateCharts()
+  },
+  { deep: true }
+)
 
+// Destroy old chart instances
 function destroyCharts() {
   if (competitorChart) { competitorChart.destroy(); competitorChart = null }
   if (monthlyReturnsChart) { monthlyReturnsChart.destroy(); monthlyReturnsChart = null }
@@ -102,11 +140,12 @@ function destroyCharts() {
   if (stockPriceChart) { stockPriceChart.destroy(); stockPriceChart = null }
 }
 
+// Recreate chart instances
 async function createOrUpdateCharts() {
   destroyCharts()
   await nextTick()
 
-  // 1) competitor chart
+  // #1 Competitor Chart
   if (competitorCanvasRef.value && props.report?.competitor?.competitor_details?.length) {
     const competitorDetails = props.report.competitor.competitor_details
     const competitorNames = competitorDetails.map(c => c.name)
@@ -136,6 +175,7 @@ async function createOrUpdateCharts() {
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false, // Let it scale
         scales: {
           y1: {
             type: 'linear',
@@ -153,7 +193,7 @@ async function createOrUpdateCharts() {
     })
   }
 
-  // 2) monthly returns chart
+  // #2 Monthly Returns Chart
   if (monthlyReturnsCanvasRef.value && props.report?.risk?.daily_returns?.length) {
     const dailyData = props.report.risk.daily_returns
     const xLabels = dailyData.map(d => d.date)
@@ -175,6 +215,7 @@ async function createOrUpdateCharts() {
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         scales: {
           y:{title:{display:true,text:'Avg Monthly Return (%)'}},
           x:{title:{display:true,text:'Month'}}
@@ -183,13 +224,14 @@ async function createOrUpdateCharts() {
     })
   }
 
-  // 3) quarterly fundamentals chart
+  // #3 Quarterly Fundamentals
   if (quarterlyFundCanvasRef.value && props.report?.fundamental?.quarterly_fundamentals?.length) {
     const qData = props.report.fundamental.quarterly_fundamentals.filter(q => q.total_revenue!=null && q.net_income!=null)
     if (qData.length>0) {
       const labels = qData.map(q => q.date)
       const revenues = qData.map(q => parseFloat(q.total_revenue||'0')/1e9)
       const incomes = qData.map(q => parseFloat(q.net_income||'0')/1e9)
+
       quarterlyFundamentalsChart = new Chart(quarterlyFundCanvasRef.value.getContext('2d'), {
         data: {
           labels,
@@ -212,6 +254,7 @@ async function createOrUpdateCharts() {
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales:{
             y1:{
               type:'linear',
@@ -230,7 +273,7 @@ async function createOrUpdateCharts() {
     }
   }
 
-  // 4) 6-month weekly stock price
+  // #4 6-month Weekly Stock Price
   if (stockPriceCanvasRef.value && props.report?.stock_price_data?.length) {
     const spData = props.report.stock_price_data
     const xLabels = spData.map(d => d.date)
@@ -252,6 +295,7 @@ async function createOrUpdateCharts() {
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         scales: {
           y:{title:{display:true,text:'Stock Price (USD)'}},
           x:{title:{display:true,text:'Week'}}
@@ -261,38 +305,54 @@ async function createOrUpdateCharts() {
   }
 }
 
-// ACTIONS
+// Show/hide full report
 function viewFullReport() {
   isFullReportOpen.value = true
 }
 function closeFullReport() {
   isFullReportOpen.value = false
 }
+
+// PDF Download => ensure no random breaks & scale charts
 async function downloadPDF() {
   const rootElem = document.querySelector('#financial-analysis-report-root')
   if (!rootElem) return
+
+  // We set "maintainAspectRatio: false" on all charts & used page-break-inside: avoid in CSS.
+  // Also use "mode: css" to rely on our styles for page-break logic
   const pdfOpts = {
     margin: [10, 10],
     filename: 'financial_analysis.pdf',
+    pagebreak: { mode: ['css', 'legacy'] },
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: {scale:2,useCORS:true,letterRendering:true},
-    jsPDF: {unit:'mm',format:'a4',orientation:'portrait'}
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      letterRendering: true
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    }
   }
+
   try {
     await html2pdf().set(pdfOpts).from(rootElem).save()
   } catch(e) {
-    console.error('PDF error', e)
+    console.error('PDF error:', e)
   }
 }
 </script>
 
 <template>
+  <!-- Removed "max-h" and "overflow-y-auto" so that the entire content is captured for PDF -->
   <div 
     id="financial-analysis-report-root"
-    class="bg-white rounded-lg shadow p-6 max-h-[calc(100vh-16rem)] overflow-y-auto"
+    class="bg-white rounded-lg shadow p-6 pdf-report-container"
   >
     <!-- HEADER -->
-    <div class="flex items-center space-x-3 mb-4">
+    <div class="flex items-center space-x-3 mb-4 pdf-section">
       <PresentationChartLineIcon class="w-6 h-6 text-purple-600" />
       <h2 class="text-xl font-bold text-gray-800">
         Financial Analysis: {{ report.company_name }}
@@ -301,7 +361,7 @@ async function downloadPDF() {
 
     <!-- OVERVIEW -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <GlobeAmericasIcon class="w-5 h-5 text-blue-500" />
         <span>Overview</span>
@@ -314,13 +374,15 @@ async function downloadPDF() {
 
     <!-- COMPETITOR ANALYSIS -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <UsersIcon class="w-5 h-5 text-green-500" />
         <span>Competitor Analysis</span>
       </h3>
       <div class="border border-gray-200 p-3 rounded-lg chart-container mb-6">
-        <canvas ref="competitorCanvasRef" width="400" height="250"></canvas>
+        <div style="width: 100%; height: 300px;">
+          <canvas ref="competitorCanvasRef"></canvas>
+        </div>
       </div>
 
       <div 
@@ -404,11 +466,12 @@ async function downloadPDF() {
 
     <!-- FUNDAMENTALS -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <Bars3Icon class="w-5 h-5 text-purple-500" />
         <span>Fundamentals</span>
       </h3>
+
       <!-- row of margins at top -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div class="p-3 border rounded-md shadow-sm bg-white">
@@ -585,16 +648,18 @@ async function downloadPDF() {
       </div>
 
       <!-- QUARTERLY FUNDAMENTALS CHART -->
-      <div class="mt-6 border border-gray-200 p-3 rounded-lg">
+      <div class="mt-6 border border-gray-200 p-3 rounded-lg chart-container pdf-section">
         <div class="flex items-center space-x-2 mb-2 text-sm text-gray-600">
           <ChartBarIcon class="w-4 h-4 text-purple-600" />
           <span>Quarterly Fundamentals</span>
         </div>
-        <canvas ref="quarterlyFundCanvasRef" width="400" height="250"></canvas>
+        <div style="width: 100%; height: 300px;">
+          <canvas ref="quarterlyFundCanvasRef"></canvas>
+        </div>
       </div>
 
       <!-- ADVANCED DATA: advanced_fundamentals & dividend_history -->
-      <div class="mt-6 border border-gray-200 p-3 rounded-lg">
+      <div class="mt-6 border border-gray-200 p-3 rounded-lg pdf-section">
         <div class="flex items-center space-x-2 mb-2 text-sm text-gray-600">
           <CircleStackIcon class="w-4 h-4 text-pink-600" />
           <span>Advanced Data</span>
@@ -636,7 +701,7 @@ async function downloadPDF() {
 
     <!-- RISK & AVG MONTHLY RETURNS -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <ShieldCheckIcon class="w-5 h-5 text-pink-600" />
         <span>Risk & Avg Monthly Returns</span>
@@ -695,38 +760,41 @@ async function downloadPDF() {
       </div>
       <!-- monthly returns chart -->
       <div class="border border-gray-200 p-3 rounded-lg chart-container">
-        <canvas ref="monthlyReturnsCanvasRef" width="300" height="250"></canvas>
+        <div style="width: 100%; height: 300px;">
+          <canvas ref="monthlyReturnsCanvasRef"></canvas>
+        </div>
       </div>
     </section>
 
     <!-- 6-MONTH WEEKLY STOCK PRICE -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <CursorArrowRaysIcon class="w-5 h-5 text-green-600" />
         <span>Stock Price (6-Month Weekly)</span>
       </h3>
       <div class="border border-gray-200 p-3 rounded-lg chart-container">
-        <canvas ref="stockPriceCanvasRef" width="400" height="250"></canvas>
+        <div style="width: 100%; height: 300px;">
+          <canvas ref="stockPriceCanvasRef"></canvas>
+        </div>
       </div>
     </section>
 
-    
-
     <!-- COMPREHENSIVE SUMMARY -->
     <hr class="my-4" />
-    <section>
+    <section class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <DocumentTextIcon class="w-5 h-5 text-purple-600" />
         <span>Comprehensive Summary</span>
       </h3>
       <div class="text-sm text-gray-700 prose max-w-none">
+        <!-- Insert paragraphs from 'comprehensiveSummaryHtml' -->
         <div v-html="comprehensiveSummaryHtml"></div>
       </div>
     </section>
 
     <!-- ACTIONS -->
-    <div class="flex justify-end space-x-4 mt-6">
+    <div class="flex justify-end space-x-4 mt-6 pdf-section">
       <button
         @click="viewFullReport"
         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -743,7 +811,7 @@ async function downloadPDF() {
       </button>
     </div>
 
-    <!-- FULL FINANCIAL REPORT MODAL (unchanged old approach) -->
+    <!-- FULL FINANCIAL REPORT MODAL -->
     <FullFinancialReportModal
       :open="isFullReportOpen"
       :reportData="report"
@@ -753,10 +821,30 @@ async function downloadPDF() {
 </template>
 
 <style scoped>
-.prose p {
-  margin-bottom: 0.75rem;
+/* Give each pdf-section a margin, and avoid page-break inside. */
+.pdf-section {
+  page-break-inside: avoid;
+  margin-bottom: 1rem;
 }
+
+/* Force each chart container to avoid page breaks inside. */
 .chart-container {
   overflow-x: auto;
+  page-break-inside: avoid;
+}
+
+/* Force each canvas to scale to fit the PDF page better. */
+.chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 600px;  /* optional limit if you want smaller charts */
+  display: block;
+  margin: 0 auto;
+}
+
+/* Paragraph styling in summary. */
+.prose p {
+  margin-bottom: 1rem;
+  line-height: 1.5;
 }
 </style>

@@ -12,8 +12,7 @@ from utils.envutils import EnvUtils
 class UserPromptExtractor:
     def __init__(self, sambanova_api_key: str):
         """
-        This class uses the raw requests approach (like a curl) 
-        to call the SambaNova ChatCompletion endpoint,
+        This class uses a raw requests approach to call the SambaNova ChatCompletion endpoint,
         extracting user prompts into a structured JSON.
 
         Make sure your environment includes SAMBANOVA_API_KEY.
@@ -21,20 +20,17 @@ class UserPromptExtractor:
         self.env_utils = EnvUtils()
         self.api_key = sambanova_api_key
 
-        # We'll use an example model name "gpt-4o-mini" 
-        # as in your curl snippet. Adjust if needed:
+        # We'll use the model name "Meta-Llama-3.1-8B-Instruct".
         self.model_name = "Meta-Llama-3.1-8B-Instruct"  
         self.url = "https://api.sambanova.ai/v1/chat/completions"
 
     def extract_lead_info(self, prompt: str) -> dict:
         """
-        Make a POST request via 'requests' to the OpenAI ChatCompletion endpoint 
-        (similar to the raw curl call).
+        Make a POST request to the SambaNova ChatCompletion endpoint.
         We instruct the model to return JSON with keys:
           'industry', 'company_stage', 'geography', 'funding_stage', 'product'.
         """
 
-        # You can customize system/user messages to ensure the LLM returns only JSON
         system_message = (
             "You are an expert system that extracts structured JSON "
             "from a user prompt. Always respond ONLY with valid JSON "
@@ -60,24 +56,21 @@ class UserPromptExtractor:
         Return ONLY that JSON object, with no extra text or markdown.
         """
 
-        # Build the request payload
         payload = {
             "model": self.model_name,
             "messages": [
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
-            "temperature": 0.7  # or 0.0 if you want it more deterministic
+            "temperature": 0.7
         }
 
-        # Build headers
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
         }
 
         try:
-            # Make the POST request
             response = requests.post(
                 self.url,
                 headers=headers,
@@ -95,11 +88,10 @@ class UserPromptExtractor:
                 "product": ""
             }
 
-        # Parse the JSON response
         try:
             json_response = response.json()
         except json.JSONDecodeError:
-            print("Error: Could not parse JSON from OpenAI response.")
+            print("Error: Could not parse JSON from SambaNova response.")
             return {
                 "industry": "",
                 "company_stage": "",
@@ -108,9 +100,8 @@ class UserPromptExtractor:
                 "product": ""
             }
 
-        # Extract the content from the first choice
         if "choices" not in json_response or len(json_response["choices"]) == 0:
-            print("Error: No choices found in OpenAI response.")
+            print("Error: No choices found in SambaNova response.")
             return {
                 "industry": "",
                 "company_stage": "",
@@ -122,7 +113,6 @@ class UserPromptExtractor:
         content = json_response["choices"][0]["message"]["content"].strip()
         content = content.replace("```json", "").replace("```", "").strip()
 
-        # Attempt to parse the LLM's content as JSON
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError:
@@ -137,7 +127,10 @@ class UserPromptExtractor:
         return parsed
 
 def main():
-    extractor = UserPromptExtractor()
+    # Example usage
+    # Provide your SambaNova key as needed
+    fake_key = "YOUR_SAMBANOVA_KEY_HERE"
+    extractor = UserPromptExtractor(fake_key)
     prompt = "Generate leads for AI Chip Startups in Silicon Valley"
     result = extractor.extract_lead_info(prompt)
     print("Extracted lead info:")

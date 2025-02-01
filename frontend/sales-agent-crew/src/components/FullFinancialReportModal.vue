@@ -32,13 +32,12 @@
         </div>
 
         <!-- Modal Content (scrollable) -->
-        <div 
+        <div
           ref="modalRootRef"
           class="p-4 overflow-y-auto space-y-6 flex-1"
-          id="financial-full-modal-root"
         >
           <!-- Title / Overview -->
-          <section class="border-b border-gray-200 pb-4">
+          <section class="page-section border-b border-gray-200 pb-4">
             <h4 class="text-md font-bold text-gray-700 mb-2">
               {{ reportData.company_name }} ({{ reportData.ticker }})
             </h4>
@@ -48,7 +47,7 @@
           </section>
 
           <!-- Competitor Analysis -->
-          <section>
+          <section class="page-section">
             <h5 class="text-lg font-semibold text-gray-800 mb-2 flex items-center space-x-2">
               <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path 
@@ -61,7 +60,7 @@
               <span>Competitor Analysis</span>
             </h5>
             <!-- Competitor Chart -->
-            <div class="border border-gray-200 p-3 rounded-lg mb-4">
+            <div class="chart-container border border-gray-200 p-3 rounded-lg mb-4">
               <canvas ref="competitorModalCanvasRef" width="400" height="250"></canvas>
             </div>
 
@@ -103,7 +102,7 @@
           </section>
 
           <!-- Fundamentals -->
-          <section>
+          <section class="page-section">
             <h5 class="text-lg font-semibold text-gray-800 mb-2 flex items-center space-x-2 mt-4">
               <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path 
@@ -169,7 +168,7 @@
             </div>
 
             <!-- quarterly fundamentals chart -->
-            <div class="mt-4 border border-gray-200 p-3 rounded">
+            <div class="chart-container mt-4 border border-gray-200 p-3 rounded">
               <canvas ref="quarterlyFundModalCanvasRef" width="400" height="200"></canvas>
             </div>
 
@@ -209,7 +208,7 @@
           </section>
 
           <!-- Risk & monthly returns chart -->
-          <section>
+          <section class="page-section">
             <h5 class="text-lg font-semibold text-gray-800 mb-2 flex items-center space-x-2 mt-4">
               <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path 
@@ -228,13 +227,13 @@
               <div><strong>Max Drawdown:</strong> {{ reportData.risk?.max_drawdown }}</div>
               <div><strong>Volatility:</strong> {{ reportData.risk?.volatility }}</div>
             </div>
-            <div class="border border-gray-200 p-3 rounded">
+            <div class="chart-container border border-gray-200 p-3 rounded">
               <canvas ref="monthlyReturnsModalCanvasRef" width="400" height="200"></canvas>
             </div>
           </section>
 
           <!-- Stock Price -->
-          <section>
+          <section class="page-section">
             <h5 class="text-lg font-semibold text-gray-800 mb-2 flex items-center space-x-2 mt-4">
               <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path 
@@ -246,45 +245,21 @@
               </svg>
               <span>6-Month Weekly Stock Price</span>
             </h5>
-            <div class="border border-gray-200 p-3 rounded">
+            <div class="chart-container border border-gray-200 p-3 rounded">
               <canvas ref="stockPriceModalCanvasRef" width="400" height="200"></canvas>
             </div>
           </section>
 
           <!-- Comprehensive Summary -->
-          <section>
-            <h5 class="text-lg font-semibold text-gray-800 mb-2 mt-4">Comprehensive Summary</h5>
+          <section class="page-section">
+            <h5 class="text-lg font-semibold text-gray-800 mb-2 mt-4">
+              Comprehensive Summary
+            </h5>
             <div class="text-sm text-gray-700 leading-relaxed" v-html="formattedSummary"></div>
           </section>
         </div>
 
-        <!-- Modal Footer -->
-        <div class="px-4 py-2 border-t border-gray-200 flex justify-end items-center space-x-3">
-          <!-- Download PDF button -->
-          <button
-            @click="downloadPDF"
-            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700"
-          >
-            <svg
-              class="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 4v16m8-8H4" />
-            </svg>
-            Download PDF
-          </button>
-
-          <!-- Close -->
-          <button
-            @click="$emit('close')"
-            class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-          >
-            Close
-          </button>
-        </div>
+        
       </div>
     </div>
   </transition>
@@ -295,9 +270,10 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import Chart from 'chart.js/auto'
-import html2pdf from 'html2pdf.js'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
-// PROPS & Emits
+// PROPS / EMITS
 const props = defineProps({
   open: { type: Boolean, default: false },
   reportData: { type: Object, required: true }
@@ -307,32 +283,28 @@ const emit = defineEmits(['close'])
 // Format summary
 const formattedSummary = computed(() => {
   if (!props.reportData?.comprehensive_summary) return ''
-  const rawHtml = marked(props.reportData.comprehensive_summary)
-  return DOMPurify.sanitize(rawHtml)
+  const raw = marked(props.reportData.comprehensive_summary)
+  return DOMPurify.sanitize(raw)
 })
 
 // Refs
 const modalRootRef = ref(null)
+
 let competitorModalChart = null
 let quarterlyFundModalChart = null
 let monthlyReturnsModalChart = null
 let stockPriceModalChart = null
 
-// Canvas refs
 const competitorModalCanvasRef = ref(null)
 const quarterlyFundModalCanvasRef = ref(null)
 const monthlyReturnsModalCanvasRef = ref(null)
 const stockPriceModalCanvasRef = ref(null)
 
 // Lifecycle
-onMounted(() => {
-  setupCharts()
-})
-onBeforeUnmount(() => {
-  destroyCharts()
-})
+onMounted(() => { setupCharts() })
+onBeforeUnmount(() => { destroyCharts() })
 
-// Whenever open changes, rebuild or destroy
+// watch open => (re)build
 watch(() => props.open, async (val) => {
   if (val) {
     await nextTick()
@@ -342,236 +314,280 @@ watch(() => props.open, async (val) => {
   }
 }, { immediate: true })
 
-/** Build or rebuild the charts */
 function setupCharts() {
   if (!props.open) return
   destroyCharts()
 
-  // 1) competitor
-  if (
-    competitorModalCanvasRef.value &&
-    props.reportData?.competitor?.competitor_details?.length
-  ) {
+  // competitor
+  if (competitorModalCanvasRef.value && props.reportData?.competitor?.competitor_details?.length) {
     const comps = props.reportData.competitor.competitor_details
-    const names = comps.map(c => c.name)
-    const mCaps = comps.map(c => parseFloat(c.market_cap || '0') / 1e9)
-    const peRatios = comps.map(c => parseFloat(c.pe_ratio || '0'))
+    const labels = comps.map(c => c.name)
+    const mcaps = comps.map(c => parseFloat(c.market_cap||'0')/1e9)
+    const pes   = comps.map(c => parseFloat(c.pe_ratio||'0'))
 
     competitorModalChart = new Chart(competitorModalCanvasRef.value, {
-      type: 'bar',
-      data: {
-        labels: names,
-        datasets: [
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
           {
-            label: 'Market Cap (B)',
-            data: mCaps,
-            backgroundColor: 'rgba(99, 102, 241, 0.7)',
-            yAxisID: 'y1'
+            label:'Market Cap (B)',
+            data:mcaps,
+            backgroundColor:'rgba(99,102,241,0.7)',
+            yAxisID:'y1'
           },
           {
-            type: 'line',
-            label: 'PE Ratio',
-            data: peRatios,
-            borderColor: 'rgba(255, 99, 132, 0.8)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            yAxisID: 'y2'
+            type:'line',
+            label:'PE Ratio',
+            data:pes,
+            borderColor:'rgba(255,99,132,0.8)',
+            backgroundColor:'rgba(255,99,132,0.2)',
+            yAxisID:'y2'
           }
         ]
       },
-      options: {
-        responsive: true,
-        scales: {
-          y1: {
-            type: 'linear',
-            position: 'left',
-            title: { display: true, text: 'Market Cap (B)' }
-          },
-          y2: {
-            type: 'linear',
-            position: 'right',
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'PE Ratio' }
-          }
+      options:{
+        responsive:true,
+        scales:{
+          y1:{type:'linear',position:'left',title:{display:true,text:'Market Cap (B)'}},
+          y2:{type:'linear',position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'PE Ratio'}}
         }
       }
     })
   }
 
-  // 2) quarterly
-  if (
-    quarterlyFundModalCanvasRef.value &&
-    props.reportData?.fundamental?.quarterly_fundamentals?.length
-  ) {
-    const qData = props.reportData.fundamental.quarterly_fundamentals.filter(
-      q => q.total_revenue != null && q.net_income != null
-    )
-    if (qData.length > 0) {
-      const labels = qData.map(q => q.date)
-      const revs = qData.map(q => parseFloat(q.total_revenue || '0') / 1e9)
-      const incs = qData.map(q => parseFloat(q.net_income || '0') / 1e9)
+  // quarterly
+  if (quarterlyFundModalCanvasRef.value && props.reportData?.fundamental?.quarterly_fundamentals?.length) {
+    const qData = props.reportData.fundamental.quarterly_fundamentals.filter(q=>q.total_revenue!=null && q.net_income!=null)
+    if(qData.length>0){
+      const labels = qData.map(q=>q.date)
+      const revs = qData.map(q=> parseFloat(q.total_revenue||'0')/1e9)
+      const incs = qData.map(q=> parseFloat(q.net_income||'0')/1e9)
 
       quarterlyFundModalChart = new Chart(quarterlyFundModalCanvasRef.value, {
-        type: 'bar',
-        data: {
+        type:'bar',
+        data:{
           labels,
-          datasets: [
+          datasets:[
             {
-              type: 'bar',
-              label: 'Revenue (B)',
-              data: revs,
-              backgroundColor: 'rgba(59,130,246,0.7)',
-              yAxisID: 'y1'
+              type:'bar',
+              label:'Revenue (B)',
+              data:revs,
+              backgroundColor:'rgba(59,130,246,0.7)',
+              yAxisID:'y1'
             },
             {
-              type: 'bar',
-              label: 'Net Income (B)',
-              data: incs,
-              backgroundColor: 'rgba(16,185,129,0.7)',
-              yAxisID: 'y2'
+              type:'bar',
+              label:'Net Income (B)',
+              data:incs,
+              backgroundColor:'rgba(16,185,129,0.7)',
+              yAxisID:'y2'
             }
           ]
         },
-        options: {
-          responsive: true,
-          scales: {
-            y1: {
-              type: 'linear',
-              position: 'left',
-              title: { display: true, text: 'Revenue (B)' }
-            },
-            y2: {
-              type: 'linear',
-              position: 'right',
-              grid: { drawOnChartArea: false },
-              title: { display: true, text: 'Net Income (B)' }
-            }
+        options:{
+          responsive:true,
+          scales:{
+            y1:{type:'linear',position:'left',title:{display:true,text:'Revenue (B)'}},
+            y2:{type:'linear',position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Net Income (B)'}}
           }
         }
       })
     }
   }
 
-  // 3) monthly returns
-  if (
-    monthlyReturnsModalCanvasRef.value &&
-    props.reportData?.risk?.daily_returns?.length
-  ) {
-    const r = props.reportData.risk.daily_returns
-    const xLabels = r.map(d => d.date)
-    const yData = r.map(d => parseFloat(d.daily_return || '0') * 100)
+  // monthly
+  if (monthlyReturnsModalCanvasRef.value && props.reportData?.risk?.daily_returns?.length) {
+    const arr = props.reportData.risk.daily_returns
+    const xLabels = arr.map(a=>a.date)
+    const yVals   = arr.map(a=>parseFloat(a.daily_return||'0')*100)
+
     monthlyReturnsModalChart = new Chart(monthlyReturnsModalCanvasRef.value, {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: [
-          {
-            label: 'Avg Monthly Return (%)',
-            data: yData,
-            borderColor: 'rgba(75,192,192,0.8)',
-            backgroundColor: 'rgba(75,192,192,0.2)',
-            tension: 0.2
-          }
-        ]
+      type:'line',
+      data:{
+        labels:xLabels,
+        datasets:[{
+          label:'Avg Monthly Return (%)',
+          data:yVals,
+          borderColor:'rgba(75,192,192,0.8)',
+          backgroundColor:'rgba(75,192,192,0.2)',
+          tension:0.2
+        }]
       },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            title: { display: true, text: 'Return (%)' }
-          },
-          x: {
-            title: { display: true, text: 'Month' }
-          }
+      options:{
+        responsive:true,
+        scales:{
+          y:{title:{display:true,text:'Return (%)'}},
+          x:{title:{display:true,text:'Month'}}
         }
       }
     })
   }
 
-  // 4) stock price
-  if (
-    stockPriceModalCanvasRef.value &&
-    props.reportData?.stock_price_data?.length
-  ) {
+  // stock price
+  if (stockPriceModalCanvasRef.value && props.reportData?.stock_price_data?.length) {
     const sp = props.reportData.stock_price_data
-    const xLabels = sp.map(d => d.date)
-    const closePrices = sp.map(d => parseFloat(d.close || '0'))
+    const xLabels = sp.map(s=>s.date)
+    const closes  = sp.map(s=>parseFloat(s.close||'0'))
+
     stockPriceModalChart = new Chart(stockPriceModalCanvasRef.value, {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: [
-          {
-            label: 'Weekly Close',
-            data: closePrices,
-            borderColor: 'rgba(234,179,8,0.9)',
-            backgroundColor: 'rgba(234,179,8,0.2)',
-            tension: 0.2
-          }
-        ]
+      type:'line',
+      data:{
+        labels:xLabels,
+        datasets:[{
+          label:'Weekly Close',
+          data:closes,
+          borderColor:'rgba(234,179,8,0.9)',
+          backgroundColor:'rgba(234,179,8,0.2)',
+          tension:0.2
+        }]
       },
-      options: {
-        responsive: true,
-        scales: {
-          y: { title: { display: true, text: 'Price (USD)' } },
-          x: { title: { display: true, text: 'Week' } }
+      options:{
+        responsive:true,
+        scales:{
+          y:{title:{display:true,text:'Price (USD)'}},
+          x:{title:{display:true,text:'Week'}}
         }
       }
     })
   }
 }
 
-/** Destroy charts on close or unmount */
-function destroyCharts() {
-  if (competitorModalChart) {
-    competitorModalChart.destroy()
-    competitorModalChart = null
-  }
-  if (quarterlyFundModalChart) {
-    quarterlyFundModalChart.destroy()
-    quarterlyFundModalChart = null
-  }
-  if (monthlyReturnsModalChart) {
-    monthlyReturnsModalChart.destroy()
-    monthlyReturnsModalChart = null
-  }
-  if (stockPriceModalCanvasRef) {
-    stockPriceModalChart?.destroy()
-    stockPriceModalChart = null
-  }
+function destroyCharts(){
+  competitorModalChart?.destroy()
+  competitorModalChart=null
+  quarterlyFundModalChart?.destroy()
+  quarterlyFundModalChart=null
+  monthlyReturnsModalChart?.destroy()
+  monthlyReturnsModalChart=null
+  stockPriceModalChart?.destroy()
+  stockPriceModalChart=null
 }
 
-/** PDF Download */
+/**
+ * The "chunked" approach with jsPDF+html2canvas:
+ * 1) For each .page-section in the modal, we create an image with html2canvas
+ * 2) We add that image to the PDF on a new page
+ * This ensures truly multiple pages for the final PDF, including large charts.
+ */
+const isGeneratingPDF = ref(false);
+
 async function downloadPDF() {
-  if (!modalRootRef.value) return
+  if (isGeneratingPDF.value) return;
+  
   try {
-    const opts = {
-      margin: [10, 10],
-      filename: 'financial_analysis_full_modal.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    isGeneratingPDF.value = true;
+    // Show loading state (you might want to add a loading indicator)
+    const loading = true;
+
+    // Create PDF document
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margins = { top: 40, bottom: 40, left: 40, right: 40 };
+    const contentWidth = pageWidth - margins.left - margins.right;
+
+    // Get the modal content
+    const modalContent = modalRootRef.value;
+    
+    // Create a temporary container for better rendering
+    const tempContainer = document.createElement('div');
+    tempContainer.style.width = `${contentWidth}px`;
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '-9999px';
+    tempContainer.style.backgroundColor = '#ffffff';
+    
+    // Clone the content
+    const contentClone = modalContent.cloneNode(true);
+    contentClone.style.overflow = 'visible';
+    contentClone.style.maxHeight = 'none';
+    tempContainer.appendChild(contentClone);
+    document.body.appendChild(tempContainer);
+
+    // Wait for charts to render in cloned content
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Convert all canvases to images first
+    const canvases = tempContainer.querySelectorAll('canvas');
+    for (const canvas of canvases) {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = '100%';
+      img.style.maxWidth = `${contentWidth}px`;
+      canvas.parentNode.replaceChild(img, canvas);
     }
-    await html2pdf().set(opts).from(modalRootRef.value).save()
-  } catch(e) {
-    console.error('Error generating PDF from modal:', e)
+
+    // Get all sections
+    const sections = tempContainer.querySelectorAll('.page-section');
+    let currentPage = 1;
+
+    for (const section of sections) {
+      // Generate image of the section
+      const canvas = await html2canvas(section, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: contentWidth,
+        windowWidth: contentWidth
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      
+      // Calculate image dimensions
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      // Add new page if not first page
+      if (currentPage > 1) {
+        doc.addPage();
+      }
+
+      // Add image to PDF
+      doc.addImage(
+        imgData,
+        'JPEG',
+        margins.left,
+        margins.top,
+        imgWidth,
+        imgHeight,
+        undefined,
+        'FAST'
+      );
+
+      currentPage++;
+    }
+
+    // Cleanup
+    document.body.removeChild(tempContainer);
+
+    // Save the PDF
+    const fileName = `${props.reportData.company_name || 'financial'}_analysis.pdf`;
+    doc.save(fileName);
+
+    loading = false;
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+  } finally {
+    isGeneratingPDF.value = false;
   }
 }
 
 /** Formatters */
-function formatFloat(num, decimals=2) {
-  if (!num || isNaN(num)) return '-'
+function formatFloat(num, decimals=2){
+  if(!num || isNaN(num)) return '-'
   return parseFloat(num).toFixed(decimals)
 }
-function formatPct(num, decimals=2) {
-  if (!num || isNaN(num)) return '-'
-  const val = parseFloat(num) * 100
-  return val.toFixed(decimals) + '%'
+function formatPct(num, decimals=2){
+  if(!num || isNaN(num)) return '-'
+  const val = parseFloat(num)*100
+  return val.toFixed(decimals)+'%'
 }
-function formatBillion(num) {
-  const n = parseFloat(num || '0')
-  if (!num || isNaN(n) || n <= 0) return '-'
-  const val = n / 1e9
-  return val.toFixed(2) + 'B'
+function formatBillion(num){
+  const n = parseFloat(num||'0')
+  if(isNaN(n)||n<=0) return '-'
+  return (n/1e9).toFixed(2)+'B'
 }
 </script>
 
@@ -585,8 +601,14 @@ function formatBillion(num) {
   opacity: 0;
 }
 
-/* ensure horizontal scroll on large charts if needed */
 .chart-container {
   overflow-x: auto;
+}
+
+/* 
+We rely on .page-section for chunk-based approach
+*/
+.page-section {
+  margin-bottom: 40px;
 }
 </style>

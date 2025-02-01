@@ -14,6 +14,7 @@ An intelligent sales and research assistant powered by SambaNova AI. This applic
 The application automatically determines whether your query is best suited for:
 - Sales lead Information Gathering
 - Educational content/research creation
+- Financial Analysis and Market Research
 - More tasks to come!
 
 ### Sales Lead Information
@@ -23,12 +24,45 @@ When in sales mode, Samba Co-Pilot will:
 - Provide funding status and insights
 - Generate customized sales approaches
 
+Example Sales Queries:
+- "Find AI startups in Silicon Valley with Series B funding"
+- "Which healthcare companies in Boston are working on drug discovery?"
+- "Show me cybersecurity companies in Israel with enterprise clients"
+- "Find sustainable energy startups in Nordic countries"
+- "Which fintech companies received funding in the last 6 months?"
+- "Show me B2B SaaS companies in Singapore with over 100 employees"
+
 ### Research & Content Generation
 For research queries, the system will:
 - Analyze topics in-depth
 - Create structured research reports
 - Provide educational content
 - Include relevant citations and sources
+
+Example Research Queries:
+- "Explain quantum computing and its applications in cryptography"
+- "How does CRISPR gene editing work in modern medicine?"
+- "What's the relationship between AI and neuromorphic computing?"
+- "Explain the impact of blockchain on supply chain management"
+- "How do machine learning algorithms handle natural language processing?"
+- "What are the latest developments in fusion energy research?"
+
+### Financial Analysis & Market Research
+For financial queries, Samba Co-Pilot will:
+- Analyze company financial performance
+- Track market trends and competitive positioning
+- Evaluate stock performance and valuation metrics
+- Generate investment insights
+- Monitor industry-specific metrics
+- Compare companies within sectors
+
+Example Financial Queries:
+- "Analyze Tesla's recent performance and future growth prospects"
+- "How is the semiconductor industry performing this quarter?"
+- "Compare cloud revenue growth between Microsoft Azure and AWS"
+- "What's the market outlook for AI chip manufacturers?"
+- "Evaluate Apple's financial health considering recent product launches"
+- "Compare profitability metrics between major EV manufacturers"
 
 ### Voice Input Support
 - Click the microphone icon to start voice input
@@ -41,6 +75,7 @@ For research queries, the system will:
 - 📥 Results export functionality
 - 🔄 Real-time query routing
 - 📊 Detailed company insights
+- 💹 Financial analysis and market trends
 - ✍️ AI-generated outreach templates
 
 ## Technical Setup
@@ -106,6 +141,7 @@ Built with:
 - CrewAI
 - SambaNova Agentic Cloud
 - Exa Search API
+- Financial Data APIs
 
 ## Usage
 

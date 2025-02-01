@@ -50,34 +50,33 @@ const quarterlyFundCanvasRef = ref(null)
 const stockPriceCanvasRef = ref(null)
 
 /**
- * Helper to break a large block of text into smaller paragraphs by adding extra newlines.
- * Very naive approach: insert double newlines every ~3-4 sentences.
+ * Helper to break a large block of text into paragraphs.
+ * Groups sentences together in chunks of 8, being careful to avoid splitting numbers.
  */
 function breakLargeBlocks(text) {
   if (!text) return ''
-  // Split on sentence ends (., ?, !) but keep the delimiter
-  const chunks = text.split(/([.?!])(\s+|$)/)
-  if (chunks.length <= 6) return text // short enough
-
-  let paragraphs = []
-  let current = []
-
-  for (let i = 0; i < chunks.length; i += 2) {
-    const sentence = (chunks[i] || '').trim()
-    const delimiter = (chunks[i+1] || '').trim()
-    if (sentence) {
-      current.push(sentence + delimiter)
-    }
-    // Group ~3 sentences per paragraph
-    if (current.length >= 3) {
-      paragraphs.push(current.join(' '))
-      current = []
+  
+  // First check if text already has paragraph breaks
+  if (text.includes('\n\n')) return text
+  
+  // Match sentences ending with . ! ? but ignore decimals in numbers
+  const sentenceRegex = /(?<!\d)[.!?]+(?:\s+|$)/g
+  const sentences = text.split(sentenceRegex).filter(s => s.trim())
+  
+  if (sentences.length <= 3) return text // Too short to split
+  
+  const paragraphs = []
+  const SENTENCES_PER_PARAGRAPH = 8
+  
+  for (let i = 0; i < sentences.length; i += SENTENCES_PER_PARAGRAPH) {
+    const paragraph = sentences.slice(i, i + SENTENCES_PER_PARAGRAPH)
+      .map(s => s.trim())
+      .join('. ')
+    if (paragraph) {
+      paragraphs.push(paragraph + '.')
     }
   }
-  // leftover
-  if (current.length) {
-    paragraphs.push(current.join(' '))
-  }
+  
   return paragraphs.join('\n\n')
 }
 

@@ -89,6 +89,7 @@ import {
 import { XMarkIcon, BookOpenIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { ref } from 'vue'
 
 defineProps({
   open: Boolean,
@@ -100,10 +101,23 @@ defineProps({
 
 defineEmits(['close'])
 
+const loading = ref(false)
+
 const formatMarkdown = (content) => {
   if (!content) return ''
   const rawHtml = marked(content)
   return DOMPurify.sanitize(rawHtml)
+}
+
+const generatePDF = async () => {
+  try {
+    loading.value = true
+    // ... existing code ...
+    loading.value = false
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    loading.value = false
+  }
 }
 </script>
 

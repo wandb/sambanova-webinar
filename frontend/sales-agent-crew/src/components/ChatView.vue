@@ -1,14 +1,22 @@
 <!-- src/components/chat/ChatView.vue -->
 <template>
+  <!-- Full container -->
   <div class="flex flex-col h-full">
+
+    <!-- If no conversation selected, show placeholder -->
     <div v-if="!conversationId" class="flex-1 flex items-center justify-center text-gray-400">
       <p>No conversation selected. Create or pick one in the sidebar.</p>
     </div>
-    <div v-else class="flex-1 flex flex-col overflow-hidden">
-      <div 
+
+    <!-- Otherwise, show the chat area -->
+    <div v-else class="flex-1 flex flex-col">
+
+      <!-- Scrollable messages container -->
+      <div
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-4 w-full mx-auto max-w-2xl"
+        class="flex-1 overflow-y-auto p-4 w-full mx-auto max-w-4xl"
       >
+        <!-- Render each message -->
         <div 
           v-for="(msg, idx) in messages" 
           :key="idx" 
@@ -42,7 +50,7 @@
               />
             </div>
 
-            <!-- Chat bubble -->
+            <!-- Chat Bubble -->
             <div 
               v-if="msg.typing"
               class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]"
@@ -64,17 +72,35 @@
         </div>
       </div>
 
-      <div v-if="assistantThinking" class="flex items-center justify-center py-2 text-sm text-gray-500">
+      <!-- If assistant is thinking, show spinner -->
+      <div 
+        v-if="assistantThinking" 
+        class="flex items-center justify-center py-2 text-sm text-gray-500"
+      >
         <svg class="animate-spin h-5 w-5 mr-2 text-gray-400" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          <circle 
+            class="opacity-25" 
+            cx="12" cy="12" 
+            r="10" 
+            stroke="currentColor" 
+            stroke-width="4" 
+            fill="none"
+          ></circle>
+          <path 
+            class="opacity-75" 
+            fill="currentColor" 
+            d="M4 12a8 8 0 018-8v8H4z"
+          ></path>
         </svg>
         Assistant is thinking...
       </div>
 
-      <!-- Input box -->
-      <div class="p-4 border-t border-gray-200">
-        <form @submit.prevent="sendMessage" class="flex space-x-2 w-full mx-auto max-w-2xl">
+      <!-- Input bar (fixed at bottom) -->
+      <div class="border-t border-gray-200 p-4">
+        <form 
+          @submit.prevent="sendMessage" 
+          class="flex space-x-2 w-full mx-auto max-w-4xl"
+        >
           <input
             v-model="draftMessage"
             type="text"
@@ -90,6 +116,7 @@
           </button>
         </form>
       </div>
+
     </div>
   </div>
 </template>
@@ -116,16 +143,17 @@ const draftMessage = ref('')
 const messagesContainer = ref(null)
 const assistantThinking = ref(false)
 
-watch(
-  () => props.conversationId,
-  async (newVal, oldVal) => {
-    if (newVal && newVal !== oldVal) {
-      messages.value = []
-      await loadFullHistory()
-    }
+/**
+ * Watch conversationId, reload history when it changes
+ */
+watch(() => props.conversationId, async (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    messages.value = []
+    await loadFullHistory()
   }
-)
+})
 
+/** On mount, if we have a conversation, load it */
 onMounted(async () => {
   if (props.conversationId) {
     await loadFullHistory()
@@ -135,12 +163,9 @@ onMounted(async () => {
 async function loadFullHistory() {
   if (!props.conversationId) return
   try {
-    const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/newsletter_chat/history/${props.conversationId}`,
-      {
-        headers: { 'x-user-id': props.userId }
-      }
-    )
+    const resp = await axios.get(`${import.meta.env.VITE_API_URL}/newsletter_chat/history/${props.conversationId}`, {
+      headers: { 'x-user-id': props.userId }
+    })
     const data = resp.data
     if (Array.isArray(data.messages)) {
       messages.value = data.messages.map(parseMessage)
@@ -156,7 +181,9 @@ async function loadFullHistory() {
 }
 
 function renderMarkdown(content) {
+  // Enable GitHub-like line breaks
   marked.setOptions({
+    breaks: true,
     highlight(code, lang) {
       if (lang && hljs.getLanguage(lang)) {
         return hljs.highlight(code, { language: lang }).value
@@ -167,6 +194,7 @@ function renderMarkdown(content) {
   return marked(content)
 }
 
+/** Parse each message, adding .typing & .formattedContent fields */
 function parseMessage(msg) {
   return {
     ...msg,
@@ -175,9 +203,12 @@ function parseMessage(msg) {
   }
 }
 
+/** Send a user message => push to messages => call API => push assistant message */
 async function sendMessage() {
   const txt = draftMessage.value.trim()
   if (!txt || !props.conversationId) return
+
+  // Insert user message
   const userMsg = {
     role: 'user',
     content: txt,
@@ -186,6 +217,7 @@ async function sendMessage() {
   }
   messages.value.push(userMsg)
   draftMessage.value = ''
+
   assistantThinking.value = true
   await nextTick()
   scrollToBottom()
@@ -221,6 +253,7 @@ async function sendMessage() {
   }
 }
 
+/** Scroll to bottom after rendering changes */
 function scrollToBottom() {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -229,6 +262,7 @@ function scrollToBottom() {
 </script>
 
 <style scoped>
+/* Loader for 'typing' placeholder */
 .loader-dots {
   width: 15px;
   height: 3px;
@@ -261,9 +295,11 @@ function scrollToBottom() {
   40% { transform: scale(1); }
 }
 
+/* Code block styling */
 .hljs {
   padding: 0.5em;
   border-radius: 4px;
+  background: #f9fafb;
 }
 .hljs-keyword {
   color: #7c3aed;

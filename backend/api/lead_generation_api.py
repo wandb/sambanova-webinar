@@ -1,3 +1,5 @@
+# lead_generation_api.py
+
 from fastapi import FastAPI, Request, BackgroundTasks
 from pydantic import BaseModel
 import json
@@ -19,10 +21,10 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-# NEW import for your chat logic
+# Import the new chat logic
 from agent.convo_newsletter_crew import crew_chat
 
-# Original
+# Original Services
 from services.query_router_service import QueryRouterService
 from services.user_prompt_extractor_service import UserPromptExtractor
 from agent.lead_generation_crew import ResearchCrew
@@ -40,7 +42,6 @@ class EduContentRequest(BaseModel):
     audience_level: str = "intermediate"
     additional_context: Optional[Dict[str, List[str]]] = None
 
-# For new chat endpoints
 class ChatRequest(BaseModel):
     message: str
 
@@ -50,10 +51,8 @@ class LeadGenerationAPI:
         self.setup_cors()
         self.setup_routes()
 
-        # For concurrency
         self.executor = ThreadPoolExecutor(max_workers=2)
 
-        # Redis connection for route logs / SSE
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
         self.redis_client = redis.Redis(
@@ -131,7 +130,6 @@ class LeadGenerationAPI:
 
             try:
                 if query_type == "sales_leads":
-                    # Sales route
                     if not exa_key:
                         return JSONResponse(
                             status_code=401,
@@ -149,7 +147,6 @@ class LeadGenerationAPI:
                     return JSONResponse(content={"results": outreach_list})
 
                 elif query_type == "educational_content":
-                    # Educational content route
                     if not serper_key:
                         return JSONResponse(
                             status_code=401,
@@ -177,7 +174,6 @@ class LeadGenerationAPI:
                     return JSONResponse(content=sections_with_content)
 
                 elif query_type == "financial_analysis":
-                    # financial route
                     if not exa_key or not serper_key:
                         return JSONResponse(
                             status_code=401,
@@ -213,14 +209,7 @@ class LeadGenerationAPI:
             print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}, channel={channel}")
 
             try:
-                redis_host = os.getenv("REDIS_HOST", "localhost")
-                redis_port = int(os.getenv("REDIS_PORT", "6379"))
-                local_redis = redis.Redis(
-                    host=redis_host,
-                    port=redis_port,
-                    db=0,
-                    decode_responses=True
-                )
+                local_redis = self.redis_client
 
                 pubsub = local_redis.pubsub(ignore_subscribe_messages=True)
                 pubsub.subscribe(channel)
@@ -258,7 +247,6 @@ class LeadGenerationAPI:
                         print("[stream_logs] unsubscribing, closing pubsub")
                         pubsub.unsubscribe()
                         pubsub.close()
-                        local_redis.close()
 
                 return EventSourceResponse(
                     event_generator(),
@@ -276,14 +264,12 @@ class LeadGenerationAPI:
         def init_newsletter_chat(request: Request):
             """
             Initializes a conversation with ConvoNewsletterCrew using the provided keys.
-            Returns conversation_id and the first assistant message.
             """
-            # Gather keys from headers
-            sambanova_key = request.headers.get("x-sambanova-key") or ""
-            serper_key = request.headers.get("x-serper-key") or ""
-            exa_key = request.headers.get("x-exa-key") or ""
-            user_id = request.headers.get("x-user-id", "")
-            run_id = request.headers.get("x-run-id", "")
+            sambanova_key = request.headers.get("x-sambanova-key","")
+            serper_key = request.headers.get("x-serper-key","")
+            exa_key = request.headers.get("x-exa-key","")
+            user_id = request.headers.get("x-user-id","anonymous")
+            run_id = request.headers.get("x-run-id","")
 
             try:
                 init_data = crew_chat.api_init_conversation(
@@ -308,19 +294,23 @@ class LeadGenerationAPI:
         # NEW ENDPOINT: /newsletter_chat/message/{conversation_id}
         # ----------------------------------------------------------------
         @self.app.post("/newsletter_chat/message/{conversation_id}")
-        def newsletter_chat_message(conversation_id: str, body: ChatRequest):
+        def newsletter_chat_message(conversation_id: str, body: ChatRequest, request: Request):
             """
             Sends a user message to an existing conversation, returning assistant's reply.
             """
+            user_id = request.headers.get("x-user-id","anonymous")
             user_message = body.message.strip()
             if not user_message:
                 return JSONResponse(
                     status_code=400,
                     content={"error": "Empty user message."}
                 )
-
             try:
-                response_text = crew_chat.api_process_message(conversation_id, user_message)
+                response_text = crew_chat.api_process_message(
+                    conversation_id,
+                    user_message,
+                    user_id=user_id
+                )
                 return JSONResponse(
                     status_code=200,
                     content={"assistant_response": response_text}
@@ -338,11 +328,37 @@ class LeadGenerationAPI:
                     content={"error": str(e)}
                 )
 
+        # ----------------------------------------------------------------
+        # NEW ENDPOINT: /newsletter_chat/history/{conversation_id}
+        # ----------------------------------------------------------------
+        @self.app.get("/newsletter_chat/history/{conversation_id}")
+        def conversation_history(conversation_id: str, request: Request):
+            """
+            Returns the entire messages list for the specified conversation, 
+            so the front end can show the entire conversation from start.
+            """
+            user_id = request.headers.get("x-user-id","anonymous")
+            try:
+                data = crew_chat.api_get_full_history(conversation_id, user_id)
+                return JSONResponse(
+                    status_code=200,
+                    content=data
+                )
+            except ValueError as ve:
+                return JSONResponse(
+                    status_code=404,
+                    content={"error":str(ve)}
+                )
+            except Exception as e:
+                print(f"[/newsletter_chat/history] Error: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": str(e)}
+                )
+
+    # ~~~~ Existing Helper Methods for Sales Leads, Fin Analysis, etc. ~~~~
+
     async def execute_research(self, crew, parameters: Dict[str,Any]):
-        """
-        Helper for 'sales_leads' route.
-        Extract lead info from parameters, run crew.execute_research in a thread.
-        """
         extractor = UserPromptExtractor(crew.sambanova_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
@@ -351,7 +367,6 @@ class LeadGenerationAPI:
             parameters.get("funding_stage", ""),
             parameters.get("product", ""),
         ]).strip()
-
         extracted_info = extractor.extract_lead_info(combined_text)
 
         loop = asyncio.get_running_loop()
@@ -360,13 +375,9 @@ class LeadGenerationAPI:
         return result
 
     async def execute_financial(self, crew, parameters: Dict[str,Any]):
-        """
-        Helper for 'financial_analysis' route.
-        Extract ticker/company from parameters, then run crew.execute_financial_analysis in a thread.
-        """
         fextractor = FinancialPromptExtractor(crew.sambanova_key)
         query_text = parameters.get("query_text","")
-        (extracted_ticker, extracted_company) = fextractor.extract_info(query_text)
+        extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
         if not extracted_ticker:
             extracted_ticker = parameters.get("ticker","")

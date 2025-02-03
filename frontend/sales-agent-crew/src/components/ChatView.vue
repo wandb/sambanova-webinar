@@ -1,73 +1,62 @@
 <!-- src/components/chat/ChatView.vue -->
 <template>
-  <div class="flex flex-col h-full">
-    <!-- If no conversation selected -->
-    <div v-if="!conversationId" class="flex-1 flex items-center justify-center text-gray-400">
-      <p>No conversation selected. Create or pick one in the sidebar.</p>
-    </div>
+  <!-- Outer container: absolute layout for pinned input -->
+  <div class="relative h-full w-full">
 
-    <!-- Otherwise, show chat UI -->
-    <div v-else class="flex-1 flex flex-col">
-
-      <!-- Scrollable messages container -->
-      <div
-        ref="messagesContainer"
-        class="flex-1 overflow-y-auto px-4 py-4 w-full mx-auto max-w-4xl"
-      >
-        <!-- Render each message -->
+    <!-- SCROLLABLE MESSAGES AREA (occupies top -> bottom minus input bar) -->
+    <div
+      ref="messagesContainer"
+      class="absolute top-0 left-0 right-0 bottom-[80px] overflow-y-auto p-4 max-w-4xl mx-auto"
+    >
+      <!-- Render each message -->
+      <div v-for="(msg, idx) in messages" :key="idx" class="mb-4">
         <div
-          v-for="(msg, idx) in messages"
-          :key="idx"
-          class="mb-4"
+          :class="[
+            'flex items-start',
+            msg.role === 'user' ? 'justify-end' : 'justify-start'
+          ]"
         >
-          <div
-            :class="[
-              'flex items-start',
-              msg.role === 'user' ? 'justify-end' : 'justify-start'
-            ]"
-          >
-            <!-- Avatar -->
-            <div v-if="msg.role === 'assistant'" class="mr-2 flex-shrink-0">
-              <img 
-                src="https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
-                alt="AI Avatar" 
-                class="w-8 h-8 rounded-full"
-              />
-            </div>
-            <div v-else class="ml-2 flex-shrink-0">
-              <img 
-                src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
-                alt="User Avatar" 
-                class="w-8 h-8 rounded-full"
-              />
-            </div>
+          <!-- Avatar -->
+          <div v-if="msg.role === 'assistant'" class="mr-2 flex-shrink-0">
+            <img 
+              src="https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
+              alt="AI Avatar" 
+              class="w-8 h-8 rounded-full"
+            />
+          </div>
+          <div v-else class="ml-2 flex-shrink-0">
+            <img 
+              src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
+              alt="User Avatar"
+              class="w-8 h-8 rounded-full"
+            />
+          </div>
 
-            <!-- Message Bubble -->
-            <div v-if="msg.typing" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]">
-              <div class="flex items-center space-x-1">
-                <div class="loader-dots"></div>
-                <span class="text-xs text-gray-400">Thinking...</span>
-              </div>
+          <!-- Chat bubble -->
+          <div v-if="msg.typing" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]">
+            <div class="flex items-center space-x-1">
+              <div class="loader-dots"></div>
+              <span class="text-xs text-gray-400">Thinking...</span>
             </div>
-            <div
-              v-else
-              class="px-4 py-2 rounded-xl text-sm max-w-[70%]"
-              :class="msg.role === 'user'
-                ? 'bg-primary-100 text-gray-800'
-                : 'bg-gray-100 text-gray-800'"
-            >
-              <!-- We inject the formatted markdown content here. -->
-              <div 
-                class="markdown-body"
-                v-html="msg.formattedContent"
-              ></div>
-            </div>
+          </div>
+          <div
+            v-else
+            class="px-4 py-2 rounded-xl text-sm max-w-[70%]"
+            :class="msg.role === 'user'
+              ? 'bg-primary-100 text-gray-800'
+              : 'bg-gray-100 text-gray-800'"
+          >
+            <!-- Markdown content -->
+            <div 
+              class="markdown-body"
+              v-html="msg.formattedContent"
+            ></div>
           </div>
         </div>
       </div>
 
-      <!-- If assistant is thinking, show a spinner -->
-      <div
+      <!-- If assistant is thinking, show a small spinner row (optional) -->
+      <div 
         v-if="assistantThinking"
         class="flex items-center justify-center py-2 text-sm text-gray-500"
       >
@@ -88,28 +77,40 @@
         </svg>
         Assistant is thinking...
       </div>
+    </div>
 
-      <!-- INPUT BAR at bottom (not scrolled) -->
-      <div class="border-t border-gray-200 p-4" style="flex-shrink: 0;">
-        <form 
-          @submit.prevent="sendMessage"
-          class="flex space-x-2 w-full mx-auto max-w-4xl"
+    <!-- FIXED INPUT BAR at the bottom -->
+    <div
+      class="absolute bottom-0 left-0 right-0 border-t border-gray-200 p-4 bg-white"
+      style="height: 80px;"
+    >
+      <!-- If no conversation selected => disabled. Otherwise => input. -->
+      <form
+        @submit.prevent="sendMessage"
+        class="flex space-x-2 w-full max-w-4xl mx-auto h-full"
+      >
+        <input
+          v-model="draftMessage"
+          type="text"
+          class="flex-1 border border-gray-300 rounded-md p-2"
+          placeholder="Type your message..."
+        />
+        <button
+          type="submit"
+          class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+          :disabled="!conversationId || !draftMessage.trim() || assistantThinking"
         >
-          <input
-            v-model="draftMessage"
-            type="text"
-            class="flex-1 border border-gray-300 rounded-md p-2"
-            placeholder="Type your message..."
-          />
-          <button
-            type="submit"
-            class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
-            :disabled="!conversationId || !draftMessage.trim() || assistantThinking"
-          >
-            Send
-          </button>
-        </form>
-      </div>
+          Send
+        </button>
+      </form>
+    </div>
+
+    <!-- If no conversation selected => a placeholder (optional to keep) -->
+    <div
+      v-if="!conversationId"
+      class="absolute inset-0 flex items-center justify-center text-gray-400 bg-white/70"
+    >
+      <p>No conversation selected. Create or pick one in the sidebar.</p>
     </div>
   </div>
 </template>
@@ -133,10 +134,10 @@ const props = defineProps({
 
 const messages = ref([])
 const draftMessage = ref('')
-const messagesContainer = ref(null)
 const assistantThinking = ref(false)
+const messagesContainer = ref(null)
 
-// Watch conversationId => reload conversation
+// Watch for conversation changes => load the full history
 watch(() => props.conversationId, async (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
@@ -173,14 +174,10 @@ async function loadFullHistory() {
   }
 }
 
-/**
- * Configure Marked to handle line breaks properly 
- * and highlight code blocks with highlight.js
- */
 function renderMarkdown(content) {
   marked.setOptions({
     gfm: true,
-    breaks: true,       // convert '\n' => line break
+    breaks: true,       // turn \n into <br>
     smartypants: true,  // nicer quotes, etc.
     highlight(code, lang) {
       if (lang && hljs.getLanguage(lang)) {
@@ -192,9 +189,6 @@ function renderMarkdown(content) {
   return marked(content || '')
 }
 
-/**
- * Turn raw message => object with .formattedContent for HTML
- */
 function parseMessage(msg) {
   return {
     ...msg,
@@ -203,17 +197,10 @@ function parseMessage(msg) {
   }
 }
 
-/** 
- * Called when user presses 'Send': 
- *  - push user's message 
- *  - call /newsletter_chat/message 
- *  - push assistant's reply
- */
 async function sendMessage() {
   const txt = draftMessage.value.trim()
   if (!txt || !props.conversationId) return
 
-  // Insert user message
   const userMsg = {
     role: 'user',
     content: txt,
@@ -303,7 +290,9 @@ function scrollToBottom() {
   }
 }
 
-/* Basic code block style */
+/* 
+  Basic code block styling
+*/
 .hljs {
   background: #f9fafb;
   padding: 0.5em;
@@ -311,13 +300,16 @@ function scrollToBottom() {
   overflow-x: auto;
 }
 
+/* 
+  Markdown body: 
+  Let Marked generate headings, lists, etc. 
+  Let headings appear normal, so no forced white-space. 
+*/
 .markdown-body {
-  /* So we respect the line breaks generated by Marked with breaks:true */
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  word-break: break-word;
 }
 
-/* Possibly you can define more highlight.js color overrides */
+/* Example highlight color overrides */
 .hljs-keyword {
   color: #7c3aed;
   font-weight: bold;

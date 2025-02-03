@@ -19,6 +19,9 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# NEW import for your chat logic
+from agent.convo_newsletter_crew import crew_chat
+
 # Original
 from services.query_router_service import QueryRouterService
 from services.user_prompt_extractor_service import UserPromptExtractor
@@ -36,6 +39,10 @@ class EduContentRequest(BaseModel):
     topic: str
     audience_level: str = "intermediate"
     additional_context: Optional[Dict[str, List[str]]] = None
+
+# For new chat endpoints
+class ChatRequest(BaseModel):
+    message: str
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -170,7 +177,7 @@ class LeadGenerationAPI:
                     return JSONResponse(content=sections_with_content)
 
                 elif query_type == "financial_analysis":
-                    # New financial route, align with sales_leads approach
+                    # financial route
                     if not exa_key or not serper_key:
                         return JSONResponse(
                             status_code=401,
@@ -261,6 +268,75 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[stream_logs] Error setting up SSE: {e}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
+
+        # ----------------------------------------------------------------
+        # NEW ENDPOINT: /newsletter_chat/init
+        # ----------------------------------------------------------------
+        @self.app.post("/newsletter_chat/init")
+        def init_newsletter_chat(request: Request):
+            """
+            Initializes a conversation with ConvoNewsletterCrew using the provided keys.
+            Returns conversation_id and the first assistant message.
+            """
+            # Gather keys from headers
+            sambanova_key = request.headers.get("x-sambanova-key") or ""
+            serper_key = request.headers.get("x-serper-key") or ""
+            exa_key = request.headers.get("x-exa-key") or ""
+            user_id = request.headers.get("x-user-id", "")
+            run_id = request.headers.get("x-run-id", "")
+
+            try:
+                init_data = crew_chat.api_init_conversation(
+                    sambanova_key=sambanova_key,
+                    serper_key=serper_key,
+                    exa_key=exa_key,
+                    user_id=user_id,
+                    run_id=run_id
+                )
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "conversation_id": init_data["conversation_id"],
+                        "assistant_message": init_data["assistant_message"]
+                    }
+                )
+            except Exception as e:
+                print(f"[/newsletter_chat/init] Error: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+        # ----------------------------------------------------------------
+        # NEW ENDPOINT: /newsletter_chat/message/{conversation_id}
+        # ----------------------------------------------------------------
+        @self.app.post("/newsletter_chat/message/{conversation_id}")
+        def newsletter_chat_message(conversation_id: str, body: ChatRequest):
+            """
+            Sends a user message to an existing conversation, returning assistant's reply.
+            """
+            user_message = body.message.strip()
+            if not user_message:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Empty user message."}
+                )
+
+            try:
+                response_text = crew_chat.api_process_message(conversation_id, user_message)
+                return JSONResponse(
+                    status_code=200,
+                    content={"assistant_response": response_text}
+                )
+            except ValueError as ve:
+                print(f"[/newsletter_chat/message] Not found: {str(ve)}")
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": str(ve)}
+                )
+            except Exception as e:
+                print(f"[/newsletter_chat/message] Error: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": str(e)}
+                )
 
     async def execute_research(self, crew, parameters: Dict[str,Any]):
         """

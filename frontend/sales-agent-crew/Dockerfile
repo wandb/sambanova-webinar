@@ -1,6 +1,9 @@
 # Stage 1: Build the application
 FROM node:18-alpine AS build
 
+# Install Yarn
+RUN npm install -g yarn
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -26,7 +29,7 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 # ENV VITE_CLERK_DOMAIN=$VITE_CLERK_DOMAIN
 
 # Build the application
-RUN yarn run build
+RUN yarn build
 
 # Stage 2: Serve the application
 FROM nginx:alpine

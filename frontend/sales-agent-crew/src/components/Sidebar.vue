@@ -18,7 +18,7 @@
     <div
       :class="[
         'h-full bg-white shadow-lg transition-all duration-300 overflow-hidden',
-        isCollapsed ? 'w-16' : 'w-64'
+        isCollapsed ? 'w-18' : 'w-64'
       ]"
     >
       <!-- Header with Filter and Bulk Actions -->
@@ -75,7 +75,7 @@
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
-          class="p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors group"
+          class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors group"
         >
           <!-- Entire row clickable except the buttons -->
           <div
@@ -85,11 +85,8 @@
             <!-- Collapsed View -->
             <div v-if="isCollapsed" class="flex flex-col items-center w-full">
               <component 
-                :is="report.type === 'educational_content' ? BookOpenIcon : 
-                      report.type === 'sales_leads' ? UserGroupIcon : 
-                      'BanknotesIcon'"
-                :class="['w-6', 'h-6', reportTextColor(report.type)]"
-                class="mb-1"
+                :is="iconMapping[report.type]"
+                :class="['w-6', 'h-6', 'mb-1', reportTextColor(report.type)]"
               />
               <span class="text-xs text-gray-500">
                 {{ formatDate(report.timestamp) }}
@@ -108,9 +105,7 @@
               <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
                 <span class="flex items-center space-x-1">
                   <component 
-                    :is="report.type === 'educational_content' ? BookOpenIcon : 
-                          report.type === 'sales_leads' ? UserGroupIcon : 
-                          'BanknotesIcon'"
+                    :is="iconMapping[report.type]"
                     :class="['w-4', 'h-4', reportTextColor(report.type)]"
                   />
                   <span :class="reportTextColor(report.type)">
@@ -172,6 +167,12 @@ const reportStore = useReportStore()
 const isCollapsed = ref(false)
 const filterType = ref('all')
 const emit = defineEmits(['selectReport'])
+
+const iconMapping = {
+  educational_content: BookOpenIcon,
+  sales_leads: UserGroupIcon,
+  financial_analysis: BanknotesIcon,
+}
 
 function selectReport(report) {
   // Let the parent know which report was clicked

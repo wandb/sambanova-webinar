@@ -5,13 +5,18 @@
       <!-- Left: Brand -->
       <div class="flex items-center space-x-2 sm:space-x-4">
         <div class="flex-shrink-0">
+          <img
+            src="https://sambanova.ai/hubfs/logotype_sambanova_orange.png" 
+            alt="Samba Sales Co-Pilot Logo" 
+            class="h-6 md:hidden"
+          />
           <img 
             src="https://sambanova.ai/hubfs/sambanova-logo-black.png" 
             alt="Samba Sales Co-Pilot Logo" 
-            class="h-6 sm:h-8"
+            class="hidden md:h-8 md:block"
           />
         </div>
-        <h1 class="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight">
+        <h1 class="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight text-center">
           Samba Co-Pilot
         </h1>
       </div>
@@ -20,8 +25,8 @@
       <div class="flex items-center space-x-4">
         
         <!-- NEW: Chat Mode Toggle -->
-        <div class="flex items-center space-x-1">
-          <label for="modeToggle" class="text-sm text-gray-600">Chat Mode</label>
+        <div class="flex items-center space-x-2">
+          <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
           <input
             id="modeToggle"
             type="checkbox"
@@ -30,9 +35,14 @@
           />
         </div>
 
-        <div class="hidden sm:block text-sm text-gray-600">
+        <div class="hidden sm:block lg:hidden text-sm text-right text-gray-600">
+          {{ shortCurrentDateTime }}
+        </div>
+
+        <div class="hidden lg:block text-sm text-right text-gray-600 w-1/2">
           {{ currentDateTime }}
         </div>
+
         <button
           @click="openSettings"
           class="p-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -48,6 +58,7 @@
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
+
         <SignedIn>
           <UserButton 
             afterSignOutUrl="/login"
@@ -86,7 +97,15 @@ const currentDateTime = computed(() => {
   const now = new Date()
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'full',
-    timeStyle: 'medium'
+    timeStyle: 'short'
   }).format(now)
+})
+
+const shortCurrentDateTime = computed(() => {
+  const now = new Date()
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(now).replace(', ', '\n')
 })
 </script>

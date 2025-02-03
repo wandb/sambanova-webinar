@@ -1,60 +1,49 @@
 <!-- src/components/chat/ChatView.vue -->
 <template>
-  <!-- Full container -->
   <div class="flex flex-col h-full">
-
-    <!-- If no conversation selected, show placeholder -->
+    <!-- If no conversation selected -->
     <div v-if="!conversationId" class="flex-1 flex items-center justify-center text-gray-400">
       <p>No conversation selected. Create or pick one in the sidebar.</p>
     </div>
 
-    <!-- Otherwise, show the chat area -->
+    <!-- Otherwise, show chat UI -->
     <div v-else class="flex-1 flex flex-col">
 
       <!-- Scrollable messages container -->
       <div
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-4 w-full mx-auto max-w-4xl"
+        class="flex-1 overflow-y-auto px-4 py-4 w-full mx-auto max-w-4xl"
       >
         <!-- Render each message -->
-        <div 
-          v-for="(msg, idx) in messages" 
-          :key="idx" 
+        <div
+          v-for="(msg, idx) in messages"
+          :key="idx"
           class="mb-4"
         >
-          <div 
+          <div
             :class="[
               'flex items-start',
               msg.role === 'user' ? 'justify-end' : 'justify-start'
             ]"
           >
             <!-- Avatar -->
-            <div
-              v-if="msg.role === 'assistant'"
-              class="mr-2 flex-shrink-0"
-            >
+            <div v-if="msg.role === 'assistant'" class="mr-2 flex-shrink-0">
               <img 
-                src="https://cdn-icons-png.flaticon.com/512/4712/4712139.png" 
+                src="https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
                 alt="AI Avatar" 
                 class="w-8 h-8 rounded-full"
               />
             </div>
-            <div
-              v-else
-              class="ml-2 flex-shrink-0"
-            >
+            <div v-else class="ml-2 flex-shrink-0">
               <img 
-                src="https://cdn-icons-png.flaticon.com/512/847/847969.png" 
+                src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
                 alt="User Avatar" 
                 class="w-8 h-8 rounded-full"
               />
             </div>
 
-            <!-- Chat Bubble -->
-            <div 
-              v-if="msg.typing"
-              class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]"
-            >
+            <!-- Message Bubble -->
+            <div v-if="msg.typing" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]">
               <div class="flex items-center space-x-1">
                 <div class="loader-dots"></div>
                 <span class="text-xs text-gray-400">Thinking...</span>
@@ -63,42 +52,47 @@
             <div
               v-else
               class="px-4 py-2 rounded-xl text-sm max-w-[70%]"
-              :class="msg.role === 'user' 
-                ? 'bg-primary-100 text-gray-800' 
+              :class="msg.role === 'user'
+                ? 'bg-primary-100 text-gray-800'
                 : 'bg-gray-100 text-gray-800'"
-              v-html="msg.formattedContent"
-            />
+            >
+              <!-- We inject the formatted markdown content here. -->
+              <div 
+                class="markdown-body"
+                v-html="msg.formattedContent"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- If assistant is thinking, show spinner -->
-      <div 
-        v-if="assistantThinking" 
+      <!-- If assistant is thinking, show a spinner -->
+      <div
+        v-if="assistantThinking"
         class="flex items-center justify-center py-2 text-sm text-gray-500"
       >
         <svg class="animate-spin h-5 w-5 mr-2 text-gray-400" viewBox="0 0 24 24">
           <circle 
-            class="opacity-25" 
-            cx="12" cy="12" 
-            r="10" 
-            stroke="currentColor" 
-            stroke-width="4" 
+            class="opacity-25"
+            cx="12" cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
             fill="none"
           ></circle>
-          <path 
-            class="opacity-75" 
-            fill="currentColor" 
+          <path
+            class="opacity-75"
+            fill="currentColor"
             d="M4 12a8 8 0 018-8v8H4z"
           ></path>
         </svg>
         Assistant is thinking...
       </div>
 
-      <!-- Input bar (fixed at bottom) -->
-      <div class="border-t border-gray-200 p-4">
+      <!-- INPUT BAR at bottom (not scrolled) -->
+      <div class="border-t border-gray-200 p-4" style="flex-shrink: 0;">
         <form 
-          @submit.prevent="sendMessage" 
+          @submit.prevent="sendMessage"
           class="flex space-x-2 w-full mx-auto max-w-4xl"
         >
           <input
@@ -116,7 +110,6 @@
           </button>
         </form>
       </div>
-
     </div>
   </div>
 </template>
@@ -143,9 +136,7 @@ const draftMessage = ref('')
 const messagesContainer = ref(null)
 const assistantThinking = ref(false)
 
-/**
- * Watch conversationId, reload history when it changes
- */
+// Watch conversationId => reload conversation
 watch(() => props.conversationId, async (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
@@ -153,7 +144,6 @@ watch(() => props.conversationId, async (newVal, oldVal) => {
   }
 })
 
-/** On mount, if we have a conversation, load it */
 onMounted(async () => {
   if (props.conversationId) {
     await loadFullHistory()
@@ -163,9 +153,12 @@ onMounted(async () => {
 async function loadFullHistory() {
   if (!props.conversationId) return
   try {
-    const resp = await axios.get(`${import.meta.env.VITE_API_URL}/newsletter_chat/history/${props.conversationId}`, {
-      headers: { 'x-user-id': props.userId }
-    })
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/newsletter_chat/history/${props.conversationId}`,
+      {
+        headers: { 'x-user-id': props.userId }
+      }
+    )
     const data = resp.data
     if (Array.isArray(data.messages)) {
       messages.value = data.messages.map(parseMessage)
@@ -180,10 +173,15 @@ async function loadFullHistory() {
   }
 }
 
+/**
+ * Configure Marked to handle line breaks properly 
+ * and highlight code blocks with highlight.js
+ */
 function renderMarkdown(content) {
-  // Enable GitHub-like line breaks
   marked.setOptions({
-    breaks: true,
+    gfm: true,
+    breaks: true,       // convert '\n' => line break
+    smartypants: true,  // nicer quotes, etc.
     highlight(code, lang) {
       if (lang && hljs.getLanguage(lang)) {
         return hljs.highlight(code, { language: lang }).value
@@ -191,19 +189,26 @@ function renderMarkdown(content) {
       return hljs.highlightAuto(code).value
     }
   })
-  return marked(content)
+  return marked(content || '')
 }
 
-/** Parse each message, adding .typing & .formattedContent fields */
+/**
+ * Turn raw message => object with .formattedContent for HTML
+ */
 function parseMessage(msg) {
   return {
     ...msg,
     typing: false,
-    formattedContent: renderMarkdown(msg.content || '')
+    formattedContent: renderMarkdown(msg.content)
   }
 }
 
-/** Send a user message => push to messages => call API => push assistant message */
+/** 
+ * Called when user presses 'Send': 
+ *  - push user's message 
+ *  - call /newsletter_chat/message 
+ *  - push assistant's reply
+ */
 async function sendMessage() {
   const txt = draftMessage.value.trim()
   if (!txt || !props.conversationId) return
@@ -217,7 +222,6 @@ async function sendMessage() {
   }
   messages.value.push(userMsg)
   draftMessage.value = ''
-
   assistantThinking.value = true
   await nextTick()
   scrollToBottom()
@@ -253,7 +257,6 @@ async function sendMessage() {
   }
 }
 
-/** Scroll to bottom after rendering changes */
 function scrollToBottom() {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -262,12 +265,13 @@ function scrollToBottom() {
 </script>
 
 <style scoped>
-/* Loader for 'typing' placeholder */
+/* 
+  Loader animation for "typing" placeholder 
+*/
 .loader-dots {
   width: 15px;
   height: 3px;
   position: relative;
-  background: transparent;
 }
 .loader-dots::before,
 .loader-dots::after,
@@ -291,16 +295,29 @@ function scrollToBottom() {
   left: 12px;
 }
 @keyframes loader-dots {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 
-/* Code block styling */
+/* Basic code block style */
 .hljs {
+  background: #f9fafb;
   padding: 0.5em;
   border-radius: 4px;
-  background: #f9fafb;
+  overflow-x: auto;
 }
+
+.markdown-body {
+  /* So we respect the line breaks generated by Marked with breaks:true */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Possibly you can define more highlight.js color overrides */
 .hljs-keyword {
   color: #7c3aed;
   font-weight: bold;

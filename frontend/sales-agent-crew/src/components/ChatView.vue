@@ -1,15 +1,23 @@
 <!-- src/components/chat/ChatView.vue -->
 <template>
-  <!-- Outer container: absolute layout for pinned input -->
   <div class="relative h-full w-full">
 
-    <!-- SCROLLABLE MESSAGES AREA (occupies top -> bottom minus input bar) -->
+    <!-- If no conversation => placeholder -->
+    <div v-if="!conversationId" class="absolute inset-0 flex items-center justify-center text-gray-400 bg-white/70">
+      <p>No conversation selected. Create or pick one in the sidebar.</p>
+    </div>
+
+    <!-- Scrollable messages area (top-> bottom minus input bar) -->
     <div
       ref="messagesContainer"
-      class="absolute top-0 left-0 right-0 bottom-[80px] overflow-y-auto p-4 max-w-4xl mx-auto"
+      class="absolute top-0 left-0 right-0 bottom-[90px] overflow-y-auto px-4 py-4 max-w-4xl mx-auto"
     >
-      <!-- Render each message -->
-      <div v-for="(msg, idx) in messages" :key="idx" class="mb-4">
+      <!-- Each message -->
+      <div
+        v-for="(msg, idx) in messages"
+        :key="idx"
+        class="mb-4"
+      >
         <div
           :class="[
             'flex items-start',
@@ -18,21 +26,21 @@
         >
           <!-- Avatar -->
           <div v-if="msg.role === 'assistant'" class="mr-2 flex-shrink-0">
-            <img 
+            <img
               src="https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
-              alt="AI Avatar" 
+              alt="AI Avatar"
               class="w-8 h-8 rounded-full"
             />
           </div>
           <div v-else class="ml-2 flex-shrink-0">
-            <img 
+            <img
               src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
               alt="User Avatar"
               class="w-8 h-8 rounded-full"
             />
           </div>
 
-          <!-- Chat bubble -->
+          <!-- Message bubble -->
           <div v-if="msg.typing" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm max-w-[70%]">
             <div class="flex items-center space-x-1">
               <div class="loader-dots"></div>
@@ -46,24 +54,25 @@
               ? 'bg-primary-100 text-gray-800'
               : 'bg-gray-100 text-gray-800'"
           >
-            <!-- Markdown content -->
-            <div 
-              class="markdown-body"
+            <!-- Use 'prose' for nice markdown formatting -->
+            <div
+              class="prose prose-sm break-words"
               v-html="msg.formattedContent"
             ></div>
           </div>
         </div>
       </div>
 
-      <!-- If assistant is thinking, show a small spinner row (optional) -->
-      <div 
+      <!-- If assistant is thinking => spinner row -->
+      <div
         v-if="assistantThinking"
         class="flex items-center justify-center py-2 text-sm text-gray-500"
       >
         <svg class="animate-spin h-5 w-5 mr-2 text-gray-400" viewBox="0 0 24 24">
-          <circle 
+          <circle
             class="opacity-25"
-            cx="12" cy="12"
+            cx="12"
+            cy="12"
             r="10"
             stroke="currentColor"
             stroke-width="4"
@@ -79,12 +88,11 @@
       </div>
     </div>
 
-    <!-- FIXED INPUT BAR at the bottom -->
+    <!-- Input bar pinned at bottom -->
     <div
       class="absolute bottom-0 left-0 right-0 border-t border-gray-200 p-4 bg-white"
-      style="height: 80px;"
+      style="height: 90px;"
     >
-      <!-- If no conversation selected => disabled. Otherwise => input. -->
       <form
         @submit.prevent="sendMessage"
         class="flex space-x-2 w-full max-w-4xl mx-auto h-full"
@@ -103,14 +111,6 @@
           Send
         </button>
       </form>
-    </div>
-
-    <!-- If no conversation selected => a placeholder (optional to keep) -->
-    <div
-      v-if="!conversationId"
-      class="absolute inset-0 flex items-center justify-center text-gray-400 bg-white/70"
-    >
-      <p>No conversation selected. Create or pick one in the sidebar.</p>
     </div>
   </div>
 </template>
@@ -137,7 +137,7 @@ const draftMessage = ref('')
 const assistantThinking = ref(false)
 const messagesContainer = ref(null)
 
-// Watch for conversation changes => load the full history
+// Observe conversation changes => reload
 watch(() => props.conversationId, async (newVal, oldVal) => {
   if (newVal && newVal !== oldVal) {
     messages.value = []
@@ -145,6 +145,7 @@ watch(() => props.conversationId, async (newVal, oldVal) => {
   }
 })
 
+// On mount => load if we have conversation
 onMounted(async () => {
   if (props.conversationId) {
     await loadFullHistory()
@@ -174,11 +175,12 @@ async function loadFullHistory() {
   }
 }
 
+// Marked config => GFM, line breaks, highlight
 function renderMarkdown(content) {
   marked.setOptions({
     gfm: true,
-    breaks: true,       // turn \n into <br>
-    smartypants: true,  // nicer quotes, etc.
+    breaks: true,
+    smartypants: true,
     highlight(code, lang) {
       if (lang && hljs.getLanguage(lang)) {
         return hljs.highlight(code, { language: lang }).value
@@ -197,6 +199,7 @@ function parseMessage(msg) {
   }
 }
 
+// Submit user message => call API => push assistant reply
 async function sendMessage() {
   const txt = draftMessage.value.trim()
   if (!txt || !props.conversationId) return
@@ -244,6 +247,7 @@ async function sendMessage() {
   }
 }
 
+// Scroll after rendering
 function scrollToBottom() {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -252,9 +256,7 @@ function scrollToBottom() {
 </script>
 
 <style scoped>
-/* 
-  Loader animation for "typing" placeholder 
-*/
+/* Loader animation for 'typing' placeholder */
 .loader-dots {
   width: 15px;
   height: 3px;
@@ -290,9 +292,7 @@ function scrollToBottom() {
   }
 }
 
-/* 
-  Basic code block styling
-*/
+/* Syntax highlighting background, code block style */
 .hljs {
   background: #f9fafb;
   padding: 0.5em;
@@ -300,16 +300,22 @@ function scrollToBottom() {
   overflow-x: auto;
 }
 
-/* 
-  Markdown body: 
-  Let Marked generate headings, lists, etc. 
-  Let headings appear normal, so no forced white-space. 
-*/
-.markdown-body {
-  word-break: break-word;
+/* For <h1>, <h2>, <h3> etc. plus paragraphs, lists, etc. using tailwind typography */
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.prose p {
+  margin: 0.5rem 0;
+}
+.prose ul, .prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.prose li {
+  margin: 0.25rem 0;
 }
 
-/* Example highlight color overrides */
 .hljs-keyword {
   color: #7c3aed;
   font-weight: bold;

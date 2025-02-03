@@ -8,7 +8,6 @@ from crewai.project import CrewBase, agent, crew, task
 
 # Tools
 from crewai_tools import SerperDevTool
-from .tools.word_counter_tool import WordCounterTool
 
 # For logging user <-> agent conversation in Redis (optional but recommended)
 from utils.agent_thought import RedisConversationLogger
@@ -43,7 +42,7 @@ class ConvoNewsletterCrew:
 
         # Initialize your LLM with the SambaNova key
         self.llm = LLM(
-            model="sambanova/DeepSeek-R1-Distill-Llama-70B",
+            model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
             max_tokens=8192,
             api_key=sambanova_key
@@ -79,7 +78,8 @@ class ConvoNewsletterCrew:
             config=self.agents_config.get("synthesizer", {}),
             verbose=True,
             llm=self.llm,
-            step_callback=logger
+            step_callback=logger,
+            tools=[SerperDevTool()]
         )
 
     @agent
@@ -96,7 +96,7 @@ class ConvoNewsletterCrew:
         serper_tool = SerperDevTool()
         return Agent(
             config=self.agents_config.get("newsletter_writer", {}),
-            tools=[WordCounterTool(), serper_tool],
+            tools=[serper_tool],
             verbose=True,
             llm=self.llm,
             step_callback=logger
@@ -114,7 +114,6 @@ class ConvoNewsletterCrew:
         )
         return Agent(
             config=self.agents_config.get("newsletter_editor", {}),
-            tools=[WordCounterTool(),SerperDevTool()],
             verbose=True,
             llm=self.llm,
             step_callback=logger
@@ -132,7 +131,8 @@ class ConvoNewsletterCrew:
         return Task(
             config=self.tasks_config.get("write_newsletter_task", {}),
             output_file="newsletter_draft.md",
-            llm=self.llm
+            llm=self.llm,
+            context=[self.generate_outline_task()]
         )
 
     @task
@@ -140,7 +140,8 @@ class ConvoNewsletterCrew:
         return Task(
             config=self.tasks_config.get("review_newsletter_task", {}),
             output_file="final_newsletter.md",
-            llm=self.llm
+            llm=self.llm,
+            context=[self.write_newsletter_task()]
         )
 
     @crew

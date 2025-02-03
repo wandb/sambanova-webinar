@@ -15,8 +15,10 @@ generate_outline_task:
     - Provide actionable advice to help them build a personal brand.
     - Transition readers through the 5 stages of buyer awareness:
       Unaware > Problem Aware > Solution Aware > Product Aware > Most Aware.
-    - Subtly promote RadicalWorks.ai Consulting and AI Authority Accelerator 
-      while maintaining value-driven content.
+    - Ensure you thoroughly research the topic using the SerperDevTool to ensure the newsletter is accurate and up-to-date. This is VERY IMPORTANT.
+    - Your readers are technical and want to know the latest and greatest including the latest tools, frameworks, and libraries and libraries.
+    - Ensure you thoroughly research the topic using the SerperDevTool to ensure the newsletter is accurate and up-to-date. This is VERY IMPORTANT.
+    - Your readers are technical and want to know the latest and greatest including the latest tools, frameworks, and libraries and libraries.
 
     **Best Practices for Headlines**:
     - Write short, curiosity-driven subject lines (5–15 words max).
@@ -41,6 +43,8 @@ generate_outline_task:
   expected_output: >
     - A polished subject line that hooks the audience and aligns with the newsletter's goals.
     - A complete outline with clear sections and potential talking points for each.
+    - Detailed information sources to build authority on the topic {brain_dump}. Always be specific. Never be vague.
+    - If something has a name USE it or search for it using the SerperDevTool in order to build authority on the topic.
   agent: synthesizer
 
 
@@ -50,6 +54,9 @@ write_newsletter_task:
     newsletter draft for AI Developer Weekly. 
     Make sure the newsletter is between 1,000 and 1,200 words.
     Ensure the newsletter aligns with the following context:
+    - Detailed information sources to build authority on the topic {brain_dump}. Always be specific. Never be vague.
+    - If something has a name USE it or search for it using the SerperDevTool in order to build authority on the topic.
+    - Your readers are technical and want to know the latest and greatest including the latest tools, frameworks, and libraries and libraries.
 
     **Target Audience**: 
     - Full stack AI developers building AI apps that rely on LLMs like ChatGPT, Gemini, etc.
@@ -57,6 +64,7 @@ write_newsletter_task:
     These individuals aim to attract high-value leads, establish themselves as 
     experts, and create sustainable freelance income. Many feel stuck, underpaid, or 
     uncertain about how to succeed in the competitive AI market.
+    - Your readers are technical and want to know the latest and greatest including the latest tools, frameworks, and libraries and libraries.
 
     **Goals for the Newsletter**:
     - Educate readers about their problems, even if they're unaware of them.
@@ -77,9 +85,11 @@ write_newsletter_task:
       which means breaking up contents into easy to read chunks with subheadings, bullet points, and short paragraphs.
       When writing paragraphs, use the 1-3-1 style, 1-5-1 style, 1-3-1-1 style, etc to make 
       the content more skimmable and easy to read.
-    - If applicable, include a curated list of tools, resources, or links relevant to the topic.
+    - ALWAYS, include a curated list of tools, resources, or links relevant to the topic.
     - Add a conclusion that reinforces key takeaways and includes a strong CTA.
     - Use a compelling PS to encourage referrals, engagement, or sign-ups.
+    - Always use FULL names of Models, Frameworks, Libraries, and Tools. Do not use abbreviations or be vague.
+    - NEVER hallucinate. If you don't know the answer, use the SerperDevTool to find the answer.
 
     Here is the author's original brain dump:
     {brain_dump}

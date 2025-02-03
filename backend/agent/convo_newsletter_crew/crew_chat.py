@@ -4,9 +4,8 @@ import sys
 import time
 import threading
 import uuid
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-# We'll keep CLI references to preserve original "old functionality"
 import click
 
 from crewai.crew import Crew
@@ -14,53 +13,34 @@ from crewai.llm import LLM
 from crewai.types.crew_chat import ChatInputField, ChatInputs
 from crewai.utilities.llm_utils import create_llm
 
-# Import your actual "newsletter_crew.py"
-# We'll rely on a constructor that can accept the various API keys.
+# Import your actual "newsletter_crew.py" that can accept API keys.
 from .newsletter_crew import ConvoNewsletterCrew
 
 ###############################################################################
-# In-memory conversation store for the new API usage.
+# In-memory store for API usage
 ###############################################################################
 CONVERSATION_STORE: Dict[str, Dict[str, Any]] = {}
-# Each entry is keyed by conversation_id with structure like:
-# {
-#   "crew": <Crew instance>,
-#   "messages": <list of dicts>,
-#   "crew_tool_schema": <dict>,
-#   "available_functions": <dict>,
-#   ...
-# }
 
 ###############################################################################
-# 1) CLI-based chat loop (OLD FUNCTIONALITY) - minimal changes to keep it working
+# 1) CLI-based chat loop (old functionality)
 ###############################################################################
 
 def run_chat():
-    """
-    Runs an interactive chat loop (like the old CLI).
-    We do not rely on pyproject.toml or version checks.
-    """
-    click.secho(
-        "\nAnalyzing crew for conversation-based usage. Please wait...\n",
-        fg="white"
-    )
+    """Runs an interactive chat loop (like old CLI)."""
+    click.secho("\nAnalyzing crew for conversation-based usage. Please wait...\n", fg="white")
 
-    # Instantiate the default ConvoNewsletterCrew without explicit keys
-    # (assumes they're in environment or a default is used)
-    crew, messages, crew_tool_schema, available_functions = _initialize_cli_crew()
+    crew_obj, messages, crew_tool_schema, available_functions = _initialize_cli_crew()
 
     click.secho("\nFinished analyzing crew.\n", fg="white")
     first_assistant_message = messages[-1]["content"]
     click.secho(f"Assistant: {first_assistant_message}\n", fg="green")
 
-    # Now enter a loop for user input
     while True:
         try:
             user_input = _get_user_input()
             if user_input.strip().lower() == "exit":
                 click.echo("Exiting chat. Goodbye!")
                 break
-
             if not user_input.strip():
                 click.echo("Empty message. Provide input or type 'exit'.")
                 continue
@@ -70,67 +50,128 @@ def run_chat():
             click.echo()
             click.secho("Assistant is processing your input. Please wait...", fg="green")
 
-            chat_llm: LLM = crew.chat_llm
-            final_response = chat_llm.call(
-                messages=messages,
-                tools=[crew_tool_schema],
-                available_functions=available_functions,
-            )
-            messages.append({"role": "assistant", "content": final_response})
-            click.secho(f"\nAssistant: {final_response}\n", fg="green")
+            # Multi-turn approach
+            response_text = _multi_turn_llm_call(crew_obj, messages, crew_tool_schema, available_functions)
+            messages.append({"role": "assistant", "content": response_text})
+
+            click.secho(f"\nAssistant: {response_text}\n", fg="green")
 
         except KeyboardInterrupt:
             click.echo("\nExiting chat. Goodbye!")
             break
-        except Exception as exc:
-            click.secho(f"Error: {exc}", fg="red")
+        except Exception as e:
+            click.secho(f"Error: {e}", fg="red")
             break
 
 def _initialize_cli_crew():
     """
-    Creates the crew in a CLI scenario, generates system message,
-    calls LLM for an intro, and returns (crew, messages, schema, available_functions).
+    Creates the crew in a CLI scenario, builds system message, calls LLM for intro.
     """
-    # 1) Build a crew
     crew_object = ConvoNewsletterCrew().crew()
 
-    # 2) Analyze tasks/agents
     chat_llm = create_llm(crew_object.chat_llm)
     crew_name = "ConvoNewsletterCrew"
     crew_chat_inputs = generate_crew_chat_inputs(crew_object, crew_name, chat_llm)
+
     crew_tool_schema = generate_crew_tool_schema(crew_chat_inputs)
     system_message = build_system_message(crew_chat_inputs)
 
-    # 3) Intro message
-    introductory_message = chat_llm.call(messages=[{"role": "system", "content": system_message}])
+    # Intro message
+    intro_msg = chat_llm.call(messages=[{"role": "system", "content": system_message}])
     messages = [
         {"role": "system", "content": system_message},
-        {"role": "assistant", "content": introductory_message},
+        {"role": "assistant", "content": intro_msg},
     ]
 
     available_functions = {
         crew_chat_inputs.crew_name: create_tool_function(crew_object, messages)
     }
-
     return crew_object, messages, crew_tool_schema, available_functions
 
-
 def _get_user_input() -> str:
-    """
-    Collect multi-line user input with blank line as delimiter (CLI style).
-    """
+    """Gather multi-line user input for CLI usage."""
     click.secho("\nYou (type your message; press Enter twice to finish):", fg="blue")
     lines = []
     while True:
         line = input()
         if not line:
-            # blank line => done
             break
         lines.append(line)
     return "\n".join(lines)
 
 ###############################################################################
-# 2) NEW: API-based methods (init & message) that do NOT re-init the Crew each time
+# 2) Multi-turn approach (like the CLI function-calling)
+###############################################################################
+
+def _multi_turn_llm_call(
+    crew_obj: Crew,
+    messages: List[Dict[str, str]],
+    crew_tool_schema: Dict[str, Any],
+    available_functions: Dict[str, Any],
+    max_calls: int = 3
+) -> str:
+    """
+    Does a short loop to handle the possibility the LLM calls the function
+    multiple times for a single user message.
+    """
+    chat_llm = crew_obj.chat_llm
+
+    for _ in range(max_calls):
+        raw_response = chat_llm.call(
+            messages=messages,
+            tools=[crew_tool_schema],
+            available_functions=available_functions,
+        )
+        # If no function call => final text
+        if not _is_function_call(raw_response):
+            return raw_response
+
+        # Else parse the function call
+        fn_name, fn_args = _parse_function_call(raw_response)
+
+        # If the LLM used "brain_dump" or another name, unify to "ConvoNewsletterCrew"
+        # or you can do some mapping.
+        # We'll treat ANY name as "ConvoNewsletterCrew" for simplicity:
+        if fn_name not in available_functions:
+            # We unify
+            fn_name = list(available_functions.keys())[0]  # e.g. "ConvoNewsletterCrew"
+
+            # the original call might have placeholders in "parameters"
+            # so we merge them into fn_args
+            # e.g. raw_response = {"name":"brain_dump", "parameters":{"brain_dump":"..."}}
+            # We'll keep the same arguments
+            # If you want to parse them differently, you can.
+
+        # Actually call the crew's function
+        try:
+            tool_func = available_functions[fn_name]
+            tool_output = tool_func(**fn_args)
+        except Exception as e:
+            tool_output = f"Error running function {fn_name}: {str(e)}"
+
+        # Append the function output
+        messages.append({"role": "assistant", "content": tool_output})
+
+    # If we run out of calls, return whatever last message was
+    return messages[-1]["content"]
+
+def _is_function_call(response_text: str) -> bool:
+    """
+    We assume the LLM returns JSON with a "name" field if it's a function call.
+    """
+    trimmed = response_text.strip()
+    return trimmed.startswith("{") and '"name":' in trimmed
+
+def _parse_function_call(response_text: str) -> Tuple[str, Dict[str, Any]]:
+    data = json.loads(response_text)
+    fn_name = data.get("name", "")
+    fn_args = data.get("arguments", {})
+    if not isinstance(fn_args, dict):
+        fn_args = {}
+    return fn_name, fn_args
+
+###############################################################################
+# 3) API-based methods
 ###############################################################################
 
 def api_init_conversation(
@@ -141,113 +182,88 @@ def api_init_conversation(
     run_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Initializes a brand-new conversation by creating a ConvoNewsletterCrew
-    with the provided keys and user/run info, analyzing tasks/agents to build
-    a system message & function schema, then returns the initial assistant reply.
+    Creates a new conversation, like the CLI does, storing the
+    resulting system+intro messages in memory.
     """
-    # 1) Create the crew with the user-supplied keys & IDs
-    #    (Inside ConvoNewsletterCrew.__init__, you might store them or pass them to LLMs)
+    # Build crew
     crew_object = ConvoNewsletterCrew(
         sambanova_key=sambanova_key,
         serper_key=serper_key,
-        user_id=user_id,
+        user_id=user_id
     ).crew()
 
-    # 2) Same analysis as CLI does
     chat_llm = create_llm(crew_object.chat_llm)
     crew_name = "ConvoNewsletterCrew"
     crew_chat_inputs = generate_crew_chat_inputs(crew_object, crew_name, chat_llm)
+
     crew_tool_schema = generate_crew_tool_schema(crew_chat_inputs)
     system_message = build_system_message(crew_chat_inputs)
 
-    # 3) Get the initial assistant message
-    introductory_message = chat_llm.call(
-        messages=[{"role": "system", "content": system_message}]
-    )
-
-    # 4) Start conversation
+    intro_msg = chat_llm.call(messages=[{"role": "system", "content": system_message}])
     messages = [
         {"role": "system", "content": system_message},
-        {"role": "assistant", "content": introductory_message},
+        {"role": "assistant", "content": intro_msg},
     ]
 
     available_functions = {
         crew_chat_inputs.crew_name: create_tool_function(crew_object, messages)
     }
 
-    # 5) Unique conversation id
     conversation_id = str(uuid.uuid4())
-
-    # 6) Store in memory
     CONVERSATION_STORE[conversation_id] = {
         "crew": crew_object,
         "messages": messages,
         "crew_tool_schema": crew_tool_schema,
         "available_functions": available_functions,
-        "user_id": user_id,
-        "run_id": run_id,
         "sambanova_key": sambanova_key,
         "serper_key": serper_key,
-        "exa_key": exa_key
+        "exa_key": exa_key,
+        "user_id": user_id,
+        "run_id": run_id
     }
 
     return {
         "conversation_id": conversation_id,
-        "assistant_message": introductory_message
+        "assistant_message": intro_msg
     }
 
-
-def api_process_message(
-    conversation_id: str,
-    user_input: str
-) -> str:
+def api_process_message(conversation_id: str, user_input: str) -> str:
     """
-    Accepts a new user message for an existing conversation,
-    calls the LLM with the same messages & tool schema, and returns the new assistant reply.
-    We do NOT re-instantiate the crew, so no repeated overhead.
+    Each user message triggers the same multi-turn approach used in CLI.
     """
     if conversation_id not in CONVERSATION_STORE:
         raise ValueError(f"No conversation found for id='{conversation_id}'.")
 
     data = CONVERSATION_STORE[conversation_id]
-    crew: Crew = data["crew"]
+    crew_obj: Crew = data["crew"]
     messages = data["messages"]
     crew_tool_schema = data["crew_tool_schema"]
     available_functions = data["available_functions"]
 
     if not user_input.strip():
-        # If the user sends an empty message
         return "You sent an empty message. Try again."
 
-    # Add user message
+    # Append user input
     messages.append({"role": "user", "content": user_input})
 
-    # Summon the chat LLM
-    chat_llm: LLM = crew.chat_llm
-    assistant_reply = chat_llm.call(
-        messages=messages,
-        tools=[crew_tool_schema],
-        available_functions=available_functions,
+    # Same multi-turn logic
+    final_text = _multi_turn_llm_call(
+        crew_obj,
+        messages,
+        crew_tool_schema,
+        available_functions
     )
 
-    # Append assistant's message
-    messages.append({"role": "assistant", "content": assistant_reply})
-
-    # Store updated messages
+    messages.append({"role": "assistant", "content": final_text})
     CONVERSATION_STORE[conversation_id]["messages"] = messages
 
-    return assistant_reply
+    return final_text
 
 ###############################################################################
-# 3) Common helper methods from the original approach (used by both CLI & API)
+# 4) Shared helper methods
 ###############################################################################
 
 def generate_crew_chat_inputs(crew: Crew, crew_name: str, chat_llm: LLM) -> ChatInputs:
-    """
-    Gathers placeholders (like {topic}, {audience}) from tasks & agents,
-    then uses the LLM to produce short descriptions for each placeholder
-    and also a short description for the entire crew.
-    """
     required_inputs = fetch_required_inputs(crew)
     input_fields = []
     for input_name in required_inputs:
@@ -261,35 +277,28 @@ def generate_crew_chat_inputs(crew: Crew, crew_name: str, chat_llm: LLM) -> Chat
         inputs=input_fields
     )
 
-
 def fetch_required_inputs(crew: Crew) -> Set[str]:
     placeholder_pattern = re.compile(r"\{(.+?)\}")
     required_inputs: Set[str] = set()
 
-    # tasks
     for t in crew.tasks:
         text = (t.description or "") + " " + (t.expected_output or "")
         required_inputs.update(placeholder_pattern.findall(text))
 
-    # agents
     for a in crew.agents:
         text = (a.role or "") + " " + (a.goal or "") + " " + (a.backstory or "")
         required_inputs.update(placeholder_pattern.findall(text))
 
     return required_inputs
 
-
 def generate_input_description_with_ai(
-    input_name: str, crew: Crew, chat_llm: LLM
+    input_name: str,
+    crew: Crew,
+    chat_llm: LLM
 ) -> str:
-    """
-    Looks up any references to {input_name} in tasks/agents,
-    then calls the LLM to produce a short human-friendly description for it.
-    """
     placeholder_pattern = re.compile(r"\{(.+?)\}")
     context_texts = []
 
-    # tasks
     for t in crew.tasks:
         if f"{{{input_name}}}" in (t.description or "") or f"{{{input_name}}}" in (t.expected_output or ""):
             desc = placeholder_pattern.sub(lambda m: m.group(1), t.description or "")
@@ -297,14 +306,12 @@ def generate_input_description_with_ai(
             context_texts.append(f"Task Description: {desc}")
             context_texts.append(f"Task Output: {out}")
 
-    # agents
     for a in crew.agents:
-        references = (
+        if (
             f"{{{input_name}}}" in (a.role or "") or
             f"{{{input_name}}}" in (a.goal or "") or
             f"{{{input_name}}}" in (a.backstory or "")
-        )
-        if references:
+        ):
             role = placeholder_pattern.sub(lambda m: m.group(1), a.role or "")
             goal = placeholder_pattern.sub(lambda m: m.group(1), a.goal or "")
             back = placeholder_pattern.sub(lambda m: m.group(1), a.backstory or "")
@@ -313,23 +320,18 @@ def generate_input_description_with_ai(
             context_texts.append(f"Agent Backstory: {back}")
 
     if not context_texts:
-        # If it doesn't appear anywhere, just do a default
         return f"User input for '{input_name}'."
 
     joined = "\n".join(context_texts)
     prompt = (
-        f"Given this crew context, describe '{input_name}' in <=15 words. "
-        "No placeholders or extra text:\n"
+        f"Given this context, describe '{input_name}' in <=15 words.\n"
         f"{joined}"
     )
-    response = chat_llm.call(messages=[{"role": "user", "content": prompt}])
-    return response.strip() or f"User input for '{input_name}'."
+    resp = chat_llm.call(messages=[{"role": "user", "content": prompt}])
+    return resp.strip() or f"User input for '{input_name}'."
 
 
 def generate_crew_description_with_ai(crew: Crew, chat_llm: LLM) -> str:
-    """
-    Summarizes the entire crew in 15 words or fewer, scanning tasks/agents for context.
-    """
     placeholder_pattern = re.compile(r"\{(.+?)\}")
     context_texts = []
 
@@ -337,7 +339,7 @@ def generate_crew_description_with_ai(crew: Crew, chat_llm: LLM) -> str:
         desc = placeholder_pattern.sub(lambda m: m.group(1), t.description or "")
         out = placeholder_pattern.sub(lambda m: m.group(1), t.expected_output or "")
         context_texts.append(f"Task Description: {desc}")
-        context_texts.append(f"Task Output: {out}")
+        context_texts.append(f"Expected Output: {out}")
 
     for a in crew.agents:
         role = placeholder_pattern.sub(lambda m: m.group(1), a.role or "")
@@ -352,19 +354,15 @@ def generate_crew_description_with_ai(crew: Crew, chat_llm: LLM) -> str:
 
     joined = "\n".join(context_texts)
     prompt = (
-        "Based on the context below, provide a concise (<15 words) action-oriented "
+        "Based on this context, provide a concise (<15 words) action-oriented "
         "description of the crew:\n"
         f"{joined}"
     )
-    response = chat_llm.call(messages=[{"role": "user", "content": prompt}])
-    return response.strip() or "A specialized newsletter crew."
+    resp = chat_llm.call(messages=[{"role": "user", "content": prompt}])
+    return resp.strip() or "A specialized newsletter crew."
 
 
 def generate_crew_tool_schema(crew_inputs: ChatInputs) -> dict:
-    """
-    Builds a function schema (for function calling) referencing the placeholders
-    found in the crew's tasks/agents.
-    """
     properties = {}
     for field in crew_inputs.inputs:
         properties[field.name] = {
@@ -386,11 +384,7 @@ def generate_crew_tool_schema(crew_inputs: ChatInputs) -> dict:
         }
     }
 
-
 def build_system_message(crew_chat_inputs: ChatInputs) -> str:
-    """
-    Creates the "system" role message describing the crew, placeholders, usage.
-    """
     required_fields_str = ", ".join(
         f"{field.name} (desc: {field.description})" for field in crew_chat_inputs.inputs
     ) or "(No required fields)"
@@ -405,32 +399,18 @@ def build_system_message(crew_chat_inputs: ChatInputs) -> str:
         f"Crew Description: {crew_chat_inputs.crew_description}"
     )
 
-
 def create_tool_function(crew: Crew, messages: List[Dict[str, str]]):
-    """
-    Returns a function that runs crew.kickoff with the placeholders
-    the LLM has provided. The LLM can "invoke" this function.
-    """
     def run_crew_tool_with_messages(**kwargs):
         return run_crew_tool(crew, messages, **kwargs)
     return run_crew_tool_with_messages
 
-
 def run_crew_tool(crew: Crew, messages: List[Dict[str, str]], **kwargs) -> str:
-    """
-    Actually calls 'crew.kickoff(inputs=kwargs)', returning the result as a string.
-    Embeds the entire conversation in 'crew_chat_messages' for reference if needed.
-    """
     try:
         kwargs["crew_chat_messages"] = json.dumps(messages)
-        result = crew.kickoff(inputs=kwargs)
-        return str(result)
-    except Exception as ex:
-        raise RuntimeError(f"Error running the crew: {ex}") from ex
+        output = crew.kickoff(inputs=kwargs)
+        return str(output)
+    except Exception as e:
+        raise RuntimeError(f"Error running the crew: {str(e)}") from e
 
-
-###############################################################################
-# If you want to allow "python crew_chat.py" to start a CLI chat, do so:
-###############################################################################
 if __name__ == "__main__":
     run_chat()

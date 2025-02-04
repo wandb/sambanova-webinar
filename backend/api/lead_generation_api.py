@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, File, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -29,13 +29,18 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
 
+# For document processing
+from services.document_processing_service import DocumentProcessingService
+
 class QueryRequest(BaseModel):
     query: str
+
 
 class EduContentRequest(BaseModel):
     topic: str
     audience_level: str = "intermediate"
     additional_context: Optional[Dict[str, List[str]]] = None
+
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -119,10 +124,20 @@ class LeadGenerationAPI:
 
             user_id = request.headers.get("x-user-id", "")
             run_id = request.headers.get("x-run-id", "")
-
-            print(f"[/execute/{query_type}] user_id={user_id}, run_id={run_id}")
+            session_id = request.headers.get("x-session-id", "")
 
             try:
+                # Load document chunks if they exist
+                chunks = []
+                doc_chunks_key = f"doc_chunks:{user_id}:{session_id}"
+                                
+                chunks_data = self.redis_client.get(doc_chunks_key)
+                if chunks_data:
+                    chunks = json.loads(chunks_data)
+                    print(f"[/execute/{query_type}] Found {len(chunks)} document chunks in Redis.")
+                else:
+                    chunks = []
+
                 if query_type == "sales_leads":
                     # Sales route
                     if not exa_key:
@@ -262,7 +277,71 @@ class LeadGenerationAPI:
                 print(f"[stream_logs] Error setting up SSE: {e}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-    async def execute_research(self, crew, parameters: Dict[str,Any]):
+        @self.app.post("/upload")
+        async def upload_document(
+            request: Request,
+            file: UploadFile = File(...),
+        ):
+            """Upload and process a document."""
+            try:
+                # Get user_id and run_id from headers
+                user_id = request.headers.get("x-user-id", "")
+                session_id = request.headers.get("x-session-id", "")
+
+                # Read file content
+                content = await file.read()
+
+                # Process document
+                doc_processor = DocumentProcessingService()
+                chunks = doc_processor.process_document(content, file.filename)
+
+                # Store chunks in Redis with metadata
+                key = (
+                    f"doc_chunks:{user_id}:{session_id}"
+                    if user_id and session_id
+                    else f"doc_chunks:{file.filename}"
+                )
+                chunks_data = [
+                    {"text": chunk.page_content, "metadata": chunk.metadata}
+                    for chunk in chunks
+                ]
+
+                print(f"[/upload] Setting Redis key: {key}")
+
+                self.redis_client.set(key, json.dumps(chunks_data))
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "message": "Document processed successfully",
+                        "num_chunks": len(chunks),
+                        "key": key,
+                    },
+                )
+
+            except Exception as e:
+                print(f"[/upload] Error processing document: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.get("/documents/{user_id}/{run_id}")
+        async def get_document_chunks(request: Request, user_id: str, run_id: str):
+            """Retrieve processed document chunks for a user/run."""
+            try:
+                key = f"doc_chunks:{user_id}:{run_id}"
+                chunks_data = self.redis_client.get(key)
+
+                if not chunks_data:
+                    return JSONResponse(
+                        status_code=404, content={"error": "No document chunks found"}
+                    )
+
+                return JSONResponse(status_code=200, content=json.loads(chunks_data))
+
+            except Exception as e:
+                print(f"[/documents] Error retrieving chunks: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+    async def execute_research(self, crew, parameters: Dict[str, Any]):
         """
         Helper for 'sales_leads' route.
         Extract lead info from parameters, run crew.execute_research in a thread.

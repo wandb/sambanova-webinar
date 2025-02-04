@@ -63,6 +63,25 @@
         </button>
       </div>
 
+      <!-- Upload Button -->
+      <div class="relative">
+        <input
+          type="file"
+          ref="fileInput"
+          @change="handleFileUpload"
+          class="hidden"
+          accept=".pdf,.doc,.docx,.csv,.xlsx,.xls"
+        />
+        <button
+          @click="$refs.fileInput.click()"
+          :disabled="isLoading"
+          class="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center"
+          title="Upload Document"
+        >
+          <DocumentArrowUpIcon class="w-5 h-5" />
+        </button>
+      </div>
+
       <button
         @click="performSearch"
         :disabled="isLoading || !searchQuery.trim()"
@@ -71,6 +90,11 @@
         <span v-if="!isLoading">Search</span>
         <span v-else>Searching...</span>
       </button>
+    </div>
+
+    <!-- Upload Status -->
+    <div v-if="uploadStatus" class="mt-2 text-sm" :class="{ 'text-red-600': uploadStatus.type === 'error', 'text-green-600': uploadStatus.type !== 'error' }">
+      {{ uploadStatus.message }}
     </div>
 
     <!-- Recording Status -->
@@ -89,11 +113,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
+import { uploadDocument } from '../services/api'
+import { DocumentArrowUpIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
   keysUpdated: {
@@ -106,6 +132,10 @@ const props = defineProps({
   },
   // The runId from MainLayout
   runId: {
+    type: String,
+    default: ''
+  },
+  sessionId: {
     type: String,
     default: ''
   }
@@ -123,6 +153,8 @@ const exaKey = ref(null)
 const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
+const fileInput = ref(null)
+const uploadStatus = ref(null)
 
 // Clerk
 const { userId } = useAuth()
@@ -215,7 +247,8 @@ async function performSearch() {
           'x-exa-key': exaKey.value || '',
           // **Crucial**: same user/run ID as SSE 
           'x-user-id': userId.value || '',
-          'x-run-id': props.runId || ''
+          'x-run-id': props.runId || '',
+          'x-session-id': props.sessionId || ''
         }
       }
     )
@@ -407,6 +440,54 @@ function cleanTranscription(transcribedText) {
 
 function openSettings() {
   emit('openSettings')
+}
+
+async function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    // If we don't have a runId, trigger searchStart to generate one and wait for it
+    if (!props.runId) {
+      console.log('[SearchSection] No runId, triggering searchStart')
+      emit('searchStart', 'document_upload')
+      // Wait for Vue to update the prop
+      await nextTick()
+      // If still no runId, wait a bit longer
+      if (!props.runId) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      // Check if we got a runId
+      if (!props.runId) {
+        console.warn('[SearchSection] Still no runId after waiting')
+      }
+    }
+    console.log('[SearchSection] Using runId:', props.runId)
+
+    uploadStatus.value = { type: 'info', message: 'Uploading document...' }
+    
+    const result = await uploadDocument(file, userId.value, props.runId)
+    
+    uploadStatus.value = {
+      type: 'success',
+      message: `Document processed successfully into ${result.num_chunks} chunks`
+    }
+    
+    // Clear after 5 seconds
+    setTimeout(() => {
+      uploadStatus.value = null
+    }, 5000)
+    
+  } catch (error) {
+    console.error('Upload error:', error)
+    uploadStatus.value = {
+      type: 'error',
+      message: error.response?.data?.error || 'Failed to upload document'
+    }
+  } finally {
+    // Clear the file input
+    event.target.value = ''
+  }
 }
 </script>
 

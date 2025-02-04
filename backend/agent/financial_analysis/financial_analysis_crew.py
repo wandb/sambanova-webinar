@@ -387,9 +387,10 @@ class FinancialAnalysisCrew:
 ########## EXAMPLE MAIN ##############
 def main():
     load_dotenv()
-    example_samba_key = "YOUR_SAMBANOVA_KEY"
-    exa_key = "YOUR_EXA_KEY"
-    serper_key = "YOUR_SERPER_KEY"
+    sambanova_key = os.getenv("SAMBANOVA_API_KEY")
+    exa_key = os.getenv("EXA_API_KEY") 
+    serper_key = os.getenv("SERPAPI_API_KEY")
+    langtrace_key = os.getenv("LANGTRACE_API_KEY")
     user_id = "demo_user"
     run_id = str(uuid.uuid4())
 
@@ -399,7 +400,7 @@ def main():
     }
 
     fac = FinancialAnalysisCrew(
-        sambanova_key=example_samba_key,
+        sambanova_key=sambanova_key,
         exa_key=exa_key,
         serper_key=serper_key,
         user_id=user_id,

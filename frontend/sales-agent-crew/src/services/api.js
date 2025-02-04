@@ -77,4 +77,27 @@ export const generateOutreach = async (data, apiKeys) => {
   return response.json()
 }
 
+/**
+ * Upload and process a document
+ */
+export const uploadDocument = async (file, userId, sessionId) => {
+  console.log('[api] uploadDocument called with sessionId:', sessionId)
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const response = await axios.post(
+    `${API_URL}/upload`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'x-user-id': userId || '',
+        'x-session-id': sessionId || ''
+      }
+    }
+  )
+  
+  return response.data
+}
+
 export default api

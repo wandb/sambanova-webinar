@@ -135,8 +135,10 @@ class LeadGenerationAPI:
                 if chunks_data:
                     chunks = json.loads(chunks_data)
                     print(f"[/execute/{query_type}] Found {len(chunks)} document chunks in Redis.")
+                    parameters["docs"] = "\n".join([chunk['text'] for chunk in chunks])
                 else:
                     chunks = []
+
 
                 if query_type == "sales_leads":
                     # Sales route
@@ -196,7 +198,8 @@ class LeadGenerationAPI:
                         exa_key=exa_key,
                         serper_key=serper_key,
                         user_id=user_id,
-                        run_id=run_id
+                        run_id=run_id,
+                        docs_included=True if "docs" in parameters else False
                     )
                     raw_result = await self.execute_financial(crew, parameters)
                     parsed_fin = json.loads(raw_result)
@@ -382,6 +385,9 @@ class LeadGenerationAPI:
             extracted_company = "Apple Inc"
 
         inputs = {"ticker": extracted_ticker, "company_name": extracted_company}
+
+        if "docs" in parameters:
+            inputs["docs"] = parameters["docs"]
 
         loop = asyncio.get_running_loop()
         future = self.executor.submit(crew.execute_financial_analysis, inputs)

@@ -261,7 +261,7 @@ class FinancialAnalysisCrew:
                 role="Document Summarization Agent",
                 goal="Analyze and summarize any provided documents related to {ticker}, extracting key financial insights.",
                 backstory="Expert at distilling complex financial documents into actionable insights. Focuses on material information that could impact investment decisions.",
-                llm=self.llm,
+                llm=self.aggregator_llm,
                 allow_delegation=False,
                 verbose=True,
                 max_iter=1,

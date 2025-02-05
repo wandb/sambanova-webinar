@@ -103,6 +103,41 @@
       <span>Recording... Click microphone to stop</span>
     </div>
 
+    <!-- Uploaded Documents Section -->
+    <div v-if="uploadedDocuments.length > 0" class="mt-4">
+      <h3 class="text-sm font-medium text-gray-700 mb-2">Uploaded Documents</h3>
+      <div class="space-y-2">
+        <div v-for="doc in uploadedDocuments" :key="doc.id" 
+          class="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100">
+          <div class="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              :checked="selectedDocuments.includes(doc.id)"
+              @change="toggleDocumentSelection(doc.id)"
+              class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <div>
+              <p class="text-sm font-medium text-gray-900">{{ doc.filename }}</p>
+              <p class="text-xs text-gray-500">
+                Uploaded {{ new Date(doc.upload_timestamp * 1000).toLocaleString() }}
+                • {{ doc.num_chunks }} chunks
+              </p>
+            </div>
+          </div>
+          <button
+            @click="removeDocument(doc.id)"
+            class="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-200 transition-colors"
+            title="Remove document"
+          >
+            <XMarkIcon class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-gray-500">
+        Select documents to include in your search
+      </p>
+    </div>
+
     <!-- Error Modal -->
     <ErrorModal
       :show="showErrorModal"
@@ -119,7 +154,7 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 import { uploadDocument } from '../services/api'
-import { DocumentArrowUpIcon } from '@heroicons/vue/24/outline'
+import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
   keysUpdated: {
@@ -156,6 +191,10 @@ const showErrorModal = ref(false)
 const fileInput = ref(null)
 const uploadStatus = ref(null)
 
+// Add new reactive state for documents
+const uploadedDocuments = ref([])
+const selectedDocuments = ref([])
+
 // Clerk
 const { userId } = useAuth()
 
@@ -191,6 +230,7 @@ async function loadKeys() {
 
 onMounted(async () => {
   await loadKeys()
+  await loadUserDocuments()
 })
 
 watch(
@@ -222,8 +262,6 @@ async function performSearch() {
         headers: {
           'Content-Type': 'application/json',
           'x-sambanova-key': sambanovaKey.value || '',
-          // Make sure to pass runId here if your backend expects it for "route" 
-          // (But typically only needed on "execute"... optional)
           'x-user-id': userId.value || '',
           'x-run-id': props.runId || ''
         }
@@ -235,20 +273,23 @@ async function performSearch() {
     // 3) Tell parent "searchStart" with final type
     emit('searchStart', detectedType || 'unknown')
 
-    // 4) Execute the final query
+    // 4) Execute the final query with selected documents
+    const parameters = {
+      ...routeResp.data.parameters,
+      document_ids: selectedDocuments.value
+    }
+
     const executeResp = await axios.post(
       `${import.meta.env.VITE_API_URL}/execute/${detectedType}`,
-      routeResp.data.parameters,
+      parameters,
       {
         headers: {
           'Content-Type': 'application/json',
           'x-sambanova-key': sambanovaKey.value || '',
           'x-serper-key': serperKey.value || '',
           'x-exa-key': exaKey.value || '',
-          // **Crucial**: same user/run ID as SSE 
           'x-user-id': userId.value || '',
-          'x-run-id': props.runId || '',
-          'x-session-id': props.sessionId || ''
+          'x-run-id': props.runId || ''
         }
       }
     )
@@ -447,46 +488,100 @@ async function handleFileUpload(event) {
   if (!file) return
 
   try {
-    // If we don't have a runId, trigger searchStart to generate one and wait for it
-    if (!props.runId) {
-      console.log('[SearchSection] No runId, triggering searchStart')
-      emit('searchStart', 'document_upload')
-      // Wait for Vue to update the prop
-      await nextTick()
-      // If still no runId, wait a bit longer
-      if (!props.runId) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-      // Check if we got a runId
-      if (!props.runId) {
-        console.warn('[SearchSection] Still no runId after waiting')
-      }
-    }
-    console.log('[SearchSection] Using runId:', props.runId)
-
     uploadStatus.value = { type: 'info', message: 'Uploading document...' }
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await axios.post(
+      `${import.meta.env.VITE_API_URL}/upload`,
+      formData,
+      {
+        headers: {
+          'x-user-id': userId.value || '',
+        }
+      }
+    )
+
+    // Store the uploaded document
+    const document = response.data.document
+    uploadedDocuments.value.push(document)
+    selectedDocuments.value.push(document.id)
+
+    uploadStatus.value = { type: 'success', message: 'Document uploaded successfully!' }
     
-    const result = await uploadDocument(file, userId.value, props.runId)
-    
-    uploadStatus.value = {
-      type: 'success',
-      message: `Document processed successfully into ${result.num_chunks} chunks`
+    // Clear the file input
+    if (fileInput.value) {
+      fileInput.value.value = ''
     }
-    
-    // Clear after 5 seconds
+  } catch (error) {
+    console.error('[SearchSection] Upload error:', error)
+    uploadStatus.value = { 
+      type: 'error', 
+      message: error.response?.data?.error || 'Failed to upload document' 
+    }
+  }
+}
+
+// Load user's documents on mount
+async function loadUserDocuments() {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/documents/${userId.value}`,
+      {
+        headers: {
+          'x-user-id': userId.value || '',
+        }
+      }
+    )
+    uploadedDocuments.value = response.data.documents
+  } catch (error) {
+    console.error('[SearchSection] Error loading documents:', error)
+  }
+}
+
+function toggleDocumentSelection(docId) {
+  const index = selectedDocuments.value.indexOf(docId)
+  if (index === -1) {
+    selectedDocuments.value.push(docId)
+  } else {
+    selectedDocuments.value.splice(index, 1)
+  }
+}
+
+async function removeDocument(docId) {
+  try {
+    // Remove from backend
+    await axios.delete(
+      `${import.meta.env.VITE_API_URL}/documents/${userId.value}/${docId}`,
+      {
+        headers: {
+          'x-user-id': userId.value || '',
+        }
+      }
+    )
+
+    // Remove from selected documents if it was selected
+    const selectedIndex = selectedDocuments.value.indexOf(docId)
+    if (selectedIndex !== -1) {
+      selectedDocuments.value.splice(selectedIndex, 1)
+    }
+
+    // Remove from uploaded documents list
+    uploadedDocuments.value = uploadedDocuments.value.filter(doc => doc.id !== docId)
+
+    // Show success message
+    uploadStatus.value = { type: 'success', message: 'Document removed successfully!' }
     setTimeout(() => {
       uploadStatus.value = null
-    }, 5000)
-    
+    }, 3000)
+
   } catch (error) {
-    console.error('Upload error:', error)
-    uploadStatus.value = {
-      type: 'error',
-      message: error.response?.data?.error || 'Failed to upload document'
+    console.error('[SearchSection] Error removing document:', error)
+    uploadStatus.value = { 
+      type: 'error', 
+      message: error.response?.data?.error || 'Failed to remove document' 
     }
-  } finally {
-    // Clear the file input
-    event.target.value = ''
   }
 }
 </script>

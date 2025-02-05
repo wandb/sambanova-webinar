@@ -261,7 +261,7 @@ class FinancialAnalysisCrew:
                 role="Document Summarization Agent",
                 goal="Analyze and summarize any provided documents related to {ticker}, extracting key financial insights.",
                 backstory="Expert at distilling complex financial documents into actionable insights. Focuses on material information that could impact investment decisions.",
-                llm=self.aggregator_llm,
+                llm=self.llm,
                 allow_delegation=False,
                 verbose=True,
                 max_iter=1,
@@ -349,7 +349,7 @@ class FinancialAnalysisCrew:
 
         if self.docs_included:
             self.document_summarizer_task = Task(
-                description="Summarize any provided documents related to {ticker}, extracting key financial insights. Use the following documents: {docs}",
+                description="Summarize any provided documents related to {ticker}, extracting key financial insights. \n\nDocuments: \n\n{docs}",
                 agent=self.document_summarizer_agent,
                 expected_output="Summary of the document.",
                 async_execution=True,
@@ -390,8 +390,9 @@ class FinancialAnalysisCrew:
                 self.technical_agent,
                 self.risk_agent,
                 self.news_agent,
-                self.aggregator_agent
-            ],
+            ]
+            + ([self.document_summarizer_agent] if self.docs_included else [])
+            + [self.aggregator_agent],
             tasks=[
                 self.enhanced_competitor_task,
                 self.competitor_analysis_task,
@@ -399,12 +400,14 @@ class FinancialAnalysisCrew:
                 self.fundamental_task,
                 self.technical_task,
                 self.risk_task,
-                self.news_task] + ([self.document_summarizer_task] if self.docs_included else []) +
-                # aggregator last
-                [self.aggregator_task]
-            ,
+                self.news_task,
+            ]
+            + ([self.document_summarizer_task] if self.docs_included else [])
+            +
+            # aggregator last
+            [self.aggregator_task],
             process=Process.sequential,  # now we use parallel for tasks, aggregator last
-            verbose=True
+            verbose=True,
         )
         final = crew.kickoff(inputs=inputs)
         return final.pydantic.model_dump_json()

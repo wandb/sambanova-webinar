@@ -222,17 +222,6 @@ function handleSavedReportSelect(savedReport) {
 ////////////////////////////////////////////////////////////
 let searchStartTimestamp = 0
 
-function handleSearchStart(type) {
-  // If we are starting a brand-new search, generate a new runId
-  if (type === 'routing_query' || !currentRunId.value) {
-    currentRunId.value = uuidv4()
-  }
-  isLoading.value = true
-  results.value = null
-  queryType.value = type
-  searchStartTimestamp = performance.now()
-}
-
 // sub-message rotation
 const subMessageInterval = ref(null)
 const subMessageIndex = ref(0)

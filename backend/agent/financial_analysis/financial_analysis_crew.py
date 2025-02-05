@@ -165,7 +165,7 @@ class FinancialAnalysisCrew:
     Using partial concurrency to speed up tasks that do not depend on each other.
     """
 
-    def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = ""):
+    def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = "", docs_included: bool = False):
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-8B-Instruct",
             temperature=0.0,
@@ -183,7 +183,7 @@ class FinancialAnalysisCrew:
         self.serper_key = serper_key
         self.user_id = user_id
         self.run_id = run_id
-
+        self.docs_included = docs_included
         self._init_agents()
         self._init_tasks()
 
@@ -255,6 +255,18 @@ class FinancialAnalysisCrew:
             max_iter=2
         )
 
+        if self.docs_included:
+            # 6.5) document summarizer
+            self.document_summarizer_agent = Agent(
+                role="Document Summarization Agent",
+                goal="Analyze and summarize any provided documents related to {ticker}, extracting key financial insights.",
+                backstory="Expert at distilling complex financial documents into actionable insights. Focuses on material information that could impact investment decisions.",
+                llm=self.llm,
+                allow_delegation=False,
+                verbose=True,
+                max_iter=1,
+            )
+
         # 7) aggregator
         self.aggregator_agent = Agent(
             role="Aggregator Agent",
@@ -273,6 +285,8 @@ class FinancialAnalysisCrew:
         technical_logger = RedisConversationLogger(self.user_id, self.run_id, "Technical Agent")
         risk_logger = RedisConversationLogger(self.user_id, self.run_id, "Risk Agent")
         news_logger = RedisConversationLogger(self.user_id, self.run_id, "News Agent")
+        if self.docs_included:
+            document_summarizer_logger = RedisConversationLogger(self.user_id, self.run_id, "Document Summarizer Agent")
         aggregator_logger = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
 
         # Redis logs
@@ -283,6 +297,8 @@ class FinancialAnalysisCrew:
         self.technical_agent.step_callback = technical_logger
         self.risk_agent.step_callback = risk_logger
         self.news_agent.step_callback = news_logger
+        if self.docs_included:
+            self.document_summarizer_agent.step_callback = document_summarizer_logger
         self.aggregator_agent.step_callback = aggregator_logger
 
     def _init_tasks(self):
@@ -331,6 +347,15 @@ class FinancialAnalysisCrew:
             max_iterations=1
         )
 
+        if self.docs_included:
+            self.document_summarizer_task = Task(
+                description="Summarize any provided documents related to {ticker}, extracting key financial insights. \n\nDocuments: \n\n{docs}",
+                agent=self.document_summarizer_agent,
+                expected_output="Summary of the document.",
+                async_execution=True,
+                max_iterations=1,
+            )
+
         # 3) aggregator => sequential
         self.aggregator_task = Task(
             description=(
@@ -342,8 +367,8 @@ class FinancialAnalysisCrew:
                 self.fundamental_task, 
                 self.technical_task, 
                 self.risk_task, 
-                self.news_task
-            ],
+                self.news_task,
+            ] + ([self.document_summarizer_task] if self.docs_included else []),
             expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary",
             max_iterations=1,
             output_pydantic=FinancialAnalysisResult
@@ -365,8 +390,9 @@ class FinancialAnalysisCrew:
                 self.technical_agent,
                 self.risk_agent,
                 self.news_agent,
-                self.aggregator_agent
-            ],
+            ]
+            + ([self.document_summarizer_agent] if self.docs_included else [])
+            + [self.aggregator_agent],
             tasks=[
                 self.enhanced_competitor_task,
                 self.competitor_analysis_task,
@@ -375,11 +401,13 @@ class FinancialAnalysisCrew:
                 self.technical_task,
                 self.risk_task,
                 self.news_task,
-                # aggregator last
-                self.aggregator_task
-            ],
+            ]
+            + ([self.document_summarizer_task] if self.docs_included else [])
+            +
+            # aggregator last
+            [self.aggregator_task],
             process=Process.sequential,  # now we use parallel for tasks, aggregator last
-            verbose=True
+            verbose=True,
         )
         final = crew.kickoff(inputs=inputs)
         return final.pydantic.model_dump_json()
@@ -387,23 +415,26 @@ class FinancialAnalysisCrew:
 ########## EXAMPLE MAIN ##############
 def main():
     load_dotenv()
-    example_samba_key = "YOUR_SAMBANOVA_KEY"
-    exa_key = "YOUR_EXA_KEY"
-    serper_key = "YOUR_SERPER_KEY"
+    sambanova_key = os.getenv("SAMBANOVA_API_KEY")
+    exa_key = os.getenv("EXA_API_KEY") 
+    serper_key = os.getenv("SERPAPI_API_KEY")
+    langtrace_key = os.getenv("LANGTRACE_API_KEY")
     user_id = "demo_user"
     run_id = str(uuid.uuid4())
 
     inputs = {
         "ticker": "NVDA",
-        "company_name": "NVIDIA Corporation"
+        "company_name": "NVIDIA Corporation",
+        "docs": "NVIDIA Corporation is a company that makes GPUs. It is a good company."
     }
 
     fac = FinancialAnalysisCrew(
-        sambanova_key=example_samba_key,
+        sambanova_key=sambanova_key,
         exa_key=exa_key,
         serper_key=serper_key,
         user_id=user_id,
-        run_id=run_id
+        run_id=run_id,
+        docs_included=True
     )
     result_json = fac.execute_financial_analysis(inputs)
     print("FINAL FINANCIAL ANALYSIS JSON:\n")

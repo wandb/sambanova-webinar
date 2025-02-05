@@ -1,6 +1,4 @@
-# lead_generation_api.py
-
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, File, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -34,8 +32,12 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
 
+# For document processing
+from services.document_processing_service import DocumentProcessingService
+
 class QueryRequest(BaseModel):
     query: str
+
 
 class EduContentRequest(BaseModel):
     topic: str
@@ -125,10 +127,22 @@ class LeadGenerationAPI:
 
             user_id = request.headers.get("x-user-id", "")
             run_id = request.headers.get("x-run-id", "")
-
-            print(f"[/execute/{query_type}] user_id={user_id}, run_id={run_id}")
+            session_id = request.headers.get("x-session-id", "")
 
             try:
+                # Load document chunks if they exist
+                chunks = []
+                doc_chunks_key = f"doc_chunks:{user_id}:{session_id}"
+                                
+                chunks_data = self.redis_client.get(doc_chunks_key)
+                if chunks_data:
+                    chunks = json.loads(chunks_data)
+                    print(f"[/execute/{query_type}] Found {len(chunks)} document chunks in Redis.")
+                    parameters["docs"] = "\n".join([chunk['text'] for chunk in chunks])
+                else:
+                    chunks = []
+
+
                 if query_type == "sales_leads":
                     if not exa_key:
                         return JSONResponse(
@@ -184,7 +198,8 @@ class LeadGenerationAPI:
                         exa_key=exa_key,
                         serper_key=serper_key,
                         user_id=user_id,
-                        run_id=run_id
+                        run_id=run_id,
+                        docs_included=True if "docs" in parameters else False
                     )
                     raw_result = await self.execute_financial(crew, parameters)
                     parsed_fin = json.loads(raw_result)
@@ -358,7 +373,71 @@ class LeadGenerationAPI:
 
     # ~~~~ Existing Helper Methods for Sales Leads, Fin Analysis, etc. ~~~~
 
-    async def execute_research(self, crew, parameters: Dict[str,Any]):
+        @self.app.post("/upload")
+        async def upload_document(
+            request: Request,
+            file: UploadFile = File(...),
+        ):
+            """Upload and process a document."""
+            try:
+                # Get user_id and run_id from headers
+                user_id = request.headers.get("x-user-id", "")
+                session_id = request.headers.get("x-session-id", "")
+
+                # Read file content
+                content = await file.read()
+
+                # Process document
+                doc_processor = DocumentProcessingService()
+                chunks = doc_processor.process_document(content, file.filename)
+
+                # Store chunks in Redis with metadata
+                key = (
+                    f"doc_chunks:{user_id}:{session_id}"
+                    if user_id and session_id
+                    else f"doc_chunks:{file.filename}"
+                )
+                chunks_data = [
+                    {"text": chunk.page_content, "metadata": chunk.metadata}
+                    for chunk in chunks
+                ]
+
+                print(f"[/upload] Setting Redis key: {key}")
+
+                self.redis_client.set(key, json.dumps(chunks_data))
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "message": "Document processed successfully",
+                        "num_chunks": len(chunks),
+                        "key": key,
+                    },
+                )
+
+            except Exception as e:
+                print(f"[/upload] Error processing document: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.get("/documents/{user_id}/{run_id}")
+        async def get_document_chunks(request: Request, user_id: str, run_id: str):
+            """Retrieve processed document chunks for a user/run."""
+            try:
+                key = f"doc_chunks:{user_id}:{run_id}"
+                chunks_data = self.redis_client.get(key)
+
+                if not chunks_data:
+                    return JSONResponse(
+                        status_code=404, content={"error": "No document chunks found"}
+                    )
+
+                return JSONResponse(status_code=200, content=json.loads(chunks_data))
+
+            except Exception as e:
+                print(f"[/documents] Error retrieving chunks: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+    async def execute_research(self, crew, parameters: Dict[str, Any]):
         extractor = UserPromptExtractor(crew.sambanova_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
@@ -390,6 +469,9 @@ class LeadGenerationAPI:
             extracted_company = "Apple Inc"
 
         inputs = {"ticker": extracted_ticker, "company_name": extracted_company}
+
+        if "docs" in parameters:
+            inputs["docs"] = parameters["docs"]
 
         loop = asyncio.get_running_loop()
         future = self.executor.submit(crew.execute_financial_analysis, inputs)

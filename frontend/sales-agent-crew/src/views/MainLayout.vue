@@ -45,6 +45,7 @@
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"
             :runId="currentRunId"
+          :sessionId="sessionId"
             @searchStart="handleSearchStart"
             @searchComplete="handleSearchComplete"
             @searchError="handleSearchError"
@@ -178,9 +179,12 @@ const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
 // The runId for SSE etc.
 const currentRunId = ref('')
+// The sessionId that remains consistent for document uploads and searches
+const sessionId = ref('')
 
-// On mount, load saved reports
+// On mount, generate a new session ID
 onMounted(() => {
+  sessionId.value = uuidv4()
   reportStore.loadSavedReports()
 })
 
@@ -218,17 +222,6 @@ function handleSavedReportSelect(savedReport) {
 ////////////////////////////////////////////////////////////
 let searchStartTimestamp = 0
 
-function handleSearchStart(type) {
-  // If we are starting a brand-new search, generate a new runId
-  if (type === 'routing_query' || !currentRunId.value) {
-    currentRunId.value = uuidv4()
-  }
-  isLoading.value = true
-  results.value = null
-  queryType.value = type
-  searchStartTimestamp = performance.now()
-}
-
 // sub-message rotation
 const subMessageInterval = ref(null)
 const subMessageIndex = ref(0)
@@ -262,6 +255,32 @@ function startSubMessageCycle(messages) {
 onBeforeUnmount(() => {
   clearSubMessageInterval()
 })
+
+/**
+ * Called when SearchSection triggers "searchStart"
+ * The first argument is the "detected route type"
+ */
+function handleSearchStart(type) {
+  console.log('[MainLayout] handleSearchStart called with type:', type)
+  
+  // For document uploads, use the sessionId as the runId
+  if (type === 'document_upload') {
+    currentRunId.value = sessionId.value
+  } 
+  // For searches, generate a new runId
+  else if (type === 'routing_query' || !currentRunId.value) {
+    currentRunId.value = uuidv4()
+  }
+
+  // Only show spinner and clear results for actual searches
+  if (type !== 'document_upload') {
+    // Show spinner
+    isLoading.value = true
+    results.value = null
+    queryType.value = type
+    searchStartTimestamp = performance.now()
+  }
+}
 
 // Watch queryType => update loading messages
 watch(queryType, (newVal, oldVal) => {

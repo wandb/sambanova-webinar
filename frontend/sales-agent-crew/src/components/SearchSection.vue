@@ -29,7 +29,7 @@
       <div class="relative flex-1">
         <input
           v-model="searchQuery"
-          type="text"
+          type="search"
           placeholder="Ask me about...companies to target, research topics, or company stocks and financials"
           class="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           :disabled="isLoading"
@@ -43,7 +43,7 @@
             'text-orange-500': !isRecording,
             'text-red-500 animate-pulse': isRecording
           }"
-          class="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+          class="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
           title="Voice Search"
         >
           <svg 
@@ -301,6 +301,9 @@ async function performSearch() {
       query: searchQuery.value,
       results: executeResp.data
     })
+
+    // 6) Clear search query
+    searchQuery.value = ''
 
   } catch (error) {
     console.error('[SearchSection] performSearch error:', error)

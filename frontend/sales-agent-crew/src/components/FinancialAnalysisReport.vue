@@ -49,6 +49,13 @@ const monthlyReturnsCanvasRef = ref(null)
 const quarterlyFundCanvasRef = ref(null)
 const stockPriceCanvasRef = ref(null)
 
+const sectionClasses = "p-3 border rounded-md shadow-sm bg-white"
+const textClasses = {
+  "margin": "text-sm text-gray-600 flex items-center space-x-2 mb-1",
+  "value": "text-lg overflow-hidden text-ellipsis font-bold text-gray-900",
+  "bigGrid": "flex items-center space-x-2 text-sm text-gray-600 mb-1"
+}
+
 /**
  * Helper to break a large block of text into paragraphs.
  * Groups sentences together in chunks of 8, being careful to avoid splitting numbers.
@@ -473,30 +480,30 @@ async function downloadPDF() {
 
       <!-- row of margins at top -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.margin">
             <CheckCircleIcon class="w-4 h-4 text-green-600" />
             <span>Profit Margin</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('profit_margins', report.fundamental?.profit_margins) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.margin">
             <CheckCircleIcon class="w-4 h-4 text-green-600" />
             <span>Operating Margin</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('operating_margins', report.fundamental?.operating_margins) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.margin">
             <CheckCircleIcon class="w-4 h-4 text-green-600" />
             <span>EBITDA Margin</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('ebitda_margins', report.fundamental?.ebitda_margins) }}
           </div>
         </div>
@@ -504,81 +511,81 @@ async function downloadPDF() {
 
       <!-- big grid of fundamentals -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <BanknotesIcon class="w-4 h-4 text-blue-600" />
             <span>Market Cap</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('market_cap', report.fundamental?.market_cap) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>PE Ratio</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('pe_ratio', report.fundamental?.pe_ratio) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>Forward PE</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('forward_pe', report.fundamental?.forward_pe) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>PEG Ratio</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('peg_ratio', report.fundamental?.peg_ratio) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-blue-600" />
             <span>P/B Ratio</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('price_to_book', report.fundamental?.price_to_book) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingDownIcon class="w-4 h-4 text-green-600" />
             <span>Dividend Yield</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('dividend_yield', report.fundamental?.dividend_yield) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-orange-600" />
             <span>Beta</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('beta', report.fundamental?.beta) }}
           </div>
         </div>
         <div class="p-3 border rounded-md shadow-sm bg-white col-span-1 sm:col-span-2">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>52wk Range</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             High: {{ report.fundamental?.year_high || '-' }} /
             Low: {{ report.fundamental?.year_low || '-' }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <LightBulbIcon class="w-4 h-4 text-yellow-500" />
             <span>Analyst Rec</span>
           </div>
@@ -586,61 +593,61 @@ async function downloadPDF() {
             {{ report.fundamental?.analyst_recommendation || '-' }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-purple-600" />
             <span>Target Price</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('target_price', report.fundamental?.target_price) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>EPS</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('earnings_per_share', report.fundamental?.earnings_per_share) }}
           </div>
         </div>
         <!-- Return on Assets -->
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <CheckCircleIcon class="w-4 h-4 text-blue-600" />
             <span>ROA</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value" :title="report.fundamental?.return_on_assets">
             {{ formatMetric('return_on_assets', report.fundamental?.return_on_assets) }}
           </div>
         </div>
         <!-- Return on Equity -->
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <CheckCircleIcon class="w-4 h-4 text-blue-600" />
             <span>ROE</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('return_on_equity', report.fundamental?.return_on_equity) }}
           </div>
         </div>
         <!-- Current Ratio -->
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <CheckCircleIcon class="w-4 h-4 text-green-600" />
             <span>Current Ratio</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('current_ratio', report.fundamental?.current_ratio) }}
           </div>
         </div>
         <!-- Debt to Equity -->
-        <div class="p-3 border rounded-md shadow-sm bg-white">
-          <div class="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+        <div :class="sectionClasses">
+          <div :class="textClasses.bigGrid">
             <ExclamationTriangleIcon class="w-4 h-4 text-orange-600" />
             <span>Debt to Equity</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatMetric('debt_to_equity', report.fundamental?.debt_to_equity) }}
           </div>
         </div>
@@ -712,7 +719,7 @@ async function downloadPDF() {
             <ArrowTrendingUpIcon class="w-4 h-4 text-orange-600" />
             <span>Beta</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatFloat(report.risk?.beta,2) }}
           </div>
         </div>
@@ -722,7 +729,7 @@ async function downloadPDF() {
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>Sharpe</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatFloat(report.risk?.sharpe_ratio,2) }}
           </div>
         </div>
@@ -732,7 +739,7 @@ async function downloadPDF() {
             <ExclamationTriangleIcon class="w-4 h-4 text-orange-600" />
             <span>VaR 95%</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatFloat(report.risk?.value_at_risk_95,4) }}
           </div>
         </div>
@@ -742,7 +749,7 @@ async function downloadPDF() {
             <ArrowTrendingDownIcon class="w-4 h-4 text-red-600" />
             <span>Max Drawdown</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatPercentage(report.risk?.max_drawdown,2) }}
           </div>
         </div>
@@ -752,7 +759,7 @@ async function downloadPDF() {
             <ArrowTrendingDownIcon class="w-4 h-4 text-orange-600" />
             <span>Volatility</span>
           </div>
-          <div class="text-lg font-bold text-gray-900">
+          <div :class="textClasses.value">
             {{ formatPercentage(report.risk?.volatility,2) }}
           </div>
         </div>

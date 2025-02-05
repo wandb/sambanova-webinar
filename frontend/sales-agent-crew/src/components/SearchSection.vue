@@ -522,12 +522,7 @@ async function handleFileUpload(event) {
 async function loadUserDocuments() {
   try {
     const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}`,
-      {
-        headers: {
-          'x-user-id': userId.value || '',
-        }
-      }
+      `${import.meta.env.VITE_API_URL}/documents/${userId.value}`
     )
     uploadedDocuments.value = response.data.documents
   } catch (error) {

@@ -153,8 +153,6 @@ import { useAuth } from '@clerk/vue'
 import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
-import { uploadDocument } from '../services/api'
-import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
   keysUpdated: {
@@ -188,12 +186,6 @@ const exaKey = ref(null)
 const serperKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
-const fileInput = ref(null)
-const uploadStatus = ref(null)
-
-// Add new reactive state for documents
-const uploadedDocuments = ref([])
-const selectedDocuments = ref([])
 
 // Clerk
 const { userId } = useAuth()
@@ -289,7 +281,8 @@ async function performSearch() {
           'x-serper-key': serperKey.value || '',
           'x-exa-key': exaKey.value || '',
           'x-user-id': userId.value || '',
-          'x-run-id': props.runId || ''
+          'x-run-id': props.runId || '',
+          'x-session-id': props.sessionId || ''
         }
       }
     )
@@ -481,108 +474,6 @@ function cleanTranscription(transcribedText) {
 
 function openSettings() {
   emit('openSettings')
-}
-
-async function handleFileUpload(event) {
-  const file = event.target.files[0]
-  if (!file) return
-
-  try {
-    uploadStatus.value = { type: 'info', message: 'Uploading document...' }
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/upload`,
-      formData,
-      {
-        headers: {
-          'x-user-id': userId.value || '',
-        }
-      }
-    )
-
-    // Store the uploaded document
-    const document = response.data.document
-    uploadedDocuments.value.push(document)
-    selectedDocuments.value.push(document.id)
-
-    uploadStatus.value = { type: 'success', message: 'Document uploaded successfully!' }
-    
-    // Clear the file input
-    if (fileInput.value) {
-      fileInput.value.value = ''
-    }
-  } catch (error) {
-    console.error('[SearchSection] Upload error:', error)
-    uploadStatus.value = { 
-      type: 'error', 
-      message: error.response?.data?.error || 'Failed to upload document' 
-    }
-  }
-}
-
-// Load user's documents on mount
-async function loadUserDocuments() {
-  try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}`,
-      {
-        headers: {
-          'x-user-id': userId.value || '',
-        }
-      }
-    )
-    uploadedDocuments.value = response.data.documents
-  } catch (error) {
-    console.error('[SearchSection] Error loading documents:', error)
-  }
-}
-
-function toggleDocumentSelection(docId) {
-  const index = selectedDocuments.value.indexOf(docId)
-  if (index === -1) {
-    selectedDocuments.value.push(docId)
-  } else {
-    selectedDocuments.value.splice(index, 1)
-  }
-}
-
-async function removeDocument(docId) {
-  try {
-    // Remove from backend
-    await axios.delete(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}/${docId}`,
-      {
-        headers: {
-          'x-user-id': userId.value || '',
-        }
-      }
-    )
-
-    // Remove from selected documents if it was selected
-    const selectedIndex = selectedDocuments.value.indexOf(docId)
-    if (selectedIndex !== -1) {
-      selectedDocuments.value.splice(selectedIndex, 1)
-    }
-
-    // Remove from uploaded documents list
-    uploadedDocuments.value = uploadedDocuments.value.filter(doc => doc.id !== docId)
-
-    // Show success message
-    uploadStatus.value = { type: 'success', message: 'Document removed successfully!' }
-    setTimeout(() => {
-      uploadStatus.value = null
-    }, 3000)
-
-  } catch (error) {
-    console.error('[SearchSection] Error removing document:', error)
-    uploadStatus.value = { 
-      type: 'error', 
-      message: error.response?.data?.error || 'Failed to remove document' 
-    }
-  }
 }
 </script>
 

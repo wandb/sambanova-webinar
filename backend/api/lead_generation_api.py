@@ -32,14 +32,12 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 # For financial analysis
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
-
 # For document processing
 from services.document_processing_service import DocumentProcessingService
 
 class QueryRequest(BaseModel):
     query: str
     document_ids: Optional[List[str]] = None
-
 
 class EduContentRequest(BaseModel):
     topic: str
@@ -577,6 +575,9 @@ class LeadGenerationAPI:
             extracted_company = "Apple Inc"
 
         inputs = {"ticker": extracted_ticker, "company_name": extracted_company}
+
+        if "docs" in parameters:
+            inputs["docs"] = parameters["docs"]
 
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]

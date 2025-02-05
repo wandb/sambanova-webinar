@@ -546,12 +546,7 @@ async function removeDocument(docId) {
   try {
     // Remove from backend
     await axios.delete(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}/${docId}`,
-      {
-        headers: {
-          'x-user-id': userId.value || '',
-        }
-      }
+      `${import.meta.env.VITE_API_URL}/documents/${userId.value}/${docId}`
     )
     // Remove from selected documents if it was selected
     const selectedIndex = selectedDocuments.value.indexOf(docId)

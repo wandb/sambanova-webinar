@@ -15,6 +15,7 @@
     "axios": "^1.7.9",
     "chart.js": "^4.4.7",
     "dompurify": "^3.2.3",
+    "highlight.js": "^11.11.1",
     "html2pdf.js": "^0.10.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",

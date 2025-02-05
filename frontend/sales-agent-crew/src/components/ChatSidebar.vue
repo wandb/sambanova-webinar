@@ -1,0 +1,162 @@
+<!-- src/components/chat/ChatSidebar.vue -->
+<template>
+  <div class="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+    <!-- Header -->
+    <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
+      <h2 class="font-semibold text-gray-900">Conversations</h2>
+      <button
+        class="p-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
+        @click="createNewChat"
+        :disabled="missingKeys.length > 0"
+      >
+        + New
+      </button>
+    </div>
+
+    <!-- If missing any key, show a small alert -->
+    <div v-if="missingKeys.length > 0" class="bg-yellow-50 text-yellow-700 text-sm p-2">
+      Missing {{ missingKeys.join(', ') }} key(s). Please set them in settings.
+    </div>
+
+    <!-- Conversation list -->
+    <div class="flex-1 overflow-y-auto">
+      <div 
+        v-for="conv in conversations" 
+        :key="conv.conversation_id"
+        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+        @click="selectConversation(conv)"
+      >
+        <div class="font-medium text-gray-800 truncate">
+          {{ conv.title }}
+        </div>
+        <div class="text-xs text-gray-500">
+          {{ formatDateTime(conv.created_at) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import axios from 'axios'
+import { useAuth } from '@clerk/vue'
+import { decryptKey } from '@/utils/encryption'   // adapt path if needed
+
+/**
+ * We'll store in localStorage under key "my_conversations_<userId>"
+ * an array of { conversation_id, title, created_at }
+ */
+const emit = defineEmits(['selectConversation'])
+
+/** Clerk user */
+const { userId } = useAuth()
+
+const sambanovaKey = ref(null)
+const serperKey = ref(null)
+const exaKey = ref(null)
+
+const conversations = ref([])
+
+/** 
+ * On mounted => load local conversation list + decrypt keys 
+ */
+onMounted(() => {
+  loadConversations()
+  loadKeys()
+})
+
+async function loadKeys() {
+  try {
+    const uid = userId.value || 'anonymous'
+    const encryptedSamba = localStorage.getItem(`sambanova_key_${uid}`)
+    const encryptedSerp = localStorage.getItem(`serper_key_${uid}`)
+    const encryptedExa = localStorage.getItem(`exa_key_${uid}`)
+
+    sambanovaKey.value = encryptedSamba ? await decryptKey(encryptedSamba) : null
+    serperKey.value     = encryptedSerp ? await decryptKey(encryptedSerp) : null
+    exaKey.value        = encryptedExa  ? await decryptKey(encryptedExa)  : null
+  } catch (err) {
+    console.error('[ChatSidebar] Error decrypting keys:', err)
+  }
+}
+
+const missingKeys = computed(() => {
+  const missing = []
+  if (!sambanovaKey.value) missing.push('SambaNova')
+  if (!serperKey.value) missing.push('Serper')
+  if (!exaKey.value) missing.push('Exa')
+  return missing
+})
+
+function loadConversations() {
+  try {
+    const uid = userId.value || 'anonymous'
+    const dataStr = localStorage.getItem(`my_conversations_${uid}`)
+    if (!dataStr) {
+      conversations.value = []
+      return
+    }
+    conversations.value = JSON.parse(dataStr)
+  } catch {
+    conversations.value = []
+  }
+}
+
+function saveConversations() {
+  const uid = userId.value || 'anonymous'
+  localStorage.setItem(`my_conversations_${uid}`, JSON.stringify(conversations.value))
+}
+
+/** Start a new conversation => calls /newsletter_chat/init with decrypted keys */
+async function createNewChat() {
+  try {
+    if (missingKeys.value.length > 0) {
+      alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+      return
+    }
+
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.post(
+      `${import.meta.env.VITE_API_URL}/newsletter_chat/init`, 
+      {}, 
+      {
+        headers: {
+          'x-sambanova-key': sambanovaKey.value || '',
+          'x-serper-key': serperKey.value || '',
+          'x-exa-key': exaKey.value || '',
+          'x-user-id': uid
+        }
+      }
+    )
+    const cid = resp.data.conversation_id
+    const assistantMsg = resp.data.assistant_message || "New Conversation"
+    const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
+
+    const convMeta = {
+      conversation_id: cid,
+      title: shortTitle,
+      created_at: Date.now()
+    }
+    // Prepend
+    conversations.value.unshift(convMeta)
+    saveConversations()
+
+    selectConversation(convMeta)
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
+
+/** Emit an event so parent can handle "selectConversation" */
+function selectConversation(conv) {
+  emit('selectConversation', conv)
+}
+
+function formatDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return d.toLocaleString()
+}
+</script>

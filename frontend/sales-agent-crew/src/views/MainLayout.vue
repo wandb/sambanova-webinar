@@ -1,94 +1,117 @@
+<!-- src/views/MainLayout.vue -->
 <template>
-  <!-- Outer container uses flex-row so the sidebar, main area, and agent sidebar appear side-by-side -->
+  <!-- Outer container uses flex so the sidebar, main area, and agent sidebar appear side-by-side -->
   <div class="min-h-screen flex">
 
     <!-- LEFT SIDEBAR -->
-    <Sidebar @selectReport="handleSavedReportSelect" />
+    <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 
+         We reference them with JS variables chatSidebarComp, sideBarComp 
+         so we do <component :is="chatSidebarComp" />. -->
+    <component
+      :is="chatMode ? chatSidebarComp : sideBarComp"
+      @selectReport="handleSavedReportSelect"       
+      @selectConversation="handleSelectConversation"
+    />
 
     <!-- MAIN COLUMN -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
 
       <!-- PAGE HEADER -->
-      <Header 
-        @keysUpdated="handleKeysUpdated"
+      <Header
         ref="headerRef"
         class="flex-none"
+        @keysUpdated="handleKeysUpdated"
+        @modeToggled="onModeToggled"
       />
 
       <!-- MAIN CONTENT WRAPPER -->
       <main class="flex-grow flex flex-col p-4 space-y-4 overflow-y-auto">
 
-        <!-- Pass the currentRunId to <SearchSection> so it uses it in /execute calls -->
-        <SearchSection 
-          :keysUpdated="keysUpdateCounter"
-          :isLoading="isLoading"
-          :runId="currentRunId"
-          :sessionId="sessionId"
-          @searchStart="handleSearchStart"
-          @searchComplete="handleSearchComplete"
-          @searchError="handleSearchError"
-          @openSettings="openSettings"
-        />
-
-        <SearchNotification
-          :show="showNotification"
-          :time="searchTime"
-          :resultCount="resultCount"
-        />
-
-        <!-- LOADING SPINNER -->
-        <div v-if="isLoading" class="mt-8">
-          <LoadingSpinner 
-            :message="loadingMessage" 
-            :subMessage="loadingSubMessage" 
+        <!-- If chatMode => show chat UI, else show old workflow UI -->
+        <div v-if="chatMode" class="flex-1 flex flex-col">
+          <!-- ChatView for conversation -->
+          <ChatView
+            :conversationId="selectedConversationId"
+            :userId="clerkUserId"
+            class="flex-1"
           />
         </div>
 
-        <!-- ERROR MODAL -->
-        <ErrorModal
-          :show="showError"
-          :errorMessage="errorMessage"
-          @close="showError = false"
-        />
+        <div v-else class="flex flex-col space-y-6">
+          <!-- OLD WORKFLOW MODE -->
 
-        <!-- RESULTS SECTION -->
-        <div v-if="hasResults" class="mt-6 space-y-6">
-          <div class="grid grid-cols-1 gap-6">
-            <!-- SALES LEADS Results -->
-            <template v-if="queryType === 'sales_leads'">
-              <CompanyResultCard 
-                v-for="(result, index) in results.results" 
-                :key="index"
-                :company="result"
-              />
-            </template>
+          <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
+          <SearchSection
+            :keysUpdated="keysUpdateCounter"
+            :isLoading="isLoading"
+            :runId="currentRunId"
+          :sessionId="sessionId"
+            @searchStart="handleSearchStart"
+            @searchComplete="handleSearchComplete"
+            @searchError="handleSearchError"
+            @openSettings="openSettings"
+          />
 
-            <!-- EDUCATIONAL CONTENT (Research) Results -->
-            <template v-else-if="queryType === 'educational_content'">
-              <ResearchReport :report="results" />
-            </template>
+          <SearchNotification
+            :show="showNotification"
+            :time="searchTime"
+            :resultCount="resultCount"
+          />
 
-            <!-- FINANCIAL ANALYSIS Results -->
-            <template v-else-if="queryType === 'financial_analysis'">
-              <FinancialAnalysisReport :report="results" />
-            </template>
+          <!-- LOADING SPINNER -->
+          <div v-if="isLoading" class="mt-8">
+            <LoadingSpinner
+              :message="loadingMessage"
+              :subMessage="loadingSubMessage"
+            />
           </div>
-        </div>
 
-        <!-- FULL REPORT MODAL for "ResearchReport" only -->
-        <FullReportModal
-          v-if="selectedReport"
-          :open="reportModalOpen"
-          :report-data="selectedReport"
-          @close="reportModalOpen = false"
-        />
+          <!-- ERROR MODAL -->
+          <ErrorModal
+            :show="showError"
+            :errorMessage="errorMessage"
+            @close="showError = false"
+          />
+
+          <!-- RESULTS SECTION -->
+          <div v-if="hasResults" class="mt-6 space-y-6">
+            <div class="grid grid-cols-1 gap-6">
+              <!-- SALES LEADS Results -->
+              <template v-if="queryType === 'sales_leads'">
+                <CompanyResultCard
+                  v-for="(result, index) in results.results"
+                  :key="index"
+                  :company="result"
+                />
+              </template>
+
+              <!-- EDUCATIONAL CONTENT (Research) Results -->
+              <template v-else-if="queryType === 'educational_content'">
+                <ResearchReport :report="results" />
+              </template>
+
+              <!-- FINANCIAL ANALYSIS Results -->
+              <template v-else-if="queryType === 'financial_analysis'">
+                <FinancialAnalysisReport :report="results" />
+              </template>
+            </div>
+          </div>
+
+          <!-- FULL REPORT MODAL for "ResearchReport" only -->
+          <FullReportModal
+            v-if="selectedReport"
+            :open="reportModalOpen"
+            :report-data="selectedReport"
+            @close="reportModalOpen = false"
+          />
+        </div>
       </main>
     </div>
 
     <!-- RIGHT SIDEBAR: Real-time Agent Logs for the current user + run ID -->
-    <AgentSidebar 
-      :userId="clerkUserId" 
-      :runId="currentRunId" 
+    <AgentSidebar
+      :userId="clerkUserId"
+      :runId="currentRunId"
     />
   </div>
 </template>
@@ -98,7 +121,13 @@ import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import { useUser } from '@clerk/vue'
 import { v4 as uuidv4 } from 'uuid'
 
+/** We import both old + chat sidebars as local variables. */
 import Header from '@/components/Header.vue'
+import Sidebar from '@/components/Sidebar.vue'
+import ChatSidebar from '@/components/ChatSidebar.vue'
+import ChatView from '@/components/ChatView.vue'
+import AgentSidebar from '@/components/AgentSidebar.vue'
+
 import SearchSection from '@/components/SearchSection.vue'
 import SearchNotification from '@/components/SearchNotification.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -107,12 +136,17 @@ import ResearchReport from '@/components/ResearchReport.vue'
 import FinancialAnalysisReport from '@/components/FinancialAnalysisReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
-import Sidebar from '@/components/Sidebar.vue'
-import AgentSidebar from '@/components/AgentSidebar.vue'
 
 import { useReportStore } from '@/stores/reportStore'
 
-// reactive state
+// *** Important *** We'll define local refs for the two components we want:
+const sideBarComp = Sidebar
+const chatSidebarComp = ChatSidebar
+
+// Reactive states
+const chatMode = ref(false)                // Controls Chat vs Workflow mode
+const selectedConversationId = ref('')     // If chatMode, which conversation is active?
+
 const isLoading = ref(false)
 const loadingMessage = ref('')
 const loadingSubMessage = ref('')
@@ -131,7 +165,6 @@ const resultCount = ref(0)
 // Track how many times keys changed
 const keysUpdateCounter = ref(0)
 
-// Our store
 const reportStore = useReportStore()
 
 // For dev
@@ -144,7 +177,7 @@ const headerRef = ref(null)
 const { user } = useUser()
 const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
-// The runId for this search. Must remain consistent for SSE + publish
+// The runId for SSE etc.
 const currentRunId = ref('')
 // The sessionId that remains consistent for document uploads and searches
 const sessionId = ref('')
@@ -155,12 +188,50 @@ onMounted(() => {
   reportStore.loadSavedReports()
 })
 
-// Called by Header
+// Called by Header => user updated keys
 function handleKeysUpdated() {
   keysUpdateCounter.value++
 }
 
+/** 
+ * Chat Mode toggling from the Header's 'modeToggled' event
+ */
+function onModeToggled(val) {
+  chatMode.value = val
+}
+
+/**
+ * When ChatSidebar selects a conversation
+ */
+function handleSelectConversation(conv) {
+  selectedConversationId.value = conv.conversation_id
+}
+
+/** 
+ * From the old Sidebar => user picks a saved report 
+ */
+function handleSavedReportSelect(savedReport) {
+  queryType.value = savedReport.type
+  results.value = savedReport.results
+  selectedReport.value = null
+  reportModalOpen.value = false
+}
+
+////////////////////////////////////////////////////////////
+// The below are from your workflow approach (SearchSection)
+////////////////////////////////////////////////////////////
 let searchStartTimestamp = 0
+
+function handleSearchStart(type) {
+  // If we are starting a brand-new search, generate a new runId
+  if (type === 'routing_query' || !currentRunId.value) {
+    currentRunId.value = uuidv4()
+  }
+  isLoading.value = true
+  results.value = null
+  queryType.value = type
+  searchStartTimestamp = performance.now()
+}
 
 // sub-message rotation
 const subMessageInterval = ref(null)
@@ -262,7 +333,6 @@ watch(queryType, (newVal, oldVal) => {
   }
 })
 
-// searchComplete => hide spinner, store results, etc.
 function handleSearchComplete(searchResults) {
   queryType.value = searchResults.type
   results.value = searchResults.results
@@ -278,13 +348,10 @@ function handleSearchComplete(searchResults) {
   searchTime.value = elapsed.toFixed(1)
 
   if (Array.isArray(searchResults.results)) {
-    // Typically for sales leads
     resultCount.value = searchResults.results.length
   } else if (searchResults.results?.results && Array.isArray(searchResults.results.results)) {
-    // In case the data was further nested
     resultCount.value = searchResults.results.results.length
   } else {
-    // for financial_analysis or others that might not be arrays
     resultCount.value = Object.keys(searchResults.results || {}).length
   }
 
@@ -312,18 +379,11 @@ function closeError() {
 
 // open settings
 function openSettings() {
-  headerRef.value.openSettings()
+  if (headerRef.value?.openSettings) {
+    headerRef.value.openSettings()
+  }
 }
 
-// handle sidebar saved report
-function handleSavedReportSelect(savedReport) {
-  queryType.value = savedReport.type
-  results.value = savedReport.results
-  selectedReport.value = null
-  reportModalOpen.value = false
-}
-
-// computed => do we have results to display?
 const hasResults = computed(() => {
   if (queryType.value === 'sales_leads') {
     return results.value?.results && Array.isArray(results.value.results) && results.value.results.length > 0
@@ -332,7 +392,6 @@ const hasResults = computed(() => {
     return Array.isArray(results.value) && results.value.length > 0
   }
   if (queryType.value === 'financial_analysis') {
-    // If there's a ticker, competitor, etc. basically check if results object is non-empty
     return !!(results.value && Object.keys(results.value).length > 0)
   }
   return false

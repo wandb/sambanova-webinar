@@ -579,9 +579,6 @@ class LeadGenerationAPI:
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]
 
-        if "docs" in parameters:
-            inputs["docs"] = parameters["docs"]
-
         loop = asyncio.get_running_loop()
         future = self.executor.submit(crew.execute_financial_analysis, inputs)
         raw_result = await loop.run_in_executor(None, future.result)

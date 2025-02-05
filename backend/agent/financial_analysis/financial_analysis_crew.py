@@ -166,7 +166,6 @@ class FinancialAnalysisCrew:
     """
 
     def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = "", docs_included: bool = False):
-    def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = "", docs_included: bool = False):
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-8B-Instruct",
             temperature=0.0,

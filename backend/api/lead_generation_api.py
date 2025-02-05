@@ -11,6 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 import redis
+import uuid
 
 # SSE support
 from sse_starlette.sse import EventSourceResponse
@@ -31,13 +32,12 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 # For financial analysis
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew
-
 # For document processing
 from services.document_processing_service import DocumentProcessingService
 
 class QueryRequest(BaseModel):
     query: str
-
+    document_ids: Optional[List[str]] = None
 
 class EduContentRequest(BaseModel):
     topic: str
@@ -127,21 +127,28 @@ class LeadGenerationAPI:
 
             user_id = request.headers.get("x-user-id", "")
             run_id = request.headers.get("x-run-id", "")
-            session_id = request.headers.get("x-session-id", "")
 
             try:
-                # Load document chunks if they exist
-                chunks = []
-                doc_chunks_key = f"doc_chunks:{user_id}:{session_id}"
-                                
-                chunks_data = self.redis_client.get(doc_chunks_key)
-                if chunks_data:
-                    chunks = json.loads(chunks_data)
-                    print(f"[/execute/{query_type}] Found {len(chunks)} document chunks in Redis.")
-                    parameters["docs"] = "\n".join([chunk['text'] for chunk in chunks])
-                else:
-                    chunks = []
-
+                # Load document chunks if document_ids are provided
+                if "document_ids" in parameters:
+                    doc_ids = parameters["document_ids"]
+                    chunks_text = []
+                    
+                    for doc_id in doc_ids:
+                        # Verify document exists and belongs to user
+                        user_docs_key = f"user_documents:{user_id}"
+                        if not self.redis_client.sismember(user_docs_key, doc_id):
+                            continue  # Skip if document doesn't belong to user
+                            
+                        chunks_key = f"document_chunks:{doc_id}"
+                        chunks_data = self.redis_client.get(chunks_key)
+                        
+                        if chunks_data:
+                            chunks = json.loads(chunks_data)
+                            chunks_text.extend([chunk['text'] for chunk in chunks])
+                    
+                    if chunks_text:
+                        parameters["docs"] = "\n".join(chunks_text)
 
                 if query_type == "sales_leads":
                     if not exa_key:
@@ -199,7 +206,7 @@ class LeadGenerationAPI:
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
-                        docs_included=True if "docs" in parameters else False
+                        docs_included="docs" in parameters
                     )
                     raw_result = await self.execute_financial(crew, parameters)
                     parsed_fin = json.loads(raw_result)
@@ -380,9 +387,17 @@ class LeadGenerationAPI:
         ):
             """Upload and process a document."""
             try:
-                # Get user_id and run_id from headers
+                # Get user_id from headers
                 user_id = request.headers.get("x-user-id", "")
-                session_id = request.headers.get("x-session-id", "")
+
+                if not user_id:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "x-user-id header is required"}
+                    )
+
+                # Generate unique document ID
+                document_id = str(uuid.uuid4())
 
                 # Read file content
                 content = await file.read()
@@ -391,27 +406,42 @@ class LeadGenerationAPI:
                 doc_processor = DocumentProcessingService()
                 chunks = doc_processor.process_document(content, file.filename)
 
-                # Store chunks in Redis with metadata
-                key = (
-                    f"doc_chunks:{user_id}:{session_id}"
-                    if user_id and session_id
-                    else f"doc_chunks:{file.filename}"
-                )
+                # Store document metadata
+                document_metadata = {
+                    "id": document_id,
+                    "filename": file.filename,
+                    "upload_timestamp": time.time(),
+                    "num_chunks": len(chunks),
+                    "user_id": user_id
+                }
+                
+                # Store document metadata
+                doc_key = f"document:{document_id}"
+                self.redis_client.set(doc_key, json.dumps(document_metadata))
+                
+                # Add to user's document list
+                user_docs_key = f"user_documents:{user_id}"
+                self.redis_client.sadd(user_docs_key, document_id)
+
+                # Store document chunks
+                chunks_key = f"document_chunks:{document_id}"
                 chunks_data = [
-                    {"text": chunk.page_content, "metadata": chunk.metadata}
+                    {
+                        "text": chunk.page_content,
+                        "metadata": {
+                            **chunk.metadata,
+                            "document_id": document_id
+                        }
+                    }
                     for chunk in chunks
                 ]
-
-                print(f"[/upload] Setting Redis key: {key}")
-
-                self.redis_client.set(key, json.dumps(chunks_data))
+                self.redis_client.set(chunks_key, json.dumps(chunks_data))
 
                 return JSONResponse(
                     status_code=200,
                     content={
                         "message": "Document processed successfully",
-                        "num_chunks": len(chunks),
-                        "key": key,
+                        "document": document_metadata
                     },
                 )
 
@@ -419,22 +449,98 @@ class LeadGenerationAPI:
                 print(f"[/upload] Error processing document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @self.app.get("/documents/{user_id}/{run_id}")
-        async def get_document_chunks(request: Request, user_id: str, run_id: str):
-            """Retrieve processed document chunks for a user/run."""
+        @self.app.get("/documents/{user_id}")
+        async def get_user_documents(user_id: str):
+            """Retrieve all documents for a user."""
             try:
-                key = f"doc_chunks:{user_id}:{run_id}"
-                chunks_data = self.redis_client.get(key)
+                # Get all document IDs for the user
+                user_docs_key = f"user_documents:{user_id}"
+                doc_ids = self.redis_client.smembers(user_docs_key)
+                
+                if not doc_ids:
+                    return JSONResponse(
+                        status_code=200,
+                        content={"documents": []}
+                    )
+
+                # Get metadata for each document
+                documents = []
+                for doc_id in doc_ids:
+                    doc_key = f"document:{doc_id}"
+                    doc_data = self.redis_client.get(doc_key)
+                    if doc_data:
+                        documents.append(json.loads(doc_data))
+
+                return JSONResponse(
+                    status_code=200,
+                    content={"documents": documents}
+                )
+
+            except Exception as e:
+                print(f"[/documents] Error retrieving documents: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.get("/documents/{user_id}/{document_id}/chunks")
+        async def get_document_chunks_by_id(user_id: str, document_id: str):
+            """Retrieve chunks for a specific document."""
+            try:
+                # Verify document belongs to user
+                user_docs_key = f"user_documents:{user_id}"
+                if not self.redis_client.sismember(user_docs_key, document_id):
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "Document not found or access denied"}
+                    )
+
+                # Get document chunks
+                chunks_key = f"document_chunks:{document_id}"
+                chunks_data = self.redis_client.get(chunks_key)
 
                 if not chunks_data:
                     return JSONResponse(
-                        status_code=404, content={"error": "No document chunks found"}
+                        status_code=404,
+                        content={"error": "Document chunks not found"}
                     )
 
-                return JSONResponse(status_code=200, content=json.loads(chunks_data))
+                return JSONResponse(
+                    status_code=200,
+                    content=json.loads(chunks_data)
+                )
 
             except Exception as e:
-                print(f"[/documents] Error retrieving chunks: {str(e)}")
+                print(f"[/documents/chunks] Error retrieving chunks: {str(e)}")
+                return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.delete("/documents/{user_id}/{document_id}")
+        async def delete_document(user_id: str, document_id: str):
+            """Delete a document and its associated data from the database."""
+            try:
+                # Verify document belongs to user
+                user_docs_key = f"user_documents:{user_id}"
+                if not self.redis_client.sismember(user_docs_key, document_id):
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "Document not found or access denied"}
+                    )
+
+                # Delete document metadata
+                doc_key = f"document:{document_id}"
+                self.redis_client.delete(doc_key)
+
+                # Delete document chunks
+                chunks_key = f"document_chunks:{document_id}"
+                self.redis_client.delete(chunks_key)
+
+                # Remove from user's document list
+                self.redis_client.srem(user_docs_key, document_id)
+
+                return JSONResponse(
+                    status_code=200,
+                    content={"message": "Document deleted successfully"}
+                )
+
+            except Exception as e:
+                print(f"[/documents/delete] Error deleting document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
     async def execute_research(self, crew, parameters: Dict[str, Any]):

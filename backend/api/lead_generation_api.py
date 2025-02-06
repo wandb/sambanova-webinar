@@ -194,13 +194,17 @@ class LeadGenerationAPI:
                         sambanova_key=sambanova_key,
                         serper_key=serper_key,
                         user_id=user_id,
-                        run_id=run_id
+                        run_id=run_id,
+                        docs_included="docs" in parameters
                     )
-                    edu_flow.input_variables = {
+                    edu_inputs = {
                         "topic": parameters["topic"],
                         "audience_level": parameters.get("audience_level", "intermediate"),
                         "additional_context": ", ".join(parameters.get("focus_areas", []))
                     }
+                    if "docs" in parameters:
+                        edu_inputs["docs"] = parameters["docs"]
+                    edu_flow.input_variables = edu_inputs
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, edu_flow.kickoff)
 

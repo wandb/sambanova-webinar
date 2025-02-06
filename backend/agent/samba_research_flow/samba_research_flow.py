@@ -8,7 +8,8 @@ and content creation phases.
 """
 
 import os
-from typing import List, Dict, Any
+import asyncio
+from typing import List, Dict, Any, Tuple
 
 from crewai.flow.flow import Flow, listen, start
 from dotenv import load_dotenv
@@ -19,9 +20,8 @@ langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 
 from .crews.edu_content_writer.edu_content_writer_crew import EduContentWriterCrew
 from .crews.edu_research.edu_research_crew import EducationalPlan, EduResearchCrew
+from .crews.edu_doc_summariser.edu_doc_summariser_crew import EduDocSummariserCrew
 import json
-
-
 
 
 class SambaResearchFlow(Flow):
@@ -39,9 +39,21 @@ class SambaResearchFlow(Flow):
 
     input_variables = Dict[str, Any]
 
-    def __init__(self, sambanova_key: str = None, serper_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(
+        self,
+        sambanova_key: str = None,
+        serper_key: str = None,
+        user_id: str = None,
+        run_id: str = None,
+        docs_included: bool = False,
+    ) -> None:
         """Initialize the educational flow with research and content creation crews."""
         super().__init__()
+        self.summariser = EduDocSummariserCrew(
+            sambanova_key=sambanova_key,
+            user_id=user_id,
+            run_id=run_id
+        ).crew()
         self.research_crew = EduResearchCrew(
             sambanova_key=sambanova_key,
             serper_key=serper_key,
@@ -53,47 +65,81 @@ class SambaResearchFlow(Flow):
             user_id=user_id,
             run_id=run_id
         ).crew()
+        self.docs_included = docs_included
 
-    @start()
-    def generate_reseached_content(self) -> EducationalPlan:
+    async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:
         """
-        Begin the content generation process with research.
+        Run research and document summarization in parallel.
 
         Returns:
-            EducationalPlan: A structured plan for educational content based on research.
+            Tuple[EducationalPlan, Any]: Research plan and document summaries
         """
-        return self.research_crew.kickoff(self.input_variables).pydantic
+        # Create tasks for parallel execution
+        research_task = asyncio.create_task(
+            asyncio.to_thread(
+                lambda: self.research_crew.kickoff(self.input_variables).pydantic
+            )
+        )
+        
+        summary_task = None
+        if self.docs_included:
+            summary_task = asyncio.create_task(
+                asyncio.to_thread(
+                    lambda: self.summariser.kickoff(self.input_variables).raw
+                )
+            )
+        
+        # Wait for research task and optionally summary task
+        research_result = await research_task
+        summary_result = None
+        if summary_task:
+            summary_result = await summary_task
+            
+        return research_result, summary_result
+
+    @start()
+    async def generate_reseached_content(self) -> Tuple[EducationalPlan, Any]:
+        """
+        Begin the content generation process with parallel research and summarization.
+
+        Returns:
+            Tuple[EducationalPlan, Any]: Research plan and document summaries
+        """
+        return await self.run_research_and_summarize()
 
     @listen(generate_reseached_content)
-    def generate_educational_content(self, plan: EducationalPlan) -> List[Dict]:
+    def generate_educational_content(self, results: Tuple[EducationalPlan, Any]) -> List[Dict]:
         """
-        Generate educational content based on the research plan.
+        Generate educational content based on the research plan and summaries.
 
         Args:
-            plan (EducationalPlan): The structured content plan from research phase.
+            results (Tuple[EducationalPlan, Any]): The research plan and document summaries
 
         Returns:
             List[Dict]: List of sections with their plan and generated content.
         """
+        plan, summaries = results
         sections_with_content = []
 
         for section in plan.sections:
             # Create section dict with all original fields
             section_dict = section.model_dump()
-            
+
             # Generate content for this section
             writer_inputs = self.input_variables.copy()
             writer_inputs['section'] = section.model_dump_json()
-            
+
+            if summaries:
+                writer_inputs['docs'] = summaries
+            else:
+                writer_inputs['docs'] = "None"
+
             # Add generated content to the section dict
             section_dict['generated_content'] = self.content_crew.kickoff(writer_inputs).raw
-            
+
             sections_with_content.append(section_dict)
 
-
         return sections_with_content
-
-    
 
 
 def kickoff() -> None:

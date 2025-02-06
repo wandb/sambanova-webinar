@@ -4,6 +4,7 @@ import json
 import uvicorn
 import sys
 import os
+import re
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
@@ -47,11 +48,15 @@ class EduContentRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
+def estimate_tokens_regex(text: str) -> int:
+        return len(re.findall(r"\w+|\S", text))
+
 class LeadGenerationAPI:
     def __init__(self):
         self.app = FastAPI()
         self.setup_cors()
         self.setup_routes()
+        self.context_length_summariser = 64000
 
         self.executor = ThreadPoolExecutor(max_workers=2)
 
@@ -133,22 +138,34 @@ class LeadGenerationAPI:
                 if "document_ids" in parameters:
                     doc_ids = parameters["document_ids"]
                     chunks_text = []
-                    
+
                     for doc_id in doc_ids:
                         # Verify document exists and belongs to user
                         user_docs_key = f"user_documents:{user_id}"
                         if not self.redis_client.sismember(user_docs_key, doc_id):
                             continue  # Skip if document doesn't belong to user
-                            
+
                         chunks_key = f"document_chunks:{doc_id}"
                         chunks_data = self.redis_client.get(chunks_key)
-                        
+
                         if chunks_data:
                             chunks = json.loads(chunks_data)
                             chunks_text.extend([chunk['text'] for chunk in chunks])
-                    
+
                     if chunks_text:
-                        parameters["docs"] = "\n".join(chunks_text)
+                        combined_text = "\n".join(chunks_text)
+                        token_count = estimate_tokens_regex(combined_text)
+                        # Check if combined document chunks exceed context length
+                        if (
+                            token_count > self.context_length_summariser
+                        ): 
+                            return JSONResponse(
+                                status_code=400,
+                                content={
+                                    "error": "Combined document length exceeds maximum context window size. Please reduce the number or size of documents."
+                                },
+                            )
+                        parameters["docs"] = combined_text
 
                 if query_type == "sales_leads":
                     if not exa_key:
@@ -378,7 +395,7 @@ class LeadGenerationAPI:
                     content={"error": str(e)}
                 )
 
-    # ~~~~ Existing Helper Methods for Sales Leads, Fin Analysis, etc. ~~~~
+        # ~~~~ Existing Helper Methods for Sales Leads, Fin Analysis, etc. ~~~~
 
         @self.app.post("/upload")
         async def upload_document(
@@ -414,11 +431,11 @@ class LeadGenerationAPI:
                     "num_chunks": len(chunks),
                     "user_id": user_id
                 }
-                
+
                 # Store document metadata
                 doc_key = f"document:{document_id}"
                 self.redis_client.set(doc_key, json.dumps(document_metadata))
-                
+
                 # Add to user's document list
                 user_docs_key = f"user_documents:{user_id}"
                 self.redis_client.sadd(user_docs_key, document_id)
@@ -456,7 +473,7 @@ class LeadGenerationAPI:
                 # Get all document IDs for the user
                 user_docs_key = f"user_documents:{user_id}"
                 doc_ids = self.redis_client.smembers(user_docs_key)
-                
+
                 if not doc_ids:
                     return JSONResponse(
                         status_code=200,

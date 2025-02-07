@@ -29,6 +29,7 @@ class BaseAgentMessage(BaseModel):
 
 class EndUserMessage(BaseAgentMessage):
     content: str
+    document_ids: Optional[List[str]] = None
 
 class TestMessage(BaseAgentMessage):
     content: str
@@ -49,3 +50,9 @@ class CoPilotPlan(BaseModel):
 
 class HandoffMessage(BaseAgentMessage):
     content: str
+
+class FinancialAnalysisRequest(BaseModel):
+    ticker: str
+    company_name: str
+    query_text: str
+    document_ids: Optional[List[str]] = None

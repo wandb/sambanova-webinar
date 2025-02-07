@@ -5,6 +5,7 @@ from autogen_core import DefaultSubscription
 from autogen_core.tool_agent import ToolAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from backend.api.agents.financial_analysis import FinancialAnalysisAgent
 from backend.api.agents.route import SemanticRouterAgent
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
@@ -61,6 +62,16 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
             model_client=aoai_model_client,
             session_manager=session_state_manager,
             sambanova_key=sn_api_key,
+        ),
+    )
+
+    await FinancialAnalysisAgent.register(
+        agent_runtime,
+        "financial_analysis",
+        lambda: FinancialAnalysisAgent(
+            sambanova_key=sn_api_key,
+            exa_key=os.getenv("EXA_API_KEY"),
+            serper_key=os.getenv("SERPER_API_KEY"),
         ),
     )
 

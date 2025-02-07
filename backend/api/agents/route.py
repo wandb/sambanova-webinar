@@ -11,13 +11,14 @@ from autogen_core import (
 from autogen_core.models import SystemMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from backend.services.query_router_service import QueryRouterService
+from backend.services.query_router_service import QueryRouterService, QueryType
 
 from ..data_types import (
     AgentEnum,
     EndUserMessage,
     CoPilotPlan,
     AgentStructuredResponse,
+    FinancialAnalysisRequest,
     Greeter,
     HandoffMessage,
 )
@@ -48,6 +49,7 @@ class SemanticRouterAgent(RoutedAgent):
         sambanova_key: str,
     ) -> None:
         super().__init__("SemanticRouterAgent")
+        logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
         self._name = name
         self._model_client = model_client
         self._session_manager = session_manager
@@ -72,9 +74,17 @@ class SemanticRouterAgent(RoutedAgent):
         logger.info("Analyzing conversation history for context")
 
         router = QueryRouterService(self._sambanova_key)
-        route_result = router.route_query(message.content)
 
-        print(f"Route result: {route_result}")
+        route_result: QueryType = router.route_query(message.content)
+
+        if route_result.type == "financial_analysis":
+            logger.info(f"Publishing financial analysis request with parameters: {route_result.parameters}")
+            await self.publish_message(
+                FinancialAnalysisRequest(**route_result.parameters),
+                DefaultTopicId(type="financial_analysis", source=session_id),
+            )
+            logger.info("Financial analysis request published")
+            return
 
 
     @message_handler

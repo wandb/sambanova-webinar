@@ -28,7 +28,7 @@ from autogen_core import (
 )
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from backend.api.data_types import EndUserMessage, AgentStructuredResponse, TestMessage
+from backend.api.data_types import EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
 
 
 # SSE support
@@ -76,7 +76,6 @@ async def lifespan(app: FastAPI):
     Initializes the agent runtime and registers the UserProxyAgent.
     """
     global agent_runtime
-    global user_proxy_agent_instance
     # Initialize the agent runtime
     agent_runtime = await initialize_agent_runtime()
 
@@ -87,7 +86,6 @@ async def lifespan(app: FastAPI):
 
     # Cleanup logic goes here
     agent_runtime = None
-    user_proxy_agent_instance = None
 
 class WebSocketConnectionManager:
     """
@@ -157,7 +155,6 @@ class WebSocketConnectionManager:
 connection_manager = WebSocketConnectionManager()
 
 # User Proxy Agent
-@default_subscription
 class UserProxyAgent(RoutedAgent):
     """
     Acts as a proxy between the user and the routing agent.

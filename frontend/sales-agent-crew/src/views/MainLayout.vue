@@ -368,7 +368,7 @@ function closeError() {
 
 // open settings
 function openSettings() {
-  if (headerRef.value?.openSettings) {
+  if (headerRef.value) {
     headerRef.value.openSettings()
   }
 }

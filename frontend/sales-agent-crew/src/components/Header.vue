@@ -108,4 +108,9 @@ const shortCurrentDateTime = computed(() => {
     timeStyle: 'short'
   }).format(now).replace(', ', '\n')
 })
+
+// Add defineExpose to make openSettings accessible to parent
+defineExpose({
+  openSettings
+})
 </script>

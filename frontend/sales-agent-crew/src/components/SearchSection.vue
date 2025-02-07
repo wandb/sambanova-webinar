@@ -14,7 +14,7 @@
           <p class="text-yellow-700">
             Please set up your {{ missingKeys.join(', ') }} API key{{ missingKeys.length > 1 ? 's' : '' }} in the
             <button 
-              @click="openSettings"
+              @click="$emit('openSettings')"
               class="text-yellow-800 underline hover:text-yellow-900 font-medium"
             >
               settings
@@ -481,10 +481,6 @@ function cleanTranscription(transcribedText) {
     cleanedText = cleanedText.slice(1, -1).trim()
   }
   return cleanedText
-}
-
-function openSettings() {
-  emit('openSettings')
 }
 
 async function handleFileUpload(event) {

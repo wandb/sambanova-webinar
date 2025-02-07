@@ -31,7 +31,7 @@
           v-model="searchQuery"
           type="search"
           placeholder="Ask me about...companies to target, research topics, or company stocks and financials"
-          class="w-full p-3 pr-12 rounded-lg border border-gray-300  focus:ring-primary-500 focus:border-transparent"
+          class="w-full p-3 pr-12 rounded-lg border border-gray-300  focus:border-orange-500  focus:outline-none"
           :disabled="isLoading"
         />
 

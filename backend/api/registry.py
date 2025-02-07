@@ -1,6 +1,34 @@
 from typing import Optional, List, Dict, Any
-from .data_types import EndUserMessage
+from enum import Enum
+from .data_types import CoPilotPlan, EndUserMessage
+from .otlp_tracing import logger
+from pydantic import BaseModel
+from typing import get_origin, get_args, get_type_hints
 
+def generate_type_string(model: BaseModel) -> str:
+    """Generates a string representation of the type structure of a Pydantic model, recursively."""
+
+    def type_to_string(type_hint):
+        origin = get_origin(type_hint)
+        args = get_args(type_hint)
+
+        if origin is list:
+            return f"List[{type_to_string(args[0])}]" if args else "List"
+        elif origin:  # Generic type like List, Dict, etc.
+            return str(origin).replace("typing.", "")
+        elif isinstance(type_hint, type) and issubclass(type_hint, Enum):  # Handle Enum types
+            enum_values = [f'"{v.value}"' for v in type_hint]
+            return f"Enum({', '.join(enum_values)})"
+        elif issubclass(type_hint, BaseModel):  # Check for nested Pydantic models
+            return generate_type_string(type_hint)  # Recursive call
+        elif hasattr(type_hint, '__name__'):  # Regular class
+            return type_hint.__name__
+        else:  # Basic type (str, int, etc.)
+            return type_hint.__name__
+
+    fields = get_type_hints(model) # Use get_type_hints to resolve forward refs
+    fields_string = ", ".join(f'"{field}": {type_to_string(field_type)}' for field, field_type in fields.items())
+    return "{ " + fields_string + " }"
 
 class AgentRegistry:
     def __init__(self):
@@ -10,14 +38,14 @@ class AgentRegistry:
                 "description": "Handles user greetings, salutations, and general travel-related queries that do not fit into other specific categories. Route messages here if they are greetings (e.g., 'hi', 'hello', 'good morning') or general travel queries that do not specify a destination or service.",
                 "examples": "'Hello', 'Hi there!', 'Good morning', 'I want to plan a trip.'",
             },
-            "destination_info": {
-                "agent_type": "destination_info",
-                "description": "Provides detailed information about a specified destination city. Use this agent when the user requests information about a destination city by name (e.g., 'Tell me about Paris', 'What can I do in Tokyo?').",
-                "examples": "'Tell me about London', 'What's the weather like in Paris?', 'Top attractions in New York City?'",
+            "financial_analysis": {
+                "agent_type": "financial_analysis",
+                "description": "Handles financial analysis queries, including stock prices, financial statements, and market trends.",
+                "examples": "'Tell me about the stock price of Apple', 'What's the financial statement of Tesla?', 'Market trends in the tech sector?'",
             },
         }
 
-        self.agent_tools = self.retrieve_all_agent_tools()
+        # self.agent_tools = self.retrieve_all_agent_tools()
 
     def retrieve_all_agent_tools(self) -> List[Dict[str, Any]]:
         tools = []
@@ -55,13 +83,13 @@ class AgentRegistry:
                 "functions": [],
             }
 
-        for tool in self.agent_tools:
-            agent = tool["agent"]
-            function = tool["function"]
-            arguments = tool["arguments"]
-            agent_details[agent]["functions"].append(
-                {"function": function, "arguments": arguments}
-            )
+        # for tool in self.agent_tools:
+        #     agent = tool["agent"]
+        #     function = tool["function"]
+        #     arguments = tool["arguments"]
+        #     agent_details[agent]["functions"].append(
+        #         {"function": function, "arguments": arguments}
+        #     )
 
         agent_descriptions = "\n".join(
             f"""
@@ -72,8 +100,6 @@ class AgentRegistry:
     """
             for agent_type, details in agent_details.items()
         )
-
-        # logger.info(f"Agent descriptions: {agent_descriptions}")
 
         planner_prompt = """
     You are an orchestration agent.
@@ -86,10 +112,13 @@ class AgentRegistry:
     Conversation history so far: {history}
 
     Your response should only include the selected agent and a brief justification for your choice, without any additional text.
+    Ensure your final answer contains only the content in the following format:{json_schema}\n\n
+    Ensure the final output does not include any code block markers like ```json or ```python.
     """.format(
             agent_descriptions=agent_descriptions.strip(),
             message=message.content,
             history=", ".join(msg.content for msg in history),
+            json_schema=generate_type_string(CoPilotPlan),
         )
         # logger.info(f"Planner prompt output: {planner_prompt}")
         return planner_prompt

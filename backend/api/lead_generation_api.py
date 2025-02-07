@@ -77,7 +77,6 @@ async def lifespan(app: FastAPI):
     """
     global agent_runtime
     global user_proxy_agent_instance
-    global web_pubsub_client
     # Initialize the agent runtime
     agent_runtime = await initialize_agent_runtime()
 

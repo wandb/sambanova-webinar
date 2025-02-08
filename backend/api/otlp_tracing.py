@@ -65,10 +65,4 @@ def configure_oltp_tracing(
     # Attach OTLP handler to root logger
     logging.getLogger().addHandler(handler)
 
-    # # Suppress INFO logs from 'azure.core.pipeline.policies.http_logging_policy'
-    # logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
-    #     logging.WARNING
-    # )
-    # logging.getLogger("azure.identity.aio._internal").setLevel(logging.WARNING)
-
     return tracer_provider

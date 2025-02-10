@@ -5,12 +5,13 @@ from autogen_core import DefaultSubscription
 from autogen_core.tool_agent import ToolAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from backend.api.agents.financial_analysis import FinancialAnalysisAgent
-from backend.api.agents.route import SemanticRouterAgent
+from api.agents.financial_analysis import FinancialAnalysisAgent
+from api.agents.research import ResearchAgent
+from api.agents.route import SemanticRouterAgent
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
 
-from backend.api.data_types import APIKeys
+from api.data_types import APIKeys
 
 from .otlp_tracing import configure_oltp_tracing, logger
 from .registry import AgentRegistry
@@ -50,6 +51,12 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         agent_runtime,
         "financial_analysis",
         lambda: FinancialAnalysisAgent(),
+    )
+
+    await ResearchAgent.register(
+        agent_runtime,
+        "research",
+        lambda: ResearchAgent(),
     )
 
     # Start the runtime

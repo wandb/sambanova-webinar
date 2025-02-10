@@ -28,7 +28,7 @@ from autogen_core import (
 )
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from backend.api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
+from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
 
 
 # SSE support
@@ -231,10 +231,6 @@ class WebSocketConnectionManager:
     async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
         """
         Background task to handle Redis pub/sub messages and forward them to WebSocket.
-
-        Args:
-            websocket (WebSocket): The WebSocket connection
-            pubsub: Redis pubsub subscription
         """
         try:
             while True:

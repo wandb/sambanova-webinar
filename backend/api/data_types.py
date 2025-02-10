@@ -2,12 +2,14 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional, Union
 from datetime import date
-from backend.agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
+from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
+from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
 
 
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
+    Research = "research"
     DefaultAgent = "default_agent"
 
 class Greeter(BaseModel):
@@ -18,6 +20,7 @@ class AgentStructuredResponse(BaseModel):
     agent_type: AgentEnum
     data: Union[
         FinancialAnalysisResult,
+        EducationalPlan,
         Greeter,
     ]
     message: Optional[str] = None  # Additional message or notes from the agent
@@ -59,6 +62,13 @@ class FinancialAnalysisRequest(BaseModel):
     query_text: str
     document_ids: Optional[List[str]] = None
     api_keys: APIKeys
+
+class ResearchRequest(BaseModel):
+    topic: str
+    audience_level: str
+    focus_areas: Optional[List[str]] = None
+    api_keys: APIKeys
+    document_ids: Optional[List[str]] = None
 
 class EndUserMessage(BaseAgentMessage):
     content: str

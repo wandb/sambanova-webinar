@@ -11,7 +11,7 @@ from autogen_core import (
 from autogen_core.models import SystemMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from backend.services.query_router_service import QueryRouterService, QueryType
+from services.query_router_service import QueryRouterService, QueryType
 
 from ..data_types import (
     AgentEnum,
@@ -21,6 +21,7 @@ from ..data_types import (
     FinancialAnalysisRequest,
     Greeter,
     HandoffMessage,
+    ResearchRequest,
 )
 from ..otlp_tracing import logger
 from ..registry import AgentRegistry
@@ -99,6 +100,21 @@ class SemanticRouterAgent(RoutedAgent):
                 DefaultTopicId(type="financial_analysis", source=session_id),
             )
             logger.info("Financial analysis request published")
+            return
+        elif route_result.type == "educational_content":
+            logger.info(f"Publishing research request with parameters: {route_result.parameters}")
+            research_request = ResearchRequest(
+                topic=route_result.parameters.get("topic", ""),
+                audience_level=route_result.parameters.get("audience_level", "intermediate"),
+                focus_areas=route_result.parameters.get("focus_areas", None),
+                api_keys=message.api_keys,
+                document_ids=message.document_ids
+            )
+            await self.publish_message(
+                research_request,
+                DefaultTopicId(type="research", source=session_id),
+            )
+            logger.info("Research request published")
             return
 
     @message_handler

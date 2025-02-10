@@ -39,7 +39,7 @@ class Outreach(BaseModel):
 
 
 class OutreachList(BaseModel):
-    outreach_list: List[Outreach]
+    outreach_list: List[Outreach] = []
 
 
 class ExtractedCompany(BaseModel):

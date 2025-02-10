@@ -11,21 +11,20 @@ from autogen_core import (
 from autogen_core.models import SystemMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from agent.lead_generation_crew import ResearchCrew
 from services.query_router_service import QueryRouterService, QueryType
 
-from ..data_types import (
-    AgentEnum,
+from api.data_types import (
+    EducationalContentRequest,
     EndUserMessage,
     CoPilotPlan,
-    AgentStructuredResponse,
     FinancialAnalysisRequest,
-    Greeter,
     HandoffMessage,
-    ResearchRequest,
+    SalesLeadsRequest,
 )
-from ..otlp_tracing import logger
-from ..registry import AgentRegistry
-from ..session_state import SessionStateManager
+from api.otlp_tracing import logger
+from api.registry import AgentRegistry
+from api.session_state import SessionStateManager
 
 agent_registry = AgentRegistry()
 
@@ -103,7 +102,7 @@ class SemanticRouterAgent(RoutedAgent):
             return
         elif route_result.type == "educational_content":
             logger.info(f"Publishing research request with parameters: {route_result.parameters}")
-            research_request = ResearchRequest(
+            research_request = EducationalContentRequest(
                 topic=route_result.parameters.get("topic", ""),
                 audience_level=route_result.parameters.get("audience_level", "intermediate"),
                 focus_areas=route_result.parameters.get("focus_areas", None),
@@ -112,10 +111,26 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 research_request,
-                DefaultTopicId(type="research", source=session_id),
+                DefaultTopicId(type="educational_content", source=session_id),
             )
-            logger.info("Research request published")
+            logger.info("Educational content request published")
             return
+        elif route_result.type == "sales_leads":
+            sales_leads_request = SalesLeadsRequest(
+                industry=route_result.parameters.get("industry", ""),
+                company_stage=route_result.parameters.get("company_stage", ""),
+                geography=route_result.parameters.get("geography", ""),
+                funding_stage=route_result.parameters.get("funding_stage", ""),
+                product=route_result.parameters.get("product", ""),
+                api_keys=message.api_keys
+            )
+            await self.publish_message(
+                sales_leads_request,
+                DefaultTopicId(type="sales_leads", source=session_id),
+            )
+            logger.info("Sales leads request published")
+            return
+
 
     @message_handler
     async def handle_handoff(

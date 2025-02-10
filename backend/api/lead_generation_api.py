@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Request, BackgroundTasks, UploadFile
+from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -93,72 +93,159 @@ class WebSocketConnectionManager:
     """
 
     def __init__(self):
+        # Use user_id:conversation_id as the key
         self.connections: Dict[str, WebSocket] = {}
 
-    def add_connection(self, session_id: str, websocket: WebSocket) -> None:
+    def add_connection(self, websocket: WebSocket, user_id: str, conversation_id: str) -> None:
         """
         Adds a new WebSocket connection to the manager.
 
         Args:
-            session_id (str): The unique identifier for the session.
             websocket (WebSocket): The WebSocket connection.
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
         """
-        self.connections[session_id] = websocket
+        key = f"{user_id}:{conversation_id}"
+        self.connections[key] = websocket
 
-    def remove_connection(self, session_id: str) -> None:
+    def get_connection(self, user_id: str, conversation_id: str) -> Optional[WebSocket]:
+        """
+        Gets WebSocket connection for a user's conversation.
+
+        Args:
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
+
+        Returns:
+            Optional[WebSocket]: The WebSocket connection if found, None otherwise.
+        """
+        key = f"{user_id}:{conversation_id}"
+        return self.connections.get(key)
+
+    def remove_connection(self, user_id: str, conversation_id: str) -> None:
         """
         Removes a WebSocket connection from the manager.
 
         Args:
-            session_id (str): The unique identifier for the session.
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
         """
-        if session_id in self.connections:
-            del self.connections[session_id]
+        key = f"{user_id}:{conversation_id}"
+        if key in self.connections:
+            del self.connections[key]
 
-    async def handle_websocket(self, websocket: WebSocket, session_id: str):
+    async def handle_websocket(self, websocket: WebSocket, user_id: str, conversation_id: str):
         """
         Handles incoming WebSocket messages and manages connection lifecycle.
 
         Args:
             websocket (WebSocket): The WebSocket connection.
-            session_id (str): The unique identifier for the session.
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
         """
         await websocket.accept()
-        self.add_connection(session_id, websocket)
+        self.add_connection(websocket, user_id, conversation_id)
+
+        # Set up Redis pubsub for this connection
+        # Combine user_id and conversation_id with a colon delimiter
+        source = f"{user_id}:{conversation_id}"
+        channel = f"agent_thoughts:{source}"
+        pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
+        pubsub.subscribe(channel)
+
         try:
+            # Send connection established message
+            await websocket.send_json({
+                "event": "connection_established",
+                "data": "WebSocket connection established",
+                "user_id": user_id,
+                "conversation_id": conversation_id
+            })
+
+            # Start background task for Redis messages
+            background_task = asyncio.create_task(self.handle_redis_messages(websocket, pubsub, user_id, conversation_id))
+
+            # Handle incoming WebSocket messages
             while True:
                 user_message_text = await websocket.receive_text()
-                chat_id = str(uuid.uuid4())
-                user_message = EndUserMessage(content=user_message_text, source="User")
+                try:
+                    user_message_input = json.loads(user_message_text)
+                except json.JSONDecodeError:
+                    await websocket.send_json({
+                        "event": "error",
+                        "data": "Invalid JSON message format",
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+                    continue
+                user_message = EndUserMessage(
+                    source="User",
+                    content=user_message_input["data"], 
+                )
 
-                logger.info(f"Received message with chat_id: {chat_id}")
+                logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
 
-                # Publish the user's message to the agent
+                # Publish the user's message to the agent using combined source
                 await agent_runtime.publish_message(
                     user_message,
-                    DefaultTopicId(type="user_proxy", source=session_id),
+                    DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
                 )
                 await asyncio.sleep(0.1)
+
         except WebSocketDisconnect:
-            logger.info(f"WebSocket connection closed: {session_id}")
+            logger.info(f"WebSocket connection closed for conversation: {conversation_id}")
         except Exception as e:
-            logger.error(f"Exception in WebSocket connection {session_id}: {str(e)}")
+            logger.error(f"Exception in WebSocket connection for conversation {conversation_id}: {str(e)}")
         finally:
-            self.remove_connection(session_id)
+            # Clean up
+            if 'background_task' in locals():
+                background_task.cancel()
+            pubsub.unsubscribe()
+            pubsub.close()
+            self.remove_connection(user_id, conversation_id)
             try:
                 if websocket.client_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
             except WebSocketDisconnect:
-                logger.info(f"WebSocket already closed: {session_id}")
+                logger.info(f"WebSocket already closed for conversation: {conversation_id}")
 
-# Initialize the WebSocket connection manager
-connection_manager = WebSocketConnectionManager()
+    async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
+        """
+        Background task to handle Redis pub/sub messages and forward them to WebSocket.
+
+        Args:
+            websocket (WebSocket): The WebSocket connection
+            pubsub: Redis pubsub subscription
+        """
+        try:
+            while True:
+                message = pubsub.get_message(timeout=1.0)
+                if message and message["type"] == "message":
+                    data_str = message["data"]
+                    await websocket.send_json({
+                        "event": "message",
+                        "data": data_str,
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+
+                # Send periodic ping to keep connection alive
+                await websocket.send_json({
+                    "event": "ping",
+                    "data": json.dumps({"type": "ping"})
+                })
+                await asyncio.sleep(0.25)
+
+        except Exception as e:
+            logger.error(f"Error in Redis message handler: {str(e)}")
+            raise
 
 # User Proxy Agent
 class UserProxyAgent(RoutedAgent):
     """
     Acts as a proxy between the user and the routing agent.
     """
+    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
 
     def __init__(self) -> None:
         super().__init__("UserProxyAgent")
@@ -177,13 +264,19 @@ class UserProxyAgent(RoutedAgent):
             ctx (MessageContext): The message context.
         """
         logger.info(f"UserProxyAgent received agent response: {message}")
-        session_id = ctx.topic_id.source
+        # ctx.topic_id.source is already in format "user_id:conversation_id"
         try:
-            websocket = connection_manager.connections.get(session_id)
+            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
+            user_id, conversation_id = ctx.topic_id.source.split(":")
             if websocket:
-                await websocket.send_text(f"{message.model_dump_json()}")
+                await websocket.send_text(json.dumps({
+                    "event": "completion", 
+                    "data": message.model_dump_json(),
+                    "user_id": user_id,
+                    "conversation_id": conversation_id
+                }))
         except Exception as e:
-            logger.error(f"Failed to send message to session {session_id}: {str(e)}")
+            logger.error(f"Failed to send message to session {ctx.topic_id.source}: {str(e)}")
 
     @message_handler
     async def handle_user_message(
@@ -197,12 +290,12 @@ class UserProxyAgent(RoutedAgent):
             ctx (MessageContext): The message context.
         """
         logger.info(f"UserProxyAgent received user message: {message.content}")
+        
         # Forward the message to the router
         await self.publish_message(
-            EndUserMessage(content=message.content, source=message.source),
+            message,
             DefaultTopicId(type="router", source=ctx.topic_id.source),
         )
-
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -222,6 +315,13 @@ class LeadGenerationAPI:
             decode_responses=True
         )
         print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+
+        # Initialize WebSocketConnectionManager with redis client
+        self.connection_manager = WebSocketConnectionManager()
+        self.connection_manager.redis_client = self.redis_client
+        
+        # Set the connection manager for UserProxyAgent
+        UserProxyAgent.connection_manager = self.connection_manager
 
     def setup_cors(self):
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
@@ -254,15 +354,24 @@ class LeadGenerationAPI:
 
         # WebSocket endpoint to handle user messages
         @self.app.websocket("/chat")
-        async def websocket_endpoint(websocket: WebSocket):
+        async def websocket_endpoint(
+            websocket: WebSocket,
+            user_id: str = Query(..., description="User ID"),
+            conversation_id: str = Query(..., description="Conversation ID")
+        ):
             """
             WebSocket endpoint for handling user chat messages.
 
             Args:
                 websocket (WebSocket): The WebSocket connection.
+                user_id (str): The ID of the user.
+                conversation_id (str): The ID of the conversation.
             """
-            session_id = str(uuid.uuid4())
-            await connection_manager.handle_websocket(websocket, session_id)
+            await self.connection_manager.handle_websocket(
+                websocket, 
+                user_id, 
+                conversation_id
+            )
 
         @self.app.post("/route")
         async def determine_route(request: Request, query_request: QueryRequest):

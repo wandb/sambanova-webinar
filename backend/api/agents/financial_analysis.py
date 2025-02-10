@@ -76,13 +76,15 @@ class FinancialAnalysisAgent(RoutedAgent):
                 "company_name": message.company_name
             }
             
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+
             # Initialize crew
             crew = FinancialAnalysisCrew(
                 sambanova_key=self._sambanova_key,
                 exa_key=self._exa_key,
                 serper_key=self._serper_key,
-                user_id="user",
-                run_id="run_id",
+                user_id=user_id,
+                run_id=conversation_id,
                 docs_included=False  # Set based on your needs
             )
 

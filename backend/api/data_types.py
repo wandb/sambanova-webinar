@@ -27,10 +27,6 @@ class BaseAgentMessage(BaseModel):
     source: str
     timestamp: Optional[date] = None
 
-class EndUserMessage(BaseAgentMessage):
-    content: str
-    document_ids: Optional[List[str]] = None
-
 class TestMessage(BaseAgentMessage):
     content: str
 
@@ -51,8 +47,20 @@ class CoPilotPlan(BaseModel):
 class HandoffMessage(BaseAgentMessage):
     content: str
 
+
+class APIKeys(BaseModel):
+    sambanova_key: str
+    serper_key: str 
+    exa_key: str
+
 class FinancialAnalysisRequest(BaseModel):
     ticker: str
     company_name: str
     query_text: str
+    document_ids: Optional[List[str]] = None
+    api_keys: APIKeys
+
+class EndUserMessage(BaseAgentMessage):
+    content: str
+    api_keys: APIKeys
     document_ids: Optional[List[str]] = None

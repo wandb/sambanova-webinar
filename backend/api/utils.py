@@ -10,28 +10,11 @@ from backend.api.agents.route import SemanticRouterAgent
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
 
+from backend.api.data_types import APIKeys
+
 from .otlp_tracing import configure_oltp_tracing, logger
 from .registry import AgentRegistry
 from .session_state import SessionStateManager
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-sn_api_url = "https://api.sambanova.ai/v1"
-sn_api_key = os.getenv("SAMBANOVA_API_KEY")
-
-aoai_model_client = OpenAIChatCompletionClient(
-    model="Meta-Llama-3.1-70B-Instruct",
-    base_url=sn_api_url,
-    api_key=sn_api_key,
-    model_info={
-        'json_output': False,
-        'function_calling': True,
-        'family': 'unknown',
-        'vision': False
-    }
-)
 
 session_state_manager = SessionStateManager()
 
@@ -59,20 +42,14 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         "router",
         lambda: SemanticRouterAgent(
             name="SemanticRouterAgent",
-            model_client=aoai_model_client,
             session_manager=session_state_manager,
-            sambanova_key=sn_api_key,
         ),
     )
 
     await FinancialAnalysisAgent.register(
         agent_runtime,
         "financial_analysis",
-        lambda: FinancialAnalysisAgent(
-            sambanova_key=sn_api_key,
-            exa_key=os.getenv("EXA_API_KEY"),
-            serper_key=os.getenv("SERPER_API_KEY"),
-        ),
+        lambda: FinancialAnalysisAgent(),
     )
 
     # Start the runtime

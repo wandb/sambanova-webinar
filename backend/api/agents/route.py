@@ -44,16 +44,24 @@ class SemanticRouterAgent(RoutedAgent):
     def __init__(
         self,
         name: str,
-        model_client: OpenAIChatCompletionClient,
         session_manager: SessionStateManager,
-        sambanova_key: str,
     ) -> None:
         super().__init__("SemanticRouterAgent")
         logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
         self._name = name
-        self._model_client = model_client
+        self._model_client = sn_api_url = "https://api.sambanova.ai/v1"
+        self._model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+            model="Meta-Llama-3.1-70B-Instruct",
+            base_url=sn_api_url,
+            api_key=sambanova_key,
+            model_info={
+                "json_output": False,
+                "function_calling": True,
+                "family": "unknown",
+                "vision": False,
+            },
+        )
         self._session_manager = session_manager
-        self._sambanova_key = sambanova_key
 
     @message_handler
     async def route_message(self, message: EndUserMessage, ctx: MessageContext) -> None:
@@ -73,19 +81,25 @@ class SemanticRouterAgent(RoutedAgent):
         history = self._session_manager.get_history(session_id)
         logger.info("Analyzing conversation history for context")
 
-        router = QueryRouterService(self._sambanova_key)
+        router = QueryRouterService(message.api_keys.sambanova_key)
 
         route_result: QueryType = router.route_query(message.content)
 
         if route_result.type == "financial_analysis":
             logger.info(f"Publishing financial analysis request with parameters: {route_result.parameters}")
+            financial_analysis_request = FinancialAnalysisRequest(
+                ticker=route_result.parameters.get("ticker", ""),
+                company_name=route_result.parameters.get("company_name", ""),
+                query_text=message.content,
+                api_keys=message.api_keys,
+                document_ids=message.document_ids
+            )
             await self.publish_message(
-                FinancialAnalysisRequest(**route_result.parameters),
+                financial_analysis_request,
                 DefaultTopicId(type="financial_analysis", source=session_id),
             )
             logger.info("Financial analysis request published")
             return
-
 
     @message_handler
     async def handle_handoff(
@@ -135,11 +149,10 @@ class SemanticRouterAgent(RoutedAgent):
             logger.error(e)
 
         try:
-            response = await self._model_client.create(
+            response = await self._model_client(message.api_keys.sambanova_key).create(
                 [SystemMessage(content=system_message)],
             )
 
-            
             copilot_plan: CoPilotPlan = CoPilotPlan.model_validate(
                 json.loads(response.content)
             )

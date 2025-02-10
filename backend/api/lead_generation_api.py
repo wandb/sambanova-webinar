@@ -28,7 +28,7 @@ from autogen_core import (
 )
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from backend.api.data_types import EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
+from backend.api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
 
 
 # SSE support
@@ -178,9 +178,28 @@ class WebSocketConnectionManager:
                         "conversation_id": conversation_id
                     })
                     continue
+
+                # Load the API keys from Redis
+                redis_api_keys = self.redis_client.hgetall(f"api_keys:{user_id}")                
+                if not redis_api_keys:
+                    await websocket.send_json({
+                        "event": "error",
+                        "data": "No API keys found for this user",
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+                    continue
+                
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    serper_key=redis_api_keys.get("serper_key", ""),
+                    exa_key=redis_api_keys.get("exa_key", "")
+                )
+                
                 user_message = EndUserMessage(
                     source="User",
                     content=user_message_input["data"], 
+                    api_keys=api_keys
                 )
 
                 logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
@@ -838,6 +857,76 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[/documents/delete] Error deleting document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.post("/set_api_keys/{user_id}")
+        async def set_api_keys(user_id: str, keys: APIKeys):
+            """
+            Store API keys for a user in Redis.
+            
+            Args:
+                user_id (str): The ID of the user
+                keys (APIKeys): The API keys to store
+            """
+            try:
+                # Store keys in Redis with user-specific prefix
+                key_prefix = f"api_keys:{user_id}"
+                self.redis_client.hset(
+                    key_prefix,
+                    mapping={
+                        "sambanova_key": keys.sambanova_key,
+                        "serper_key": keys.serper_key,
+                        "exa_key": keys.exa_key
+                    }
+                )
+                
+                # Set expiration for security (24 hours)
+                self.redis_client.expire(key_prefix, 86400)  
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"message": "API keys stored successfully"}
+                )
+                
+            except Exception as e:
+                print(f"[/set_api_keys] Error storing API keys: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to store API keys: {str(e)}"}
+                )
+
+        @self.app.get("/get_api_keys/{user_id}")
+        async def get_api_keys(user_id: str):
+            """
+            Retrieve stored API keys for a user.
+            
+            Args:
+                user_id (str): The ID of the user
+            """
+            try:
+                key_prefix = f"api_keys:{user_id}"
+                stored_keys = self.redis_client.hgetall(key_prefix)
+                
+                if not stored_keys:
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "No API keys found for this user"}
+                    )
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "sambanova_key": stored_keys.get("sambanova_key", ""),
+                        "serper_key": stored_keys.get("serper_key", ""),
+                        "exa_key": stored_keys.get("exa_key", "")
+                    }
+                )
+                
+            except Exception as e:
+                print(f"[/get_api_keys] Error retrieving API keys: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve API keys: {str(e)}"}
+                )
 
     async def execute_research(self, crew, parameters: Dict[str, Any]):
         extractor = UserPromptExtractor(crew.sambanova_key)

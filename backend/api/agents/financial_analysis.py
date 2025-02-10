@@ -25,22 +25,16 @@ from ..otlp_tracing import logger
 @type_subscription(topic_type="financial_analysis")
 class FinancialAnalysisAgent(RoutedAgent):
     def __init__(
-        self,
-        sambanova_key: str,
-        exa_key: str,
-        serper_key: str,    
+        self,  
     ) -> None:
         super().__init__("FinancialAnalysisAgent")
         logger.info(f"Initializing FinancialAnalysisAgent with ID: {self.id}")
         self._system_messages: List[LLMMessage] = [
             SystemMessage(content="You are a helpful AI assistant that helps with financial analysis.")
         ]
-        self._sambanova_key = sambanova_key
-        self._exa_key = exa_key
-        self._serper_key = serper_key
 
-    async def execute_financial(self, crew, parameters: Dict[str,Any]):
-        fextractor = FinancialPromptExtractor(self._sambanova_key)
+    async def execute_financial(self, crew, sambanova_key: str, parameters: Dict[str,Any]):
+        fextractor = FinancialPromptExtractor(sambanova_key)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
@@ -74,22 +68,23 @@ class FinancialAnalysisAgent(RoutedAgent):
                 "query_text": message.query_text,
                 "ticker": message.ticker,
                 "company_name": message.company_name
+                
             }
             
             user_id, conversation_id = ctx.topic_id.source.split(":")
 
             # Initialize crew
             crew = FinancialAnalysisCrew(
-                sambanova_key=self._sambanova_key,
-                exa_key=self._exa_key,
-                serper_key=self._serper_key,
+                sambanova_key=message.api_keys.sambanova_key,
+                exa_key=message.api_keys.exa_key,
+                serper_key=message.api_keys.serper_key,
                 user_id=user_id,
                 run_id=conversation_id,
                 docs_included=False  # Set based on your needs
             )
 
             # Execute analysis
-            raw_result = await self.execute_financial(crew, parameters)
+            raw_result = await self.execute_financial(crew, message.api_keys.sambanova_key, parameters)
             logger.info(f"Received raw result: {raw_result}")
             
             financial_analysis_result = FinancialAnalysisResult.model_validate(json.loads(raw_result))

@@ -12,8 +12,8 @@ from autogen_core import (
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from backend.agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew, FinancialAnalysisResult
-from backend.services.financial_user_prompt_extractor_service import FinancialPromptExtractor
+from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew, FinancialAnalysisResult
+from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
     AgentStructuredResponse,
@@ -33,7 +33,7 @@ class FinancialAnalysisAgent(RoutedAgent):
             SystemMessage(content="You are a helpful AI assistant that helps with financial analysis.")
         ]
 
-    async def execute_financial(self, crew, sambanova_key: str, parameters: Dict[str,Any]):
+    async def execute_financial(self, crew: FinancialAnalysisCrew, sambanova_key: str, parameters: Dict[str,Any]):
         fextractor = FinancialPromptExtractor(sambanova_key)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
@@ -80,7 +80,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 serper_key=message.api_keys.serper_key,
                 user_id=user_id,
                 run_id=conversation_id,
-                docs_included=False  # Set based on your needs
+                docs_included=False 
             )
 
             # Execute analysis

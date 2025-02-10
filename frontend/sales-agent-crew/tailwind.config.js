@@ -18,6 +18,7 @@ export default {
           700: '#bd4614',
           800: '#983a15',
           900: '#7c3114',
+          brandGray:"F2F4F7"
         }
       }
     },

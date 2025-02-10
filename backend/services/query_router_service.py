@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any
 import json
 import requests
 from pydantic import BaseModel
@@ -13,18 +13,18 @@ class QueryRouterService:
         self.sambanova_key = sambanova_key
         self.api_url = "https://api.sambanova.ai/v1/chat/completions"
         
-        # Expanded / refined keywords for educational content
+        # Expanded / refined keywords for educational content (including some "report", "compare", etc.)
         self.edu_keywords = [
             "explain", "guide", "learn", "teach", "understand", "what is",
             "how does", "tutorial", "course", "education", "training",
             "concepts", "fundamentals", "basics", "advanced", "intermediate",
             "beginner", "introduction", "deep dive", "overview", "study",
-            # Additional research/technical
             "technology", "architecture", "design", "implementation",
-            "comparison", "performance", "methodology", "framework",
-            "system", "protocol", "algorithm", "mechanism", "theory",
-            "principle", "structure", "process"
-            # Note: "analysis" was removed here to reduce collisions with finance
+            "comparison", "compare", "comparing", "performance", "methodology",
+            "framework", "system", "protocol", "algorithm", "mechanism",
+            "theory", "principle", "structure", "process",
+            # Newly added cues for research/educational style requests:
+            "report", "tell me about", "describe", "differences", "similarities"
         ]
         
         # Sales leads keywords
@@ -36,11 +36,11 @@ class QueryRouterService:
             "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
-        # Financial keywords - expanded
+        # Financial keywords - removing generic “analysis” to avoid over-triggering
         self.financial_keywords = [
-            "stock", 
-            "technical analysis", 
+            "stock",
             "fundamental analysis", 
+            "technical analysis", 
             "price target", 
             "investment strategy", 
             "ticker",
@@ -49,18 +49,14 @@ class QueryRouterService:
             "eps", 
             "balance sheet", 
             "income statement",
-            "analysis of a stock",
-            "analyzing a stock",
-            "analysis",
-            "analyze",
             "market cap",
             "valuation"
-            # etc.
         ]
 
         # Additional phrases for override
         self.override_phrases = [
-            "fundamental and technical analysis",
+            "fundamental analysis",
+            "technical analysis",
             "fundamental & technical analysis"
         ]
 
@@ -77,35 +73,41 @@ class QueryRouterService:
 
     def _detect_query_type(self, query: str) -> str:
         """
-        Pre-check query type based on keyword tallies, with an additional
-        check that 'analysis' plus recognized company/ticker suggests finance.
+        Score-based approach for edu, sales, finance, with special handling for 
+        'analysis' or 'analyze' + big-company/ticker or explicit finance terms.
         """
         query_lower = query.lower()
 
-        # Weighted scoring approach
+        # 1) If user explicitly says "fundamental analysis" or "technical analysis" => finance
+        if "fundamental analysis" in query_lower or "technical analysis" in query_lower:
+            return "financial_analysis"
+
+        # 2) Tally normal keywords (but remove "analysis" from direct financial scoring)
         edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
 
-        # Additional check: if user says "analyze" or "analysis" + known company/ticker => finance
-        if ("analyze" in query_lower or "analysis" in query_lower) and any(
-            c in query_lower for c in self.known_big_companies + self.known_tickers
-        ):
-            fin_score += 5  # Bump finance weighting significantly
+        # 3) Special logic for the words 'analysis' or 'analyze' 
+        #    => check if they appear alongside strong finance signals
+        if ("analysis" in query_lower or "analyze" in query_lower):
+            # If user also mentions known big cos, tickers, or finance words like 'stock'
+            # or explicit finance terms, treat as finance:
+            if any(big_co in query_lower for big_co in self.known_big_companies + self.known_tickers):
+                fin_score += 5  # strongly finance
+            elif any(x in query_lower for x in ["stock", "price target", "investment strategy"]):
+                fin_score += 5  # strongly finance
+            # If none of these appear, do NOT boost finance
 
-        # If financial keywords predominate, route to financial_analysis
+        # 4) Decide based on highest score
         if fin_score > edu_score and fin_score > sales_score:
             return "financial_analysis"
-
-        # Otherwise revert to the original approach
         if edu_score >= sales_score:
             return "educational_content"
-        else:
-            return "sales_leads"
+        return "sales_leads"
 
     def _call_llm(self, system_message: str, user_message: str) -> str:
         """
-        Make an API call to SambaNova's LLM.
+        Make an API call to SambaNova's LLM, returning raw string content.
         """
         headers = {
             "Authorization": f"Bearer {self.sambanova_key}",
@@ -138,7 +140,7 @@ class QueryRouterService:
             return self._get_default_response(self._detect_query_type(user_message))
 
     def _get_default_response(self, detected_type: str) -> str:
-        """Return a default structured response based on detected type, also handling financial_analysis."""
+        """Return a default structured JSON string based on the detected type."""
         if detected_type == "educational_content":
             return json.dumps({
                 "type": "educational_content",
@@ -157,7 +159,7 @@ class QueryRouterService:
                     "company_name": ""
                 }
             })
-        # else fallback is sales_leads
+        # else, fallback => sales
         return json.dumps({
             "type": "sales_leads",
             "parameters": {
@@ -170,7 +172,7 @@ class QueryRouterService:
         })
 
     def _normalize_educational_params(self, params: Dict) -> Dict:
-        """Normalize educational content parameters with defaults."""
+        """Normalize educational content parameters with safe defaults."""
         focus_areas = params.get("focus_areas", [])
         if isinstance(focus_areas, str):
             focus_areas = [area.strip() for area in focus_areas.split(",")]
@@ -189,7 +191,7 @@ class QueryRouterService:
         }
 
     def _normalize_sales_params(self, params: Dict) -> Dict:
-        """Normalize sales leads parameters with defaults."""
+        """Normalize sales leads parameters with safe defaults."""
         return {
             "industry": params.get("industry", ""),
             "company_stage": params.get("company_stage", ""),
@@ -199,7 +201,7 @@ class QueryRouterService:
         }
 
     def _normalize_financial_params(self, params: Dict) -> Dict:
-        """Normalize financial analysis parameters with defaults."""
+        """Normalize financial analysis parameters with safe defaults."""
         return {
             "query_text": params.get("query_text",""),
             "ticker": params.get("ticker",""),
@@ -208,13 +210,11 @@ class QueryRouterService:
 
     def _final_override(self, user_query: str, chosen_type: str) -> str:
         """
-        If user query explicitly mentions certain override phrases or
-        'fundamental analysis' / 'technical analysis', force 'financial_analysis'.
+        If user query explicitly mentions certain override phrases 
+        (like 'fundamental analysis' or 'technical analysis'),
+        we force 'financial_analysis'.
         """
         qlower = user_query.lower()
-
-        if "fundamental analysis" in qlower or "technical analysis" in qlower:
-            return "financial_analysis"
 
         for phrase in self.override_phrases:
             if phrase in qlower:
@@ -224,15 +224,15 @@ class QueryRouterService:
 
     def route_query(self, query: str) -> QueryType:
         """
-        Main routing method with LLM. 
-          1) initial detection with _detect_query_type
-          2) call LLM with few-shot system prompt
-          3) parse/normalize
-          4) final override
+        Main routing method:
+          1) Detect type using _detect_query_type
+          2) Call LLM with few-shot system prompt
+          3) Parse or fall back to a default if LLM fails
+          4) Normalize parameters
+          5) Final override check
         """
         detected_type = self._detect_query_type(query)
         
-        # Updated few-shot examples for a general approach
         system_message = f"""
         You are a query routing expert that categorizes queries and extracts structured information.
         Always return a valid JSON object with 'type' and 'parameters'.
@@ -241,11 +241,15 @@ class QueryRouterService:
 
         Rules:
         1. For 'educational_content':
-           - Extract the FULL topic from the query, don't truncate or summarize
-           - Include ALL concepts mentioned in the topic
-           - For multiple related concepts, keep them together in the topic
-        2. For 'sales_leads': Extract specific industry, location, and other business parameters
-        3. For 'financial_analysis': Include company name, ticker if known, and full query text
+           - Extract the FULL topic from the query
+           - Do NOT truncate or summarize the topic
+           - If multiple concepts are present, keep them in 'topic'
+        2. For 'sales_leads': 
+           - Extract specific industry, location, or other business parameters if any
+        3. For 'financial_analysis': 
+           - Provide 'query_text' (the user’s full finance question)
+           - Provide 'ticker' if recognized
+           - Provide 'company_name' if recognized
 
         Examples:
 
@@ -363,7 +367,7 @@ class QueryRouterService:
                     parsed_result.get("parameters", {})
                 )
 
-            # final override check
+            # Final override check
             final_type = self._final_override(query, parsed_result["type"])
             parsed_result["type"] = final_type
 

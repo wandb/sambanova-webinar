@@ -1,6 +1,6 @@
 <!-- src/components/Header.vue -->
 <template>
-  <header class="shadow-md bg-white">
+  <header class="shadow-md bg-white sticky top-0 z-50">
     <div class="h-16 mx-auto px-4 sm:px-6 flex items-center justify-between">
       <!-- Left: Brand -->
       <div class="flex items-center space-x-2 sm:space-x-4">
@@ -107,5 +107,10 @@ const shortCurrentDateTime = computed(() => {
     dateStyle: 'short',
     timeStyle: 'short'
   }).format(now).replace(', ', '\n')
+})
+
+// Add defineExpose to make openSettings accessible to parent
+defineExpose({
+  openSettings
 })
 </script>

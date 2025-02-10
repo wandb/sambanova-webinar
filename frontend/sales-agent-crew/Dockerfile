@@ -1,18 +1,14 @@
 # Stage 1: Build the application
 FROM node:18-alpine AS build
 
-# Install Yarn
-RUN npm install -g yarn
-
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy package.json and yarn.lock
-COPY package.json ./
-COPY yarn.lock ./
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
 # Install the dependencies
-RUN yarn install && yarn cache clean
+RUN npm install
 
 # Copy the rest of the frontend code
 COPY . .
@@ -29,7 +25,7 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 # ENV VITE_CLERK_DOMAIN=$VITE_CLERK_DOMAIN
 
 # Build the application
-RUN yarn build
+RUN npm run build
 
 # Stage 2: Serve the application
 FROM nginx:alpine

@@ -1,20 +1,7 @@
 <!-- src/views/MainLayout.vue -->
 <template>
   <!-- Outer container uses flex so the sidebar, main area, and agent sidebar appear side-by-side -->
-  <div class="min-h-screen flex">
-
-    <!-- LEFT SIDEBAR -->
-    <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 
-         We reference them with JS variables chatSidebarComp, sideBarComp 
-         so we do <component :is="chatSidebarComp" />. -->
-    <component
-      :is="chatMode ? chatSidebarComp : sideBarComp"
-      @selectReport="handleSavedReportSelect"       
-      @selectConversation="handleSelectConversation"
-    />
-
-    <!-- MAIN COLUMN -->
-    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+  <div class="min-h-screen transition-all  duration-300 flex flex-col">
 
       <!-- PAGE HEADER -->
       <Header
@@ -24,11 +11,27 @@
         @modeToggled="onModeToggled"
       />
 
-      <!-- MAIN CONTENT WRAPPER -->
-      <main class="flex-grow flex flex-col p-4 space-y-4 overflow-y-auto">
+    <!-- MAIN COLUMN -->
+    <div class="flex h-[calc(100vh-4rem)]">
 
+           <!-- LEFT SIDEBAR -->
+    <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 
+         We reference them with JS variables chatSidebarComp, sideBarComp 
+         so we do <component :is="chatSidebarComp" />. -->
+         <component
+      :is="chatMode ? chatSidebarComp : sideBarComp"
+      @selectReport="handleSavedReportSelect"       
+      @selectConversation="handleSelectConversation"
+    />
+    
+
+      <!-- MAIN CONTENT WRAPPER -->
+      <main class="overflow-y-auto relative flex-1 flex flex-col  h-full">
+
+        <div class="flex-1 ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
-        <div v-if="chatMode" class="flex-1 flex flex-col">
+         <div class="flex-1  h-full w-full   ">
+        <div v-if="chatMode" class="flex justify-content-center">
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"
@@ -37,20 +40,11 @@
           />
         </div>
 
-        <div v-else class="flex flex-col space-y-6">
+        <div v-else class="flex ">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
-          <SearchSection
-            :keysUpdated="keysUpdateCounter"
-            :isLoading="isLoading"
-            :runId="currentRunId"
-          :sessionId="sessionId"
-            @searchStart="handleSearchStart"
-            @searchComplete="handleSearchComplete"
-            @searchError="handleSearchError"
-            @openSettings="openSettings"
-          />
+       
 
           <SearchNotification
             :show="showNotification"
@@ -105,14 +99,31 @@
             @close="reportModalOpen = false"
           />
         </div>
-      </main>
+      </div>
+      
     </div>
+        <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
+          <SearchSection
+            :keysUpdated="keysUpdateCounter"
+            :isLoading="isLoading"
+            :runId="currentRunId"
+          :sessionId="sessionId"
+            @searchStart="handleSearchStart"
+            @searchComplete="handleSearchComplete"
+            @searchError="handleSearchError"
+            @openSettings="openSettings"
+          />
+        </div>
+      </main>
 
-    <!-- RIGHT SIDEBAR: Real-time Agent Logs for the current user + run ID -->
+        <!-- RIGHT SIDEBAR: Real-time Agent Logs for the current user + run ID -->
     <AgentSidebar
       :userId="clerkUserId"
       :runId="currentRunId"
     />
+    </div>
+
+  
   </div>
 </template>
 

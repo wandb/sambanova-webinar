@@ -1,23 +1,23 @@
 <!-- src/components/Header.vue -->
 <template>
-  <header class="shadow-md bg-white">
+  <header class="shadow-md bg-white sticky top-0 z-50">
     <div class="h-16 mx-auto px-4 sm:px-6 flex items-center justify-between">
       <!-- Left: Brand -->
       <div class="flex items-center space-x-2 sm:space-x-4">
         <div class="flex-shrink-0">
           <img
-            src="https://sambanova.ai/hubfs/logotype_sambanova_orange.png" 
+            src="/logo.svg" 
             alt="Samba Sales Co-Pilot Logo" 
             class="h-6 md:hidden"
           />
           <img 
-            src="https://sambanova.ai/hubfs/sambanova-logo-black.png" 
+            src="/logo-icon.svg" 
             alt="Samba Sales Co-Pilot Logo" 
             class="hidden md:h-8 md:block"
           />
         </div>
         <h1 class="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight text-center">
-          Samba Co-Pilot
+          Agents
         </h1>
       </div>
 

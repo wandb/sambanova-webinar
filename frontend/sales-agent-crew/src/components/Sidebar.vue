@@ -1,9 +1,15 @@
 <template>
-  <div class="relative h-full">
+  <div 
+  :class="[
+        ' h-full border-r border-gray-300  overflow-y-auto',
+        isCollapsed ? 'w-18' : 'w-64'
+      ]"
+  >
+  <div class="overflow-y-auto relative h-full">
     <!-- Toggle collapse button -->
     <button
       @click="isCollapsed = !isCollapsed"
-      class="absolute -right-3 top-4 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition"
+      class=" absolute top-[10px] right-[10px] p-2 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition-transform duration-300  "
       :title="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
     >
       <ChevronLeftIcon
@@ -16,10 +22,7 @@
 
     <!-- Sidebar Container -->
     <div
-      :class="[
-        'h-full bg-white shadow-lg transition-all duration-300 overflow-hidden',
-        isCollapsed ? 'w-18' : 'w-64'
-      ]"
+    class=" "
     >
       <!-- Header with Filter and Bulk Actions -->
       <div class="p-4 border-b border-gray-200 space-y-3">
@@ -71,7 +74,7 @@
       </div>
 
       <!-- Saved Reports List -->
-      <div class="overflow-y-auto max-h-[calc(100vh-8rem)]">
+      <div class=" max-h-[calc(100vh-8rem)]">
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
@@ -148,6 +151,7 @@
       </div>
     </div>
   </div>
+</div>
 </template>
 
 <script setup>

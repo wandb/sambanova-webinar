@@ -1,15 +1,15 @@
 <template>
   <div 
   :class="[
-        ' h-full  overflow-y-auto',
+        ' h-full border-r border-gray-300  overflow-y-auto',
         isCollapsed ? 'w-18' : 'w-64'
       ]"
   >
-  <div class="overflow-y-auto h-full">
+  <div class="overflow-y-auto relative h-full">
     <!-- Toggle collapse button -->
     <button
       @click="isCollapsed = !isCollapsed"
-      class=" top-4 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition"
+      class=" absolute top-[10px] right-[10px] p-2 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition-transform duration-300  "
       :title="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
     >
       <ChevronLeftIcon

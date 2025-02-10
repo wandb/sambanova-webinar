@@ -242,7 +242,7 @@ class WebSocketConnectionManager:
                 if message and message["type"] == "message":
                     data_str = message["data"]
                     await websocket.send_json({
-                        "event": "message",
+                        "event": "think",
                         "data": data_str,
                         "user_id": user_id,
                         "conversation_id": conversation_id

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Request, BackgroundTasks, UploadFile
+from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
@@ -11,8 +11,25 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
+from starlette.websockets import WebSocketState
+from contextlib import asynccontextmanager
+from .utils import initialize_agent_runtime
+from .otlp_tracing import logger
+from autogen_core import MessageContext
+
 import redis
 import uuid
+
+from autogen_core import (
+    DefaultTopicId,
+    RoutedAgent,
+    default_subscription,
+    message_handler,
+)
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from backend.api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
+
 
 # SSE support
 from sse_starlette.sse import EventSourceResponse
@@ -51,9 +68,257 @@ class ChatRequest(BaseModel):
 def estimate_tokens_regex(text: str) -> int:
         return len(re.findall(r"\w+|\S", text))
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles the startup and shutdown lifespan events for the FastAPI application.
+
+    Initializes the agent runtime and registers the UserProxyAgent.
+    """
+    global agent_runtime
+    # Initialize the agent runtime
+    agent_runtime = await initialize_agent_runtime()
+
+    # Register the UserProxyAgent instance with the AgentRuntime
+    await UserProxyAgent.register(agent_runtime, "user_proxy", lambda: UserProxyAgent())
+
+    yield  # This separates the startup and shutdown logic
+
+    # Cleanup logic goes here
+    agent_runtime = None
+
+class WebSocketConnectionManager:
+    """
+    Manages WebSocket connections for user sessions.
+    """
+
+    def __init__(self):
+        # Use user_id:conversation_id as the key
+        self.connections: Dict[str, WebSocket] = {}
+
+    def add_connection(self, websocket: WebSocket, user_id: str, conversation_id: str) -> None:
+        """
+        Adds a new WebSocket connection to the manager.
+
+        Args:
+            websocket (WebSocket): The WebSocket connection.
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
+        """
+        key = f"{user_id}:{conversation_id}"
+        self.connections[key] = websocket
+
+    def get_connection(self, user_id: str, conversation_id: str) -> Optional[WebSocket]:
+        """
+        Gets WebSocket connection for a user's conversation.
+
+        Args:
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
+
+        Returns:
+            Optional[WebSocket]: The WebSocket connection if found, None otherwise.
+        """
+        key = f"{user_id}:{conversation_id}"
+        return self.connections.get(key)
+
+    def remove_connection(self, user_id: str, conversation_id: str) -> None:
+        """
+        Removes a WebSocket connection from the manager.
+
+        Args:
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
+        """
+        key = f"{user_id}:{conversation_id}"
+        if key in self.connections:
+            del self.connections[key]
+
+    async def handle_websocket(self, websocket: WebSocket, user_id: str, conversation_id: str):
+        """
+        Handles incoming WebSocket messages and manages connection lifecycle.
+
+        Args:
+            websocket (WebSocket): The WebSocket connection.
+            user_id (str): The ID of the user.
+            conversation_id (str): The ID of the conversation.
+        """
+        await websocket.accept()
+        self.add_connection(websocket, user_id, conversation_id)
+
+        # Set up Redis pubsub for this connection
+        # Combine user_id and conversation_id with a colon delimiter
+        source = f"{user_id}:{conversation_id}"
+        channel = f"agent_thoughts:{source}"
+        pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
+        pubsub.subscribe(channel)
+
+        try:
+            # Send connection established message
+            await websocket.send_json({
+                "event": "connection_established",
+                "data": "WebSocket connection established",
+                "user_id": user_id,
+                "conversation_id": conversation_id
+            })
+
+            # Start background task for Redis messages
+            background_task = asyncio.create_task(self.handle_redis_messages(websocket, pubsub, user_id, conversation_id))
+
+            # Handle incoming WebSocket messages
+            while True:
+                user_message_text = await websocket.receive_text()
+                try:
+                    user_message_input = json.loads(user_message_text)
+                except json.JSONDecodeError:
+                    await websocket.send_json({
+                        "event": "error",
+                        "data": "Invalid JSON message format",
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+                    continue
+
+                # Load the API keys from Redis
+                redis_api_keys = self.redis_client.hgetall(f"api_keys:{user_id}")                
+                if not redis_api_keys:
+                    await websocket.send_json({
+                        "event": "error",
+                        "data": "No API keys found for this user",
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+                    continue
+                
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    serper_key=redis_api_keys.get("serper_key", ""),
+                    exa_key=redis_api_keys.get("exa_key", "")
+                )
+                
+                user_message = EndUserMessage(
+                    source="User",
+                    content=user_message_input["data"], 
+                    api_keys=api_keys
+                )
+
+                logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
+
+                # Publish the user's message to the agent using combined source
+                await agent_runtime.publish_message(
+                    user_message,
+                    DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
+                )
+                await asyncio.sleep(0.1)
+
+        except WebSocketDisconnect:
+            logger.info(f"WebSocket connection closed for conversation: {conversation_id}")
+        except Exception as e:
+            logger.error(f"Exception in WebSocket connection for conversation {conversation_id}: {str(e)}")
+        finally:
+            # Clean up
+            if 'background_task' in locals():
+                background_task.cancel()
+            pubsub.unsubscribe()
+            pubsub.close()
+            self.remove_connection(user_id, conversation_id)
+            try:
+                if websocket.client_state != WebSocketState.DISCONNECTED:
+                    await websocket.close()
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket already closed for conversation: {conversation_id}")
+
+    async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
+        """
+        Background task to handle Redis pub/sub messages and forward them to WebSocket.
+
+        Args:
+            websocket (WebSocket): The WebSocket connection
+            pubsub: Redis pubsub subscription
+        """
+        try:
+            while True:
+                message = pubsub.get_message(timeout=1.0)
+                if message and message["type"] == "message":
+                    data_str = message["data"]
+                    await websocket.send_json({
+                        "event": "think",
+                        "data": data_str,
+                        "user_id": user_id,
+                        "conversation_id": conversation_id
+                    })
+
+                # Send periodic ping to keep connection alive
+                await websocket.send_json({
+                    "event": "ping",
+                    "data": json.dumps({"type": "ping"})
+                })
+                await asyncio.sleep(0.25)
+
+        except Exception as e:
+            logger.error(f"Error in Redis message handler: {str(e)}")
+            raise
+
+# User Proxy Agent
+class UserProxyAgent(RoutedAgent):
+    """
+    Acts as a proxy between the user and the routing agent.
+    """
+    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
+
+    def __init__(self) -> None:
+        super().__init__("UserProxyAgent")
+
+    @message_handler
+    async def handle_agent_response(
+        self,
+        message: AgentStructuredResponse,
+        ctx: MessageContext,
+    ) -> None:
+        """
+        Sends the agent's response back to the user via WebSocket.
+
+        Args:
+            message (AgentStructuredResponse): The agent's response message.
+            ctx (MessageContext): The message context.
+        """
+        logger.info(f"UserProxyAgent received agent response: {message}")
+        # ctx.topic_id.source is already in format "user_id:conversation_id"
+        try:
+            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+            if websocket:
+                await websocket.send_text(json.dumps({
+                    "event": "completion", 
+                    "data": message.model_dump_json(),
+                    "user_id": user_id,
+                    "conversation_id": conversation_id
+                }))
+        except Exception as e:
+            logger.error(f"Failed to send message to session {ctx.topic_id.source}: {str(e)}")
+
+    @message_handler
+    async def handle_user_message(
+        self, message: EndUserMessage, ctx: MessageContext
+    ) -> None:
+        """
+        Forwards the user's message to the router for further processing.
+
+        Args:
+            message (EndUserMessage): The user's message.
+            ctx (MessageContext): The message context.
+        """
+        logger.info(f"UserProxyAgent received user message: {message.content}")
+        
+        # Forward the message to the router
+        await self.publish_message(
+            message,
+            DefaultTopicId(type="router", source=ctx.topic_id.source),
+        )
+
 class LeadGenerationAPI:
     def __init__(self):
-        self.app = FastAPI()
+        self.app = FastAPI(lifespan=lifespan)
         self.setup_cors()
         self.setup_routes()
         self.context_length_summariser = 64000
@@ -69,6 +334,13 @@ class LeadGenerationAPI:
             decode_responses=True
         )
         print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+
+        # Initialize WebSocketConnectionManager with redis client
+        self.connection_manager = WebSocketConnectionManager()
+        self.connection_manager.redis_client = self.redis_client
+        
+        # Set the connection manager for UserProxyAgent
+        UserProxyAgent.connection_manager = self.connection_manager
 
     def setup_cors(self):
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
@@ -98,6 +370,28 @@ class LeadGenerationAPI:
         )
 
     def setup_routes(self):
+
+        # WebSocket endpoint to handle user messages
+        @self.app.websocket("/chat")
+        async def websocket_endpoint(
+            websocket: WebSocket,
+            user_id: str = Query(..., description="User ID"),
+            conversation_id: str = Query(..., description="Conversation ID")
+        ):
+            """
+            WebSocket endpoint for handling user chat messages.
+
+            Args:
+                websocket (WebSocket): The WebSocket connection.
+                user_id (str): The ID of the user.
+                conversation_id (str): The ID of the conversation.
+            """
+            await self.connection_manager.handle_websocket(
+                websocket, 
+                user_id, 
+                conversation_id
+            )
+
         @self.app.post("/route")
         async def determine_route(request: Request, query_request: QueryRequest):
             sambanova_key = request.headers.get("x-sambanova-key")
@@ -563,6 +857,76 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[/documents/delete] Error deleting document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.post("/set_api_keys/{user_id}")
+        async def set_api_keys(user_id: str, keys: APIKeys):
+            """
+            Store API keys for a user in Redis.
+            
+            Args:
+                user_id (str): The ID of the user
+                keys (APIKeys): The API keys to store
+            """
+            try:
+                # Store keys in Redis with user-specific prefix
+                key_prefix = f"api_keys:{user_id}"
+                self.redis_client.hset(
+                    key_prefix,
+                    mapping={
+                        "sambanova_key": keys.sambanova_key,
+                        "serper_key": keys.serper_key,
+                        "exa_key": keys.exa_key
+                    }
+                )
+                
+                # Set expiration for security (24 hours)
+                self.redis_client.expire(key_prefix, 86400)  
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"message": "API keys stored successfully"}
+                )
+                
+            except Exception as e:
+                print(f"[/set_api_keys] Error storing API keys: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to store API keys: {str(e)}"}
+                )
+
+        @self.app.get("/get_api_keys/{user_id}")
+        async def get_api_keys(user_id: str):
+            """
+            Retrieve stored API keys for a user.
+            
+            Args:
+                user_id (str): The ID of the user
+            """
+            try:
+                key_prefix = f"api_keys:{user_id}"
+                stored_keys = self.redis_client.hgetall(key_prefix)
+                
+                if not stored_keys:
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "No API keys found for this user"}
+                    )
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "sambanova_key": stored_keys.get("sambanova_key", ""),
+                        "serper_key": stored_keys.get("serper_key", ""),
+                        "exa_key": stored_keys.get("exa_key", "")
+                    }
+                )
+                
+            except Exception as e:
+                print(f"[/get_api_keys] Error retrieving API keys: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve API keys: {str(e)}"}
+                )
 
     async def execute_research(self, crew, parameters: Dict[str, Any]):
         extractor = UserPromptExtractor(crew.sambanova_key)

@@ -11,8 +11,6 @@
         @modeToggled="onModeToggled"
       />
 
- 
-
     <!-- MAIN COLUMN -->
     <div class="flex h-[calc(100vh-4rem)]">
 
@@ -33,7 +31,7 @@
         <div class="flex-1 ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
-        <div v-if="chatMode" class="flex">
+        <div v-if="chatMode" class="flex justify-content-center">
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"

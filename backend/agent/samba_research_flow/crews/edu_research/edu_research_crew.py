@@ -48,7 +48,7 @@ class EducationalPlan(BaseModel):
         sections: List of content sections
     """
 
-    sections: List[Section]
+    sections: List[Section] = []
 
 
 @CrewBase

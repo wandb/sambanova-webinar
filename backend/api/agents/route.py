@@ -11,17 +11,16 @@ from autogen_core import (
 from autogen_core.models import SystemMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from agent.lead_generation_crew import ResearchCrew
 from services.query_router_service import QueryRouterService, QueryType
 
 from api.data_types import (
-    AgentEnum,
     EducationalContentRequest,
     EndUserMessage,
     CoPilotPlan,
-    AgentStructuredResponse,
     FinancialAnalysisRequest,
-    Greeter,
     HandoffMessage,
+    SalesLeadsRequest,
 )
 from api.otlp_tracing import logger
 from api.registry import AgentRegistry
@@ -117,16 +116,21 @@ class SemanticRouterAgent(RoutedAgent):
             logger.info("Educational content request published")
             return
         elif route_result.type == "sales_leads":
-            crew = ResearchCrew(
-                sambanova_key=sambanova_key,
-                exa_key=exa_key,
-                user_id=user_id,
-                run_id=run_id
+            sales_leads_request = SalesLeadsRequest(
+                industry=route_result.parameters.get("industry", ""),
+                company_stage=route_result.parameters.get("company_stage", ""),
+                geography=route_result.parameters.get("geography", ""),
+                funding_stage=route_result.parameters.get("funding_stage", ""),
+                product=route_result.parameters.get("product", ""),
+                api_keys=message.api_keys
             )
-            raw_result = await self.execute_research(crew, parameters)
-            parsed_result = json.loads(raw_result)
-            outreach_list = parsed_result.get("outreach_list", [])
-            return JSONResponse(content={"results": outreach_list})
+            await self.publish_message(
+                sales_leads_request,
+                DefaultTopicId(type="sales_leads", source=session_id),
+            )
+            logger.info("Sales leads request published")
+            return
+
 
     @message_handler
     async def handle_handoff(

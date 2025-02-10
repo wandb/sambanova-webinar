@@ -26,26 +26,30 @@ class EducationalContentAgent(RoutedAgent):
 
     @message_handler
     async def handle_educational_content_request(self, message: EducationalContentRequest, ctx: MessageContext) -> None:
-        user_id, conversation_id = ctx.topic_id.source.split(":")
-        edu_flow = SambaResearchFlow(
-                sambanova_key=message.api_keys.sambanova_key,
-                serper_key=message.api_keys.serper_key,
-                user_id=user_id,
-                run_id=conversation_id,
-                docs_included=False
-            )
-        edu_inputs = {
-            "topic": message.topic,
-            "audience_level": message.audience_level,
-            "additional_context": ", ".join(message.focus_areas)
-        }
-        edu_flow.input_variables = edu_inputs
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(None, edu_flow.kickoff)
+        try:
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+            edu_flow = SambaResearchFlow(
+                    sambanova_key=message.api_keys.sambanova_key,
+                    serper_key=message.api_keys.serper_key,
+                    user_id=user_id,
+                    run_id=conversation_id,
+                    docs_included=False
+                )
+            edu_inputs = {
+                "topic": message.topic,
+                "audience_level": message.audience_level,
+                "additional_context": ", ".join(message.focus_areas)
+            }
+            edu_flow.input_variables = edu_inputs
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, edu_flow.kickoff)
 
-        logger.info(f"Educational content flow result: {result}")
+            logger.info(f"Educational content flow result: {result}")
 
-        sections_with_content = EducationalPlan.model_validate({"sections": result})
+            sections_with_content = EducationalPlan.model_validate({"sections": result})
+        except Exception as e:
+            logger.error(f"Failed to process educational content request: {str(e)}", exc_info=True)
+            sections_with_content = EducationalPlan()
 
         try:
             # Send response back

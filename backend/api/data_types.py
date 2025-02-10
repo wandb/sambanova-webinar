@@ -4,12 +4,14 @@ from typing import List, Optional, Union
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
+from agent.lead_generation_crew import OutreachList
 
 
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
     EducationalContent = "educational_content"
+    SalesLeads = "sales_leads"
     DefaultAgent = "default_agent"
 
 class Greeter(BaseModel):
@@ -21,6 +23,7 @@ class AgentStructuredResponse(BaseModel):
     data: Union[
         FinancialAnalysisResult,
         EducationalPlan,
+        OutreachList,
         Greeter,
     ]
     message: Optional[str] = None  # Additional message or notes from the agent
@@ -61,6 +64,14 @@ class FinancialAnalysisRequest(BaseModel):
     company_name: str
     query_text: str
     document_ids: Optional[List[str]] = None
+    api_keys: APIKeys
+
+class SalesLeadsRequest(BaseModel):
+    industry: str
+    company_stage: str
+    geography: str
+    funding_stage: str
+    product: str
     api_keys: APIKeys
 
 class EducationalContentRequest(BaseModel):

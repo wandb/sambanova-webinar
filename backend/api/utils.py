@@ -12,10 +12,11 @@ from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
 
 from api.data_types import APIKeys
+from api.agents.sales_leads import SalesLeadsAgent
 
-from .otlp_tracing import configure_oltp_tracing, logger
-from .registry import AgentRegistry
-from .session_state import SessionStateManager
+from api.otlp_tracing import configure_oltp_tracing, logger
+from api.registry import AgentRegistry
+from api.session_state import SessionStateManager
 
 session_state_manager = SessionStateManager()
 
@@ -57,6 +58,12 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         agent_runtime,
         "educational_content",
         lambda: EducationalContentAgent(),
+    )
+
+    await SalesLeadsAgent.register(
+        agent_runtime,
+        "sales_leads",
+        lambda: SalesLeadsAgent(),
     )
 
     # Start the runtime

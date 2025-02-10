@@ -2,8 +2,8 @@
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
   <div
     v-if="userId && runId"
-    class="flex flex-col h-screen border-l border-gray-300 transition-all duration-300 bg-white"
-    :class="collapsed ? 'w-12' : 'w-80'"
+    class="flex flex-col h-full border-l border-gray-300 transition-all duration-300 bg-white"
+    :class="collapsed ? 'w-16' : 'w-80'"
   >
     <!-- TOP HEADER ROW -->
     <div 

@@ -9,29 +9,23 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
-from autogen_core.models import LLMMessage, SystemMessage, UserMessage
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew, FinancialAnalysisResult
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
-from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
     AgentStructuredResponse,
-    EndUserMessage,
-    FinancialAnalysisRequest,
-    ResearchRequest,
+    EducationalContentRequest,
 )
 from ..otlp_tracing import logger
 
-@type_subscription(topic_type="research")
-class ResearchAgent(RoutedAgent):
+@type_subscription(topic_type="educational_content")
+class EducationalContentAgent(RoutedAgent):
     def __init__(self):
-        super().__init__("ResearchAgent")
+        super().__init__("EducationalContentAgent")
 
     @message_handler
-    async def handle_research_request(self, message: ResearchRequest, ctx: MessageContext) -> None:
+    async def handle_educational_content_request(self, message: EducationalContentRequest, ctx: MessageContext) -> None:
         user_id, conversation_id = ctx.topic_id.source.split(":")
         edu_flow = SambaResearchFlow(
                 sambanova_key=message.api_keys.sambanova_key,
@@ -49,7 +43,7 @@ class ResearchAgent(RoutedAgent):
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, edu_flow.kickoff)
 
-        logger.info(f"Research flow result: {result}")
+        logger.info(f"Educational content flow result: {result}")
 
         sections_with_content = EducationalPlan.model_validate({"sections": result})
 

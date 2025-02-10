@@ -13,19 +13,19 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from services.query_router_service import QueryRouterService, QueryType
 
-from ..data_types import (
+from api.data_types import (
     AgentEnum,
+    EducationalContentRequest,
     EndUserMessage,
     CoPilotPlan,
     AgentStructuredResponse,
     FinancialAnalysisRequest,
     Greeter,
     HandoffMessage,
-    ResearchRequest,
 )
-from ..otlp_tracing import logger
-from ..registry import AgentRegistry
-from ..session_state import SessionStateManager
+from api.otlp_tracing import logger
+from api.registry import AgentRegistry
+from api.session_state import SessionStateManager
 
 agent_registry = AgentRegistry()
 
@@ -103,7 +103,7 @@ class SemanticRouterAgent(RoutedAgent):
             return
         elif route_result.type == "educational_content":
             logger.info(f"Publishing research request with parameters: {route_result.parameters}")
-            research_request = ResearchRequest(
+            research_request = EducationalContentRequest(
                 topic=route_result.parameters.get("topic", ""),
                 audience_level=route_result.parameters.get("audience_level", "intermediate"),
                 focus_areas=route_result.parameters.get("focus_areas", None),
@@ -112,10 +112,21 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 research_request,
-                DefaultTopicId(type="research", source=session_id),
+                DefaultTopicId(type="educational_content", source=session_id),
             )
-            logger.info("Research request published")
+            logger.info("Educational content request published")
             return
+        elif route_result.type == "sales_leads":
+            crew = ResearchCrew(
+                sambanova_key=sambanova_key,
+                exa_key=exa_key,
+                user_id=user_id,
+                run_id=run_id
+            )
+            raw_result = await self.execute_research(crew, parameters)
+            parsed_result = json.loads(raw_result)
+            outreach_list = parsed_result.get("outreach_list", [])
+            return JSONResponse(content={"results": outreach_list})
 
     @message_handler
     async def handle_handoff(

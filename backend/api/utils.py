@@ -6,7 +6,7 @@ from autogen_core.tool_agent import ToolAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
-from api.agents.research import ResearchAgent
+from api.agents.educational_content import EducationalContentAgent
 from api.agents.route import SemanticRouterAgent
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
@@ -53,10 +53,10 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         lambda: FinancialAnalysisAgent(),
     )
 
-    await ResearchAgent.register(
+    await EducationalContentAgent.register(
         agent_runtime,
-        "research",
-        lambda: ResearchAgent(),
+        "educational_content",
+        lambda: EducationalContentAgent(),
     )
 
     # Start the runtime

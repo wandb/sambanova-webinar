@@ -9,7 +9,7 @@ from agent.samba_research_flow.crews.edu_research.edu_research_crew import Educa
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
-    Research = "research"
+    EducationalContent = "educational_content"
     DefaultAgent = "default_agent"
 
 class Greeter(BaseModel):
@@ -63,7 +63,7 @@ class FinancialAnalysisRequest(BaseModel):
     document_ids: Optional[List[str]] = None
     api_keys: APIKeys
 
-class ResearchRequest(BaseModel):
+class EducationalContentRequest(BaseModel):
     topic: str
     audience_level: str
     focus_areas: Optional[List[str]] = None

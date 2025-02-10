@@ -102,7 +102,7 @@
       </div>
       
     </div>
-        <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
           <SearchSection
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"

@@ -60,7 +60,7 @@
           type="search"
           placeholder="Ask me about...companies to target, research topics, or company stocks and financials"   
           :disabled="isLoading"
-        class="p-4 pb-12 block w-full bg-gray-100 border-gray-200 rounded-lg text-sm  focus:outline-none active:outline-none border  focus:border-orange-500 "
+        class="p-2 pb-12 block w-full bg-gray-100 border-gray-200 rounded-lg text-sm  focus:outline-none active:outline-none border  focus:border-orange-500 "
        
       ></textarea>
       <!-- Toolbar -->

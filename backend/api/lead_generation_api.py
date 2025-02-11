@@ -368,7 +368,7 @@ class LeadGenerationAPI:
     def setup_routes(self):
 
         # WebSocket endpoint to handle user messages
-        @self.app.websocket("/chat2")
+        @self.app.websocket("/chat")
         async def websocket_endpoint(
             websocket: WebSocket,
             user_id: str = Query(..., description="User ID"),

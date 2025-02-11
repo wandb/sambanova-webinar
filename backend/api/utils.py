@@ -6,16 +6,17 @@ from autogen_core.tool_agent import ToolAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
-from api.agents.research import ResearchAgent
+from api.agents.educational_content import EducationalContentAgent
 from api.agents.route import SemanticRouterAgent
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
 
 from api.data_types import APIKeys
+from api.agents.sales_leads import SalesLeadsAgent
 
-from .otlp_tracing import configure_oltp_tracing, logger
-from .registry import AgentRegistry
-from .session_state import SessionStateManager
+from api.otlp_tracing import configure_oltp_tracing, logger
+from api.registry import AgentRegistry
+from api.session_state import SessionStateManager
 
 session_state_manager = SessionStateManager()
 
@@ -53,10 +54,16 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         lambda: FinancialAnalysisAgent(),
     )
 
-    await ResearchAgent.register(
+    await EducationalContentAgent.register(
         agent_runtime,
-        "research",
-        lambda: ResearchAgent(),
+        "educational_content",
+        lambda: EducationalContentAgent(),
+    )
+
+    await SalesLeadsAgent.register(
+        agent_runtime,
+        "sales_leads",
+        lambda: SalesLeadsAgent(),
     )
 
     # Start the runtime

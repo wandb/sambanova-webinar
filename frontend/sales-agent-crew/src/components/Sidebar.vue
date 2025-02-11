@@ -9,7 +9,7 @@
     <!-- Toggle collapse button -->
     <button
       @click="isCollapsed = !isCollapsed"
-      class=" absolute top-[10px] right-[10px] p-2 z-20 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50 transition-transform duration-300  "
+      class=" absolute top-[10px] right-[10px] p-2 z-20  bg-white rounded-full shadow-md hover:bg-gray-50 transition-transform duration-300  "
       :title="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
     >
       <ChevronLeftIcon
@@ -78,8 +78,11 @@
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
-          class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors group"
-        >
+          :class="[
+        'p-3 relative cursor-pointer border-b border-gray-100 transition-colors group',
+        { 'bg-gray-200': isActive(report) }  
+      ]"
+              >
           <!-- Entire row clickable except the buttons -->
           <div
             class="flex items-start justify-between w-full"
@@ -122,31 +125,34 @@
               </div>
             </div>
           </div>
-
-          <!-- Individual Action Buttons (only in expanded mode) -->
-          <div 
+          <ChatItemMoreMenu >
+            <!-- Individual Action Buttons (only in expanded mode) -->
+          <!-- <div 
             v-if="!isCollapsed" 
-            class="flex items-center justify-end mt-1 space-x-4 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
+            class="p-0 flex flex-row"
+          > -->
             <!-- Export Single -->
             <button
               @click.stop="exportReport(report)"
-              class="flex items-center space-x-1 text-sm text-gray-600 hover:underline focus:outline-none"
+              class="flex flex-row  items-center justify-around p-1  w-full text-sm text-gray-700  focus:outline-none"
               title="Export to JSON"
             >
-              <ArchiveBoxArrowDownIcon class="w-4 h-4" />
+              <ArchiveBoxArrowDownIcon class="w-4 h-4 me-2" />
               <span>Export</span>
             </button>
             <!-- Delete Single -->
             <button
               @click.stop="deleteReport(report)"
-              class="flex items-center space-x-1 text-sm text-red-600 hover:underline focus:outline-none"
+              class="flex flex-row items-center justify-around w-full p-1  text-sm text-gray-700  focus:outline-none"
               title="Delete This Report"
             >
               <TrashIcon class="w-4 h-4" />
               <span>Delete</span>
             </button>
-          </div>
+          <!-- </div> -->
+            </ChatItemMoreMenu>
+
+          
         </div>
       </div>
     </div>
@@ -157,6 +163,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useReportStore } from '../stores/reportStore'
+import { useRoute, useRouter } from 'vue-router'
+import { onMounted, watch } from 'vue'
+
+
 import {
   ChevronLeftIcon,
   MagnifyingGlassIcon,
@@ -165,19 +175,30 @@ import {
   ArchiveBoxArrowDownIcon,
   TrashIcon,
   BanknotesIcon
-} from '@heroicons/vue/24/outline'
+} from '@heroicons/vue/24/outline';
+
+import ChatItemMoreMenu from '@/components/Common/UIComponents/MoreMenu.vue'
 
 const reportStore = useReportStore()
 const isCollapsed = ref(false)
 const filterType = ref('all')
 const emit = defineEmits(['selectReport'])
-
+const router = useRouter()
+const route = useRoute()
 const iconMapping = {
   educational_content: BookOpenIcon,
   sales_leads: UserGroupIcon,
   financial_analysis: BanknotesIcon,
 }
+function isActive(report) {
 
+  if(String(report.id) === String(route.params.id)){
+    
+     selectReport(report)
+     return String(report.id) === String(route.params.id)
+  }
+
+}
 function selectReport(report) {
   // Let the parent know which report was clicked
   emit('selectReport', {
@@ -185,7 +206,44 @@ function selectReport(report) {
     query: report.query,
     results: report.results
   })
+
+  // let path = window.location.pathname
+  // if (!path.endsWith('/')) {
+  //   path += '/'
+  // }
+  // window.location.href = `${window.location.origin}${path}${report.id}`
+  router.push(`/${report.id}`)
+
 }
+
+// Check on component mount
+onMounted(() => {
+  if (route.params.id) {
+    // myFunction(route.params.id)
+    // alert(route.params.id)
+
+    console.log("reportStore",reportStore.savedReports)
+    // let selectedReport=reportStore.savedReports.filter(r => r.id === route.params.id)
+
+    // console.log(selectReport)
+    
+  //   if (selectedReport?.length) {
+  //     return selectedReport[0]
+  // } else {
+  //   return null
+  // }
+  }
+})
+
+// Optionally, watch for changes in the route parameter
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId) {
+      // myFunction(newId)
+    }
+  }
+)
 
 function formatType(type) {
   if (type === 'educational_content') return 'Research'

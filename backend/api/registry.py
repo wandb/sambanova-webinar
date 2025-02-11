@@ -35,8 +35,8 @@ class AgentRegistry:
         self.agents = {
             "default_agent": {
                 "agent_type": "default_agent",
-                "description": "Handles user greetings, salutations, and general travel-related queries that do not fit into other specific categories. Route messages here if they are greetings (e.g., 'hi', 'hello', 'good morning') or general travel queries that do not specify a destination or service.",
-                "examples": "'Hello', 'Hi there!', 'Good morning', 'I want to plan a trip.'",
+                "description": "Handles user greetings, salutations, and general queries that do not fit into other specific categories. Route messages here if they are greetings (e.g., 'hi', 'hello', 'good morning') or general travel queries that do not specify a destination or service.",
+                "examples": "'Hello', 'Hi there!', 'Good morning'",
             },
             "financial_analysis": {
                 "agent_type": "financial_analysis",
@@ -44,3 +44,46 @@ class AgentRegistry:
                 "examples": "'Tell me about the stock price of Apple', 'What's the financial statement of Tesla?', 'Market trends in the tech sector?'",
             },
         }
+
+    async def get_agent(self, intent: str) -> Optional[dict]:
+        logger.info(f"AgentRegistry: Getting agent for intent: {intent}")
+        return self.agents.get(intent)
+
+    def get_planner_prompt(self, message: EndUserMessage, history) -> str:
+        agent_details = {}
+        for agent in self.agents.values():
+            agent_details[agent["agent_type"]] = {
+                "description": agent["description"],
+                "examples": agent.get("examples", ""),
+                "functions": [],
+            }
+
+
+        agent_descriptions = "\n".join(
+            f"""
+    Agent Type: {agent_type}
+    Description: {details['description']}
+    Examples: {details['examples']}
+    {chr(10).join([f"- Function: {func['function']} (Arguments: {', '.join(func['arguments'])})" for func in details['functions']]) if details['functions'] else ""}
+    """
+            for agent_type, details in agent_details.items()
+        )
+
+        planner_prompt = """
+    You are an orchestration agent.
+    Your job is to decide which agents to run based on the user's request and the conversation history.
+    Below are the available agents:
+
+    {agent_descriptions}
+
+    The current user message: {message}
+    Conversation history so far: {history}
+
+    Your response should only include the selected agents and a brief justification for your choice, without any additional text.    
+    """.format(
+            agent_descriptions=agent_descriptions.strip(),
+            message=message.content,
+            history=", ".join(msg.content for msg in history),
+            json_schema=generate_type_string(CoPilotPlan),
+        )
+        return planner_prompt

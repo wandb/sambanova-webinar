@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections import deque
 
@@ -8,10 +9,11 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
-from autogen_core.models import SystemMessage
+from autogen_core.models import SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from agent.lead_generation_crew import ResearchCrew
+from api.websocket_manager import WebSocketConnectionManager
 from services.query_router_service import QueryRouterService, QueryType
 
 from api.data_types import (
@@ -39,7 +41,10 @@ class SemanticRouterAgent(RoutedAgent):
         model_client (OpenAIChatCompletionClient): The model client for agent routing.
         agent_registry (AgentRegistry): The registry containing agent information.
         session_manager (SessionStateManager): Manages the session state for each user.
+        connection_manager (WebSocketConnectionManager): Manages WebSocket connections.
     """
+
+    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
 
     def __init__(
         self,
@@ -49,10 +54,20 @@ class SemanticRouterAgent(RoutedAgent):
         super().__init__("SemanticRouterAgent")
         logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
         self._name = name
-        self._model_client = sn_api_url = "https://api.sambanova.ai/v1"
-        self._model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+        self._reasoning_model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+            model="DeepSeek-R1-Distill-Llama-70B",
+            base_url="https://api.sambanova.ai/v1",
+            api_key=sambanova_key,
+            model_info={
+                "json_output": False,
+                "function_calling": True,
+                "family": "unknown",
+                "vision": False,
+            },
+        )
+        self._structure_extraction_model = lambda sambanova_key: OpenAIChatCompletionClient(
             model="Meta-Llama-3.1-70B-Instruct",
-            base_url=sn_api_url,
+            base_url="https://api.sambanova.ai/v1",
             api_key=sambanova_key,
             model_info={
                 "json_output": False,
@@ -72,14 +87,29 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
-        session_id = ctx.topic_id.source
+        if message.use_planner:
+            conversation_id = ctx.topic_id.source
 
-        # Add the current message to session history
-        self._session_manager.add_to_history(session_id, message)
+            # Add the current message to session history
+            self._session_manager.add_to_history(conversation_id, message)
 
-        # Analyze conversation history for better context
-        history = self._session_manager.get_history(session_id)
-        logger.info("Analyzing conversation history for context")
+            # Analyze conversation history for better context
+            history = self._session_manager.get_history(conversation_id)
+            travel_plan: CoPilotPlan = await self._get_agents_to_route(message, ctx, history)
+        else:
+            await self.route_message_with_query_router(message, ctx)
+
+
+    async def route_message_with_query_router(self, message: EndUserMessage, ctx: MessageContext) -> None:
+        """
+        Routes user messages to appropriate agents based on conversation context.
+
+        Args:
+            message (EndUserMessage): The incoming user message.
+            ctx (MessageContext): Context information for the message.
+        """
+
+        conversation_id = ctx.topic_id.source
 
         router = QueryRouterService(message.api_keys.sambanova_key)
 
@@ -96,7 +126,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 financial_analysis_request,
-                DefaultTopicId(type="financial_analysis", source=session_id),
+                DefaultTopicId(type="financial_analysis", source=conversation_id),
             )
             logger.info("Financial analysis request published")
             return
@@ -111,7 +141,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 research_request,
-                DefaultTopicId(type="educational_content", source=session_id),
+                DefaultTopicId(type="educational_content", source=conversation_id),
             )
             logger.info("Educational content request published")
             return
@@ -126,7 +156,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 sales_leads_request,
-                DefaultTopicId(type="sales_leads", source=session_id),
+                DefaultTopicId(type="sales_leads", source=conversation_id),
             )
             logger.info("Sales leads request published")
             return
@@ -155,7 +185,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
 
     async def _get_agents_to_route(
-        self, message: EndUserMessage, history: deque
+        self, message: EndUserMessage, ctx: MessageContext, history: deque
     ) -> CoPilotPlan:
         """
         Determines the appropriate agents to route the message to based on context.
@@ -167,7 +197,6 @@ class SemanticRouterAgent(RoutedAgent):
         Returns:
             CoPilotPlan: A plan indicating which agents should handle the subtasks.
         """
-        # System prompt to determine the appropriate agents to handle the message
         logger.info(f"Analyzing message: {message.content}")
         try:
             logger.info(
@@ -180,24 +209,186 @@ class SemanticRouterAgent(RoutedAgent):
             logger.error(e)
 
         try:
-            response = await self._model_client(message.api_keys.sambanova_key).create(
-                [SystemMessage(content=system_message)],
+            reasoning_model_client = self._reasoning_model_client(message.api_keys.sambanova_key)
+            feature_extractor_model = self._structure_extraction_model(message.api_keys.sambanova_key)
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+            
+            # Get the WebSocket connection from the connection manager
+            websocket = self.connection_manager.get_connection(
+                user_id, 
+                conversation_id
             )
 
-            copilot_plan: CoPilotPlan = CoPilotPlan.model_validate(
-                json.loads(response.content)
-            )
-            if copilot_plan.is_greeting:
-                logger.info("User greeting detected")
-                copilot_plan.subtasks = [
-                    {
-                        "task_details": f"Greeting - {message.content}",
-                        "assigned_agent": "default_agent",
-                    }
-                ]
+            planner_response = await reasoning_model_client.create([SystemMessage(content=system_message)])  
+                
+            # Send the chunk through WebSocket if connection exists
+            if websocket:
+                await websocket.send_text(json.dumps({
+                    "event": "think",
+                    "data": planner_response.content,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id
+                }))
+                await asyncio.sleep(0.25)
+            system_message = lambda query: f"""
+You are a query routing expert that categorizes queries and extracts structured information.
+Always return a valid JSON object with 'type' and 'parameters'.
 
-            logger.info(f"Received copilot plan: {copilot_plan}")
-            return copilot_plan
+We have three possible types: 'sales_leads', 'educational_content', or 'financial_analysis' or 'default_agent'.
+
+Rules:
+1. For 'educational_content':
+    - Extract the FULL topic from the query
+    - Do NOT truncate or summarize the topic
+    - If multiple concepts are present, keep them in 'topic'
+2. For 'sales_leads': 
+    - Extract specific industry, location, or other business parameters if any
+3. For 'financial_analysis': 
+    - Provide 'query_text' (the user’s full finance question)
+    - Provide 'ticker' if recognized
+    - Provide 'company_name' if recognized
+4. For 'default_agent':
+    - If the query is not about finance, education, or sales leads, return 'default_agent'
+
+Examples:
+
+Query: "What is the capital of France?"
+[
+    {{
+        "type": "default_agent",
+        "parameters": {{
+        "query": "What is the capital of France?"
+        }}
+    }}
+]
+
+Query: "Dark Matter, Black Holes and Quantum Physics"
+[
+    {{
+        "type": "educational_content",
+        "parameters": {{
+        "topic": "Dark Matter, Black Holes and Quantum Physics",
+        "audience_level": "intermediate",
+        "focus_areas": ["key concepts", "theoretical foundations", "current research"]
+        }}
+    }}
+]
+
+Query: "Explain the relationship between quantum entanglement and teleportation"
+[
+    {{
+        "type": "educational_content",
+        "parameters": {{
+        "topic": "relationship between quantum entanglement and teleportation",
+        "audience_level": "intermediate",
+        "focus_areas": ["key concepts", "theoretical principles", "practical applications"]
+        }}
+    }}
+]
+
+Query: "Find AI startups in Boston"
+[
+    {{
+        "type": "sales_leads",
+        "parameters": {{
+        "industry": "AI",
+        "company_stage": "startup",
+        "geography": "Boston",
+        "funding_stage": "",
+        "product": ""
+        }}
+    }}
+]
+
+Query: "Explain how memory bandwidth impacts GPU performance"
+[
+    {{
+        "type": "educational_content",
+        "parameters": {{
+        "topic": "memory bandwidth impacts GPU performance",
+        "audience_level": "intermediate",
+        "focus_areas": ["key concepts", "practical applications"]
+        }}
+    }}
+]
+
+Query: "Analyze Google"
+[
+    {{
+        "type": "financial_analysis",
+        "parameters": {{
+        "query_text": "Analyze Google",
+        "ticker": "GOOGL",
+        "company_name": "Google"
+        }}
+    }}
+]
+
+Query: "Perform a fundamental analysis on Tesla stock"
+[
+    {{
+        "type": "financial_analysis",
+        "parameters": {{
+        "query_text": "Perform a fundamental analysis on Tesla stock",
+        "ticker": "TSLA",
+        "company_name": "Tesla"
+        }}
+    }}
+]
+
+Query: "Ai chip companies based in geneva"
+[
+    {{
+        "type": "sales_leads",
+        "parameters": {{
+        "industry": "AI chip",
+        "company_stage": "",
+        "geography": "Geneva",
+        "funding_stage": "",
+        "product": ""
+        }}
+    }}
+]
+
+Query: "Quantum computing and qubits"
+[
+    {{
+        "type": "educational_content",
+        "parameters": {{
+        "topic": "Quantum computing and qubits",
+        "audience_level": "intermediate",
+        "focus_areas": ["foundational principles", "recent advances"]
+        }}
+    }}
+]
+
+User query: "{query}"
+
+Return ONLY JSON with 'type' and 'parameters'.
+Ensure the final output does not include any code block markers like ```json or ```python.
+        """
+        
+            feature_extractor_response = await feature_extractor_model.create([SystemMessage(content=system_message(planner_response.content))])
+
+            # TODO: better way to execute multiple tasks
+            plan = json.loads(feature_extractor_response.content)
+            plan = plan if isinstance(plan, list) else [plan]
+            for p in plan:
+                if p["type"] == "financial_analysis":
+                        financial_analysis_request = FinancialAnalysisRequest(
+                            ticker=p["parameters"]["ticker"],
+                            company_name=p["parameters"]["company_name"],
+                            query_text=p["parameters"]["query_text"],
+                            api_keys=message.api_keys,
+                            document_ids=message.document_ids
+                        )
+                        await self.publish_message(
+                            financial_analysis_request,
+                            DefaultTopicId(type="financial_analysis", source=ctx.topic_id.source),
+                        )
+
+
+
         except Exception as e:
             logger.error(f"Failed to parse activities response: {str(e)}")
-            return CoPilotPlan(subtasks=[])
+            return

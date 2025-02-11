@@ -44,10 +44,21 @@ class CoPilotSubTask(BaseModel):
     class Config:
         use_enum_values = True  # To serialize enums as their values
 
+class FinancialAnalysisTask(BaseModel):
+    ticker: str
+    company_name: str
+    query_text: str
+
+class SalesLeadsTask(BaseModel):
+    industry: str
+    company_stage: str
+    geography: str
+    funding_stage: str
+    product: str
 
 class CoPilotPlan(BaseModel):
     main_task: str
-    subtasks: List[CoPilotSubTask]
+    subtasks: List[Union[FinancialAnalysisTask, SalesLeadsTask]]
     is_greeting: bool
 
 class HandoffMessage(BaseAgentMessage):
@@ -84,4 +95,5 @@ class EducationalContentRequest(BaseModel):
 class EndUserMessage(BaseAgentMessage):
     content: str
     api_keys: APIKeys
+    use_planner: bool = False
     document_ids: Optional[List[str]] = None

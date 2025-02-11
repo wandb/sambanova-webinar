@@ -17,7 +17,6 @@ from services.financial_user_prompt_extractor_service import FinancialPromptExtr
 
 from ..data_types import (
     AgentStructuredResponse,
-    EndUserMessage,
     FinancialAnalysisRequest,
 )
 from ..otlp_tracing import logger

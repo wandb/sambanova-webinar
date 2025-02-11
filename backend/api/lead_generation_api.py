@@ -13,8 +13,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 from starlette.websockets import WebSocketState
 from contextlib import asynccontextmanager
-from .utils import initialize_agent_runtime
-from .otlp_tracing import logger
+
+from api.agents.user_proxy import UserProxyAgent
+from api.websocket_manager import WebSocketConnectionManager
+
+from api.utils import initialize_agent_runtime
+from api.otlp_tracing import logger
 from autogen_core import MessageContext
 
 import redis
@@ -34,6 +38,7 @@ from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, Tes
 # SSE support
 from sse_starlette.sse import EventSourceResponse
 
+from api.agents.route import SemanticRouterAgent
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
@@ -75,242 +80,29 @@ async def lifespan(app: FastAPI):
 
     Initializes the agent runtime and registers the UserProxyAgent.
     """
-    global agent_runtime
-    # Initialize the agent runtime
-    agent_runtime = await initialize_agent_runtime()
+    app.state.agent_runtime = await initialize_agent_runtime()
 
-    # Register the UserProxyAgent instance with the AgentRuntime
-    await UserProxyAgent.register(agent_runtime, "user_proxy", lambda: UserProxyAgent())
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    app.state.redis_client = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            db=0,
+            decode_responses=True
+    )
+    print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+
+    app.state.manager = WebSocketConnectionManager(
+        agent_runtime=app.state.agent_runtime,
+        redis_client=app.state.redis_client
+    )
+    UserProxyAgent.connection_manager = app.state.manager
+    SemanticRouterAgent.connection_manager = app.state.manager
 
     yield  # This separates the startup and shutdown logic
 
-    # Cleanup logic goes here
-    agent_runtime = None
-
-class WebSocketConnectionManager:
-    """
-    Manages WebSocket connections for user sessions.
-    """
-
-    def __init__(self):
-        # Use user_id:conversation_id as the key
-        self.connections: Dict[str, WebSocket] = {}
-
-    def add_connection(self, websocket: WebSocket, user_id: str, conversation_id: str) -> None:
-        """
-        Adds a new WebSocket connection to the manager.
-
-        Args:
-            websocket (WebSocket): The WebSocket connection.
-            user_id (str): The ID of the user.
-            conversation_id (str): The ID of the conversation.
-        """
-        key = f"{user_id}:{conversation_id}"
-        self.connections[key] = websocket
-
-    def get_connection(self, user_id: str, conversation_id: str) -> Optional[WebSocket]:
-        """
-        Gets WebSocket connection for a user's conversation.
-
-        Args:
-            user_id (str): The ID of the user.
-            conversation_id (str): The ID of the conversation.
-
-        Returns:
-            Optional[WebSocket]: The WebSocket connection if found, None otherwise.
-        """
-        key = f"{user_id}:{conversation_id}"
-        return self.connections.get(key)
-
-    def remove_connection(self, user_id: str, conversation_id: str) -> None:
-        """
-        Removes a WebSocket connection from the manager.
-
-        Args:
-            user_id (str): The ID of the user.
-            conversation_id (str): The ID of the conversation.
-        """
-        key = f"{user_id}:{conversation_id}"
-        if key in self.connections:
-            del self.connections[key]
-
-    async def handle_websocket(self, websocket: WebSocket, user_id: str, conversation_id: str):
-        """
-        Handles incoming WebSocket messages and manages connection lifecycle.
-
-        Args:
-            websocket (WebSocket): The WebSocket connection.
-            user_id (str): The ID of the user.
-            conversation_id (str): The ID of the conversation.
-        """
-        await websocket.accept()
-        self.add_connection(websocket, user_id, conversation_id)
-
-        # Set up Redis pubsub for this connection
-        # Combine user_id and conversation_id with a colon delimiter
-        source = f"{user_id}:{conversation_id}"
-        channel = f"agent_thoughts:{source}"
-        pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
-        pubsub.subscribe(channel)
-
-        try:
-            # Send connection established message
-            await websocket.send_json({
-                "event": "connection_established",
-                "data": "WebSocket connection established",
-                "user_id": user_id,
-                "conversation_id": conversation_id
-            })
-
-            # Start background task for Redis messages
-            background_task = asyncio.create_task(self.handle_redis_messages(websocket, pubsub, user_id, conversation_id))
-
-            # Handle incoming WebSocket messages
-            while True:
-                user_message_text = await websocket.receive_text()
-                try:
-                    user_message_input = json.loads(user_message_text)
-                except json.JSONDecodeError:
-                    await websocket.send_json({
-                        "event": "error",
-                        "data": "Invalid JSON message format",
-                        "user_id": user_id,
-                        "conversation_id": conversation_id
-                    })
-                    continue
-
-                # Load the API keys from Redis
-                redis_api_keys = self.redis_client.hgetall(f"api_keys:{user_id}")                
-                if not redis_api_keys:
-                    await websocket.send_json({
-                        "event": "error",
-                        "data": "No API keys found for this user",
-                        "user_id": user_id,
-                        "conversation_id": conversation_id
-                    })
-                    continue
-                
-                api_keys = APIKeys(
-                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
-                    serper_key=redis_api_keys.get("serper_key", ""),
-                    exa_key=redis_api_keys.get("exa_key", "")
-                )
-                
-                user_message = EndUserMessage(
-                    source="User",
-                    content=user_message_input["data"], 
-                    api_keys=api_keys
-                )
-
-                logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
-
-                # Publish the user's message to the agent using combined source
-                await agent_runtime.publish_message(
-                    user_message,
-                    DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
-                )
-                await asyncio.sleep(0.1)
-
-        except WebSocketDisconnect:
-            logger.info(f"WebSocket connection closed for conversation: {conversation_id}")
-        except Exception as e:
-            logger.error(f"Exception in WebSocket connection for conversation {conversation_id}: {str(e)}")
-        finally:
-            # Clean up
-            if 'background_task' in locals():
-                background_task.cancel()
-            pubsub.unsubscribe()
-            pubsub.close()
-            self.remove_connection(user_id, conversation_id)
-            try:
-                if websocket.client_state != WebSocketState.DISCONNECTED:
-                    await websocket.close()
-            except WebSocketDisconnect:
-                logger.info(f"WebSocket already closed for conversation: {conversation_id}")
-
-    async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
-        """
-        Background task to handle Redis pub/sub messages and forward them to WebSocket.
-        """
-        try:
-            while True:
-                message = pubsub.get_message(timeout=1.0)
-                if message and message["type"] == "message":
-                    data_str = message["data"]
-                    await websocket.send_json({
-                        "event": "think",
-                        "data": data_str,
-                        "user_id": user_id,
-                        "conversation_id": conversation_id
-                    })
-
-                # Send periodic ping to keep connection alive
-                await websocket.send_json({
-                    "event": "ping",
-                    "data": json.dumps({"type": "ping"})
-                })
-                await asyncio.sleep(0.25)
-
-        except Exception as e:
-            logger.error(f"Error in Redis message handler: {str(e)}")
-            raise
-
-# User Proxy Agent
-class UserProxyAgent(RoutedAgent):
-    """
-    Acts as a proxy between the user and the routing agent.
-    """
-    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
-
-    def __init__(self) -> None:
-        super().__init__("UserProxyAgent")
-
-    @message_handler
-    async def handle_agent_response(
-        self,
-        message: AgentStructuredResponse,
-        ctx: MessageContext,
-    ) -> None:
-        """
-        Sends the agent's response back to the user via WebSocket.
-
-        Args:
-            message (AgentStructuredResponse): The agent's response message.
-            ctx (MessageContext): The message context.
-        """
-        logger.info(f"UserProxyAgent received agent response: {message}")
-        # ctx.topic_id.source is already in format "user_id:conversation_id"
-        try:
-            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
-            user_id, conversation_id = ctx.topic_id.source.split(":")
-            if websocket:
-                await websocket.send_text(json.dumps({
-                    "event": "completion", 
-                    "data": message.model_dump_json(),
-                    "user_id": user_id,
-                    "conversation_id": conversation_id
-                }))
-        except Exception as e:
-            logger.error(f"Failed to send message to session {ctx.topic_id.source}: {str(e)}")
-
-    @message_handler
-    async def handle_user_message(
-        self, message: EndUserMessage, ctx: MessageContext
-    ) -> None:
-        """
-        Forwards the user's message to the router for further processing.
-
-        Args:
-            message (EndUserMessage): The user's message.
-            ctx (MessageContext): The message context.
-        """
-        logger.info(f"UserProxyAgent received user message: {message.content}")
-        
-        # Forward the message to the router
-        await self.publish_message(
-            message,
-            DefaultTopicId(type="router", source=ctx.topic_id.source),
-        )
+    #TODO: Add cleanup logic here
+    await app.state.agent_runtime.close()
 
 class LeadGenerationAPI:
     def __init__(self):
@@ -318,25 +110,8 @@ class LeadGenerationAPI:
         self.setup_cors()
         self.setup_routes()
         self.context_length_summariser = 64000
-
         self.executor = ThreadPoolExecutor(max_workers=2)
 
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = int(os.getenv("REDIS_PORT", "6379"))
-        self.redis_client = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=0,
-            decode_responses=True
-        )
-        print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
-
-        # Initialize WebSocketConnectionManager with redis client
-        self.connection_manager = WebSocketConnectionManager()
-        self.connection_manager.redis_client = self.redis_client
-        
-        # Set the connection manager for UserProxyAgent
-        UserProxyAgent.connection_manager = self.connection_manager
 
     def setup_cors(self):
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
@@ -366,7 +141,6 @@ class LeadGenerationAPI:
         )
 
     def setup_routes(self):
-
         # WebSocket endpoint to handle user messages
         @self.app.websocket("/chat")
         async def websocket_endpoint(
@@ -382,7 +156,7 @@ class LeadGenerationAPI:
                 user_id (str): The ID of the user.
                 conversation_id (str): The ID of the conversation.
             """
-            await self.connection_manager.handle_websocket(
+            await self.app.state.manager.handle_websocket(
                 websocket, 
                 user_id, 
                 conversation_id
@@ -432,11 +206,11 @@ class LeadGenerationAPI:
                     for doc_id in doc_ids:
                         # Verify document exists and belongs to user
                         user_docs_key = f"user_documents:{user_id}"
-                        if not self.redis_client.sismember(user_docs_key, doc_id):
+                        if not self.app.state.redis_client.sismember(user_docs_key, doc_id):
                             continue  # Skip if document doesn't belong to user
 
                         chunks_key = f"document_chunks:{doc_id}"
-                        chunks_data = self.redis_client.get(chunks_key)
+                        chunks_data = self.app.state.redis_client.get(chunks_key)
 
                         if chunks_data:
                             chunks = json.loads(chunks_data)
@@ -542,7 +316,7 @@ class LeadGenerationAPI:
             print(f"[stream_logs] Starting SSE for user_id={user_id}, run_id={run_id}, channel={channel}")
 
             try:
-                local_redis = self.redis_client
+                local_redis = self.app.state.redis_client
 
                 pubsub = local_redis.pubsub(ignore_subscribe_messages=True)
                 pubsub.subscribe(channel)
@@ -728,11 +502,11 @@ class LeadGenerationAPI:
 
                 # Store document metadata
                 doc_key = f"document:{document_id}"
-                self.redis_client.set(doc_key, json.dumps(document_metadata))
+                self.app.state.redis_client.set(doc_key, json.dumps(document_metadata))
 
                 # Add to user's document list
                 user_docs_key = f"user_documents:{user_id}"
-                self.redis_client.sadd(user_docs_key, document_id)
+                self.app.state.redis_client.sadd(user_docs_key, document_id)
 
                 # Store document chunks
                 chunks_key = f"document_chunks:{document_id}"
@@ -746,7 +520,7 @@ class LeadGenerationAPI:
                     }
                     for chunk in chunks
                 ]
-                self.redis_client.set(chunks_key, json.dumps(chunks_data))
+                self.app.state.redis_client.set(chunks_key, json.dumps(chunks_data))
 
                 return JSONResponse(
                     status_code=200,
@@ -766,7 +540,7 @@ class LeadGenerationAPI:
             try:
                 # Get all document IDs for the user
                 user_docs_key = f"user_documents:{user_id}"
-                doc_ids = self.redis_client.smembers(user_docs_key)
+                doc_ids = self.app.state.redis_client.smembers(user_docs_key)
 
                 if not doc_ids:
                     return JSONResponse(
@@ -778,7 +552,7 @@ class LeadGenerationAPI:
                 documents = []
                 for doc_id in doc_ids:
                     doc_key = f"document:{doc_id}"
-                    doc_data = self.redis_client.get(doc_key)
+                    doc_data = self.app.state.redis_client.get(doc_key)
                     if doc_data:
                         documents.append(json.loads(doc_data))
 
@@ -797,7 +571,7 @@ class LeadGenerationAPI:
             try:
                 # Verify document belongs to user
                 user_docs_key = f"user_documents:{user_id}"
-                if not self.redis_client.sismember(user_docs_key, document_id):
+                if not self.app.state.redis_client.sismember(user_docs_key, document_id):
                     return JSONResponse(
                         status_code=404,
                         content={"error": "Document not found or access denied"}
@@ -805,7 +579,7 @@ class LeadGenerationAPI:
 
                 # Get document chunks
                 chunks_key = f"document_chunks:{document_id}"
-                chunks_data = self.redis_client.get(chunks_key)
+                chunks_data = self.app.state.redis_client.get(chunks_key)
 
                 if not chunks_data:
                     return JSONResponse(
@@ -828,7 +602,7 @@ class LeadGenerationAPI:
             try:
                 # Verify document belongs to user
                 user_docs_key = f"user_documents:{user_id}"
-                if not self.redis_client.sismember(user_docs_key, document_id):
+                if not self.app.state.redis_client.sismember(user_docs_key, document_id):
                     return JSONResponse(
                         status_code=404,
                         content={"error": "Document not found or access denied"}
@@ -836,14 +610,14 @@ class LeadGenerationAPI:
 
                 # Delete document metadata
                 doc_key = f"document:{document_id}"
-                self.redis_client.delete(doc_key)
+                self.app.state.redis_client.delete(doc_key)
 
                 # Delete document chunks
                 chunks_key = f"document_chunks:{document_id}"
-                self.redis_client.delete(chunks_key)
+                self.app.state.redis_client.delete(chunks_key)
 
                 # Remove from user's document list
-                self.redis_client.srem(user_docs_key, document_id)
+                self.app.state.redis_client.srem(user_docs_key, document_id)
 
                 return JSONResponse(
                     status_code=200,
@@ -866,7 +640,7 @@ class LeadGenerationAPI:
             try:
                 # Store keys in Redis with user-specific prefix
                 key_prefix = f"api_keys:{user_id}"
-                self.redis_client.hset(
+                self.app.state.redis_client.hset(
                     key_prefix,
                     mapping={
                         "sambanova_key": keys.sambanova_key,
@@ -876,7 +650,7 @@ class LeadGenerationAPI:
                 )
                 
                 # Set expiration for security (24 hours)
-                self.redis_client.expire(key_prefix, 86400)  
+                self.app.state.redis_client.expire(key_prefix, 86400)  
                 
                 return JSONResponse(
                     status_code=200,
@@ -900,7 +674,7 @@ class LeadGenerationAPI:
             """
             try:
                 key_prefix = f"api_keys:{user_id}"
-                stored_keys = self.redis_client.hgetall(key_prefix)
+                stored_keys = self.app.state.redis_client.hgetall(key_prefix)
                 
                 if not stored_keys:
                     return JSONResponse(

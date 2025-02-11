@@ -34,14 +34,14 @@
             class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
           />
         </div>
-
+<!-- 
         <div class="hidden sm:block lg:hidden text-sm text-right text-gray-600">
           {{ shortCurrentDateTime }}
         </div>
 
         <div class="hidden lg:block text-sm text-right text-gray-600 w-1/2">
           {{ currentDateTime }}
-        </div>
+        </div> -->
 
         <button
           @click="openSettings"

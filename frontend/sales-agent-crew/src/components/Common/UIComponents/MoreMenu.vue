@@ -4,7 +4,7 @@
       <button
         @click="toggleMenu"
         type="button"
-        class="inline-flex justify-center w-full   bg-white text-sm font-medium text-gray-700  focus:outline-none"
+        class="inline-flex justify-center w-full   text-sm font-medium text-gray-700  focus:outline-none"
         :aria-expanded="menuOpen ? 'true' : 'false'"
         aria-haspopup="true"
       >
@@ -22,7 +22,7 @@
         aria-orientation="vertical"
         aria-labelledby="menu-button"
       >
-        <div class="py-1" role="none">
+        <div class="p-2" role="none">
           <slot>
 
           <!-- Option 1 -->

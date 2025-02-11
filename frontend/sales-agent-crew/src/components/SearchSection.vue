@@ -124,6 +124,8 @@
           <!-- Button Group -->
           <div class="flex items-center gap-x-1">
             <!-- Mic Button -->
+            <Popover text="Use voice mode" position="top" color="bg-black text-white">
+
             <button
             type="button"
               @click="toggleRecording"
@@ -149,6 +151,7 @@
               
       
             </button>
+            </Popover>
             <!-- End Mic Button -->
             <!-- Send Button -->
             <button
@@ -243,6 +246,7 @@
 
       <!-- Upload Button -->
       <div class="relative">
+
         <input
           type="file"
           ref="fileInput"
@@ -250,6 +254,8 @@
           class="hidden"
           accept=".pdf,.doc,.docx,.csv,.xlsx,.xls"
         />
+        <Popover text="Upload Documents" position="top" color="bg-black text-white">
+
         <button
           @click="$refs.fileInput.click()"
           :disabled="isLoading"
@@ -258,6 +264,7 @@
         >
           <DocumentArrowUpIcon class="w-5 h-5" />
         </button>
+        </Popover>
       </div>
 
       <button
@@ -332,7 +339,9 @@ import { decryptKey } from '../utils/encryption'
 import ErrorModal from './ErrorModal.vue'
 import axios from 'axios'
 import { uploadDocument } from '../services/api'
+import Popover from '@/components/Common/UIComponents/CustomPopover.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+
 
 const props = defineProps({
   keysUpdated: {

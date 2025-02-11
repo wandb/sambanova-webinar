@@ -78,8 +78,11 @@
         <div 
           v-for="report in filteredReports" 
           :key="report.id"
-          class="p-3 relative  cursor-pointer border-b border-gray-100 transition-colors group"
-        >
+          :class="[
+        'p-3 relative cursor-pointer border-b border-gray-100 transition-colors group',
+        { 'bg-gray-200': isActive(report) }  
+      ]"
+              >
           <!-- Entire row clickable except the buttons -->
           <div
             class="flex items-start justify-between w-full"
@@ -131,7 +134,7 @@
             <!-- Export Single -->
             <button
               @click.stop="exportReport(report)"
-              class="flex flex-row  items-center justify-around p-1  w-full text-sm text-gray-700 hover:bg-gray-100 focus:outline-none"
+              class="flex flex-row  items-center justify-around p-1  w-full text-sm text-gray-700  focus:outline-none"
               title="Export to JSON"
             >
               <ArchiveBoxArrowDownIcon class="w-4 h-4 me-2" />
@@ -140,7 +143,7 @@
             <!-- Delete Single -->
             <button
               @click.stop="deleteReport(report)"
-              class="flex flex-row items-center justify-around w-full p-1  text-sm text-gray-700 hover:bg-gray-100 focus:outline-none"
+              class="flex flex-row items-center justify-around w-full p-1  text-sm text-gray-700  focus:outline-none"
               title="Delete This Report"
             >
               <TrashIcon class="w-4 h-4" />
@@ -160,6 +163,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useReportStore } from '../stores/reportStore'
+import { useRoute, useRouter } from 'vue-router'
+import { onMounted, watch } from 'vue'
+
+
 import {
   ChevronLeftIcon,
   MagnifyingGlassIcon,
@@ -176,13 +183,22 @@ const reportStore = useReportStore()
 const isCollapsed = ref(false)
 const filterType = ref('all')
 const emit = defineEmits(['selectReport'])
-
+const router = useRouter()
+const route = useRoute()
 const iconMapping = {
   educational_content: BookOpenIcon,
   sales_leads: UserGroupIcon,
   financial_analysis: BanknotesIcon,
 }
+function isActive(report) {
 
+  if(String(report.id) === String(route.params.id)){
+    
+     selectReport(report)
+     return String(report.id) === String(route.params.id)
+  }
+
+}
 function selectReport(report) {
   // Let the parent know which report was clicked
   emit('selectReport', {
@@ -190,7 +206,44 @@ function selectReport(report) {
     query: report.query,
     results: report.results
   })
+
+  // let path = window.location.pathname
+  // if (!path.endsWith('/')) {
+  //   path += '/'
+  // }
+  // window.location.href = `${window.location.origin}${path}${report.id}`
+  router.push(`/${report.id}`)
+
 }
+
+// Check on component mount
+onMounted(() => {
+  if (route.params.id) {
+    // myFunction(route.params.id)
+    // alert(route.params.id)
+
+    console.log("reportStore",reportStore.savedReports)
+    // let selectedReport=reportStore.savedReports.filter(r => r.id === route.params.id)
+
+    // console.log(selectReport)
+    
+  //   if (selectedReport?.length) {
+  //     return selectedReport[0]
+  // } else {
+  //   return null
+  // }
+  }
+})
+
+// Optionally, watch for changes in the route parameter
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId) {
+      // myFunction(newId)
+    }
+  }
+)
 
 function formatType(type) {
   if (type === 'educational_content') return 'Research'

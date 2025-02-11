@@ -1,10 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../views/MainLayout.vue'
-// Import other views as needed
 
 const routes = [
   {
-    path: '/',
+    path: '/:id?',
     name: 'home',
     component: MainLayout,
   },
@@ -17,7 +16,3 @@ const router = createRouter({
 })
 
 export default router
-
-
-
-

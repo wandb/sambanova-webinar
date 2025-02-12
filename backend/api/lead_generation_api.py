@@ -32,7 +32,7 @@ from autogen_core import (
 )
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage, FinancialAnalysisRequest
+from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage
 
 
 # SSE support

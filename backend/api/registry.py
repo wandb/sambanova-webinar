@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from enum import Enum
-from .data_types import CoPilotPlan, EndUserMessage
+from .data_types import CoPilotPlan, EducationalContent, EndUserMessage, FinancialAnalysis, SalesLeads
 from .otlp_tracing import logger
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
@@ -41,13 +41,61 @@ class AgentRegistry:
             "financial_analysis": {
                 "agent_type": "financial_analysis",
                 "description": "Handles financial analysis queries, including stock prices, financial statements, and market trends.",
-                "examples": "'Tell me about the stock price of Apple', 'What's the financial statement of Tesla?', 'Market trends in the tech sector?'",
+                "examples": "Tell me about the stock price of Apple, What's the financial statement of Tesla?, Market trends in the tech sector?",
+            },
+            "sales_leads": {
+                "agent_type": "sales_leads",
+                "description": "Handles sales lead generation queries, including industry, location, and product information.",
+                "examples": "Find me sales leads in the tech sector, What are the sales leads in the US?, Sales leads in the retail industry?",
+            },
+            "educational_content": {
+                "agent_type": "educational_content",
+                "description": "Handles educational content queries, including topics, audience level, and focus areas. This agent is used for queries that require a detailed explanation of a topic.",
+                "examples": "Explain the relationship between quantum entanglement and teleportation?",
             },
         }
 
     async def get_agent(self, intent: str) -> Optional[dict]:
         logger.info(f"AgentRegistry: Getting agent for intent: {intent}")
         return self.agents.get(intent)
+    
+    def get_strucuted_output_plan_prompt(self, query: str) -> str:
+        return f"""
+    You are a structured output expert that extracts structured information from a query. You are given a query and you need to extract the structured information from the query.
+    
+    Only use information that is explicitly mentioned in the query. Do not add any assumed or inferred information.
+    You can return multiple agents in the response if it is specified in the query.
+   
+    Query: "{query}"
+
+    Ensure the output is valid JSON as it will be parsed using `json.loads()` in Python. 
+    It should be in the schema: 
+    <output>
+    [
+        {{
+            "agent_type": "financial_analysis",
+            "parameters": {generate_type_string(FinancialAnalysis)}
+        }}
+    ]
+
+    [
+        {{
+            "agent_type": "sales_leads",
+            "parameters": {generate_type_string(SalesLeads)}
+        }}
+    ]
+
+    [
+        {{
+            "agent_type": "educational_content",
+            "parameters": {generate_type_string(EducationalContent)}
+        }}
+    ]
+    </output>
+
+    Always return a valid JSON object with 'type' and 'parameters'.
+    Ensure the final output does not include any code block markers like ```json or ```python.
+        """
 
     def get_planner_prompt(self, message: EndUserMessage, history) -> str:
         agent_details = {}
@@ -79,7 +127,7 @@ class AgentRegistry:
     The current user message: {message}
     Conversation history so far: {history}
 
-    Your response should only include the selected agents and a brief justification for your choice, without any additional text.    
+    Your response should only include the selected agents and all the information the agents need to execute the task. You answer should be plain text, do not include any code blocks or JSON.
     """.format(
             agent_descriptions=agent_descriptions.strip(),
             message=message.content,

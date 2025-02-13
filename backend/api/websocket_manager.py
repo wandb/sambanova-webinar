@@ -1,6 +1,6 @@
 from datetime import datetime
 from autogen_core import AgentRuntime, DefaultTopicId
-from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect
 import json
 import asyncio
 from typing import Optional, Dict, Any, List
@@ -71,6 +71,12 @@ class WebSocketConnectionManager:
             user_id (str): The ID of the user.
             conversation_id (str): The ID of the conversation.
         """
+        # Check if conversation exists
+        meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+        if not self.redis_client.exists(meta_key):
+            await websocket.close(code=4004, reason="Conversation not found")
+            return
+
         await websocket.accept()
         self.add_connection(websocket, user_id, conversation_id)
 

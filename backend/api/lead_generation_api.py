@@ -122,6 +122,19 @@ class LeadGenerationAPI:
         self.context_length_summariser = 64000
         self.executor = ThreadPoolExecutor(max_workers=2)
 
+    def verify_conversation_exists(self, user_id: str, conversation_id: str) -> bool:
+        """
+        Verify if a conversation exists for the given user.
+        
+        Args:
+            user_id (str): The ID of the user
+            conversation_id (str): The ID of the conversation
+            
+        Returns:
+            bool: True if conversation exists, False otherwise
+        """
+        meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+        return bool(self.app.state.redis_client.exists(meta_key))
 
     def setup_cors(self):
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
@@ -375,10 +388,14 @@ class LeadGenerationAPI:
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
         @self.app.post("/chat/init")
-        async def init_chat(request: Request):
+        async def init_chat(request: Request, chat_name: Optional[str] = None):
             """
             Initializes a new chat session and stores the provided API keys.
             Returns a chat ID for subsequent interactions.
+            
+            Args:
+                request (Request): The request object containing headers
+                chat_name (Optional[str]): Optional name for the chat. If not provided, a default will be used.
             """
             sambanova_key = request.headers.get("x-sambanova-key", "")
             serper_key = request.headers.get("x-serper-key", "")
@@ -388,8 +405,27 @@ class LeadGenerationAPI:
             try:
                 # Generate a unique chat ID
                 conversation_id = str(uuid.uuid4())
+                
+                # Use provided chat name or default
+                chat_name = chat_name or ""
+                timestamp = time.time()
+                
+                # Store chat metadata
+                metadata = {
+                    "conversation_id": conversation_id,
+                    "name": chat_name,
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                    "user_id": user_id
+                }
+                chat_meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                self.app.state.redis_client.set(chat_meta_key, json.dumps(metadata))
+                
+                # Add to user's conversation list
+                user_chats_key = f"user_chats:{user_id}"
+                self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp})
 
-                # Store keys in Redis with user-specific prefix
+                # Store API keys
                 key_prefix = f"api_keys:{user_id}"
                 self.app.state.redis_client.hset(
                     key_prefix,
@@ -406,6 +442,8 @@ class LeadGenerationAPI:
                     status_code=200,
                     content={
                         "conversation_id": conversation_id,
+                        "name": chat_name,
+                        "created_at": timestamp,
                         "assistant_message": "Hello! How can I help you today?"
                     }
                 )
@@ -452,6 +490,45 @@ class LeadGenerationAPI:
                 return JSONResponse(
                     status_code=500,
                     content={"error": f"Failed to retrieve messages: {str(e)}"}
+                )
+            
+        @self.app.get("/chat/list/{user_id}")
+        async def list_chats(user_id: str):
+            """
+            Get list of all chats for a user, sorted by most recent first.
+            
+            Args:
+                user_id (str): The ID of the user
+            """
+            try:
+                # Get conversation IDs from sorted set, newest first
+                user_chats_key = f"user_chats:{user_id}"
+                conversation_ids = self.app.state.redis_client.zrevrange(user_chats_key, 0, -1)
+                
+                if not conversation_ids:
+                    return JSONResponse(
+                        status_code=200,
+                        content={"chats": []}
+                    )
+                
+                # Get metadata for each conversation
+                chats = []
+                for conv_id in conversation_ids:
+                    meta_key = f"chat_metadata:{user_id}:{conv_id}"
+                    meta_data = self.app.state.redis_client.get(meta_key)
+                    if meta_data:
+                        chats.append(json.loads(meta_data))
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"chats": chats}
+                )
+                
+            except Exception as e:
+                print(f"[/chat/list] Error retrieving chats: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve chats: {str(e)}"}
                 )
 
         # ----------------------------------------------------------------

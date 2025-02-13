@@ -16,7 +16,7 @@ from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 from ..data_types import (
     AgentRequest,
     AgentStructuredResponse,
-    EducationalContent,
+    EducationalPlanResult,
 )
 from ..otlp_tracing import logger
 
@@ -46,10 +46,10 @@ class EducationalContentAgent(RoutedAgent):
 
             logger.info(f"Educational content flow result: {result}")
 
-            sections_with_content = EducationalPlan.model_validate({"sections": result})
+            sections_with_content = EducationalPlanResult.model_validate({"sections": result})
         except Exception as e:
             logger.error(f"Failed to process educational content request: {str(e)}", exc_info=True)
-            sections_with_content = EducationalPlan()
+            sections_with_content = EducationalPlanResult()
 
         try:
             # Send response back

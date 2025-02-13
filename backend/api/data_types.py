@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import (
-    EducationalPlan,
+    Section,
 )
 from agent.lead_generation_crew import OutreachList
 
@@ -30,20 +30,6 @@ class AssistantMessage(BaseModel):
 
 class AssistantResponse(BaseModel):
     response: str
-
-
-# Generic Response Wrapper
-class AgentStructuredResponse(BaseModel):
-    agent_type: AgentEnum
-    data: Union[
-        FinancialAnalysisResult,
-        EducationalPlan,
-        OutreachList,
-        Greeter,
-        AssistantResponse,
-        UserQuestion,
-    ]
-    message: Optional[str] = None  # Additional message or notes from the agent
 
 
 # Base class for messages exchanged between agents and users
@@ -143,3 +129,29 @@ class AgentRequest(BaseModel):
             )
 
         return self
+    
+class ExtendedSection(Section):
+    generated_content: str
+    
+class EducationalPlanResult(BaseModel):
+    """
+    Represents the complete educational content plan.
+
+    Attributes:
+        sections: List of content sections
+    """
+
+    sections: List[ExtendedSection] = []
+
+# Generic Response Wrapper
+class AgentStructuredResponse(BaseModel):
+    agent_type: AgentEnum
+    data: Union[
+        FinancialAnalysisResult,
+        EducationalPlanResult,
+        OutreachList,
+        Greeter,
+        AssistantResponse,
+        UserQuestion,
+    ]
+    message: Optional[str] = None  # Additional message or notes from the agent

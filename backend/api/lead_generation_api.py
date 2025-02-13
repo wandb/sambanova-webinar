@@ -387,7 +387,7 @@ class LeadGenerationAPI:
 
             try:
                 # Generate a unique chat ID
-                chat_id = str(uuid.uuid4())
+                conversation_id = str(uuid.uuid4())
 
                 # Store keys in Redis with user-specific prefix
                 key_prefix = f"api_keys:{user_id}"
@@ -405,8 +405,8 @@ class LeadGenerationAPI:
                 return JSONResponse(
                     status_code=200,
                     content={
-                        "chat_id": chat_id,
-                        "message": "Chat session initialized successfully"
+                        "conversation_id": conversation_id,
+                        "assistant_message": "Hello! How can I help you today?"
                     }
                 )
 
@@ -415,6 +415,43 @@ class LeadGenerationAPI:
                 return JSONResponse(
                     status_code=500,
                     content={"error": f"Failed to initialize chat: {str(e)}"}
+                )
+            
+        @self.app.get("/chat/history/{user_id}/{conversation_id}")
+        async def get_conversation_messages(user_id: str, conversation_id: str):
+            """
+            Retrieve all messages for a specific conversation.
+            
+            Args:
+                user_id (str): The ID of the user
+                conversation_id (str): The ID of the conversation
+            """
+            try:
+                message_key = f"messages:{user_id}:{conversation_id}"
+                messages = self.app.state.redis_client.lrange(message_key, 0, -1)
+                
+                if not messages:
+                    return JSONResponse(
+                        status_code=200,
+                        content={"messages": []}
+                    )
+                
+                # Parse JSON strings back into objects
+                parsed_messages = [json.loads(msg) for msg in messages]
+                
+                # Sort messages by timestamp
+                parsed_messages.sort(key=lambda x: x.get("timestamp", ""))
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"messages": parsed_messages}
+                )
+                
+            except Exception as e:
+                print(f"[/messages] Error retrieving messages: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve messages: {str(e)}"}
                 )
 
         # ----------------------------------------------------------------

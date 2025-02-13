@@ -214,17 +214,23 @@ class SemanticRouterAgent(RoutedAgent):
 
             # Send the chunk through WebSocket if connection exists
             if websocket:
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "event": "think",
-                            "data": planner_response.content,
-                            "user_id": user_id,
-                            "conversation_id": conversation_id,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    )
+                message_data = {
+                    "event": "think",
+                    "data": planner_response.content,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Store in Redis
+                message_key = f"messages:{user_id}:{conversation_id}"
+                self.connection_manager.redis_client.rpush(
+                    message_key,
+                    json.dumps(message_data)
                 )
+                
+                # Send through WebSocket
+                await websocket.send_text(json.dumps(message_data))
                 await asyncio.sleep(0.25)
 
             cleaned_response = re.sub(

@@ -55,17 +55,23 @@ class UserProxyAgent(RoutedAgent):
             websocket = self.connection_manager.connections.get(ctx.topic_id.source)
             user_id, conversation_id = ctx.topic_id.source.split(":")
             if websocket:
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "event": "completion",
-                            "data": message.model_dump_json(),
-                            "user_id": user_id,
-                            "conversation_id": conversation_id,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    )
+                message_data = {
+                    "event": "completion",
+                    "data": message.model_dump_json(),
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Store in Redis
+                message_key = f"messages:{user_id}:{conversation_id}"
+                self.connection_manager.redis_client.rpush(
+                    message_key,
+                    json.dumps(message_data)
                 )
+                
+                # Send through WebSocket
+                await websocket.send_text(json.dumps(message_data))
 
                 self.session_manager.add_to_history(
                     ctx.topic_id.source,

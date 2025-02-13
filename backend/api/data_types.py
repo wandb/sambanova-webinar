@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from enum import Enum
 from typing import List, Optional, Union
 from datetime import date
@@ -44,10 +44,21 @@ class CoPilotSubTask(BaseModel):
     class Config:
         use_enum_values = True  # To serialize enums as their values
 
+class FinancialAnalysisTask(BaseModel):
+    ticker: str = ""
+    company_name: str = ""
+    query_text: str = ""
+
+class SalesLeadsTask(BaseModel):
+    industry: str = ""
+    company_stage: str = ""
+    geography: str = ""
+    funding_stage: str = ""
+    product: str = ""
 
 class CoPilotPlan(BaseModel):
     main_task: str
-    subtasks: List[CoPilotSubTask]
+    subtasks: List[Union[FinancialAnalysisTask, SalesLeadsTask]]
     is_greeting: bool
 
 class HandoffMessage(BaseAgentMessage):
@@ -59,29 +70,61 @@ class APIKeys(BaseModel):
     serper_key: str 
     exa_key: str
 
-class FinancialAnalysisRequest(BaseModel):
-    ticker: str
+class FinancialAnalysis(BaseModel):
+    ticker: Optional[str] = None
     company_name: str
     query_text: str
-    document_ids: Optional[List[str]] = None
-    api_keys: APIKeys
 
-class SalesLeadsRequest(BaseModel):
+class SalesLeads(BaseModel):
     industry: str
-    company_stage: str
-    geography: str
-    funding_stage: str
-    product: str
-    api_keys: APIKeys
+    company_stage: Optional[str] = None
+    geography: Optional[str] = None
+    funding_stage: Optional[str] = None
+    product: Optional[str] = None
 
-class EducationalContentRequest(BaseModel):
+class EducationalContent(BaseModel):
     topic: str
-    audience_level: str
-    focus_areas: Optional[List[str]] = None
-    api_keys: APIKeys
-    document_ids: Optional[List[str]] = None
+    audience_level: Optional[str] = None
+    focus_areas: Optional[str] = None
+
+    # Convert list to string for backwards compatibility
+    @model_validator(mode='before')
+    def convert_focus_areas_list(cls, data):
+        if isinstance(data, dict) and 'focus_areas' in data:
+            if isinstance(data['focus_areas'], list):
+                data['focus_areas'] = ', '.join(str(area) for area in data['focus_areas'])
+        return data
 
 class EndUserMessage(BaseAgentMessage):
     content: str
     api_keys: APIKeys
+    use_planner: bool = False
     document_ids: Optional[List[str]] = None
+
+
+class AgentRequest(BaseModel):
+    agent_type: AgentEnum
+    parameters: Union[FinancialAnalysis, SalesLeads, EducationalContent]
+    query: str
+    api_keys: APIKeys
+    document_ids: Optional[List[str]] = None
+
+    @model_validator(mode='after')
+    def validate_parameters_type(self) -> 'AgentRequest':
+        expected_type = {
+            AgentEnum.FinancialAnalysis: FinancialAnalysis,
+            AgentEnum.SalesLeads: SalesLeads,
+            AgentEnum.EducationalContent: EducationalContent,
+        }[self.agent_type]
+        
+        # If parameters is already the correct type, return as is
+        if isinstance(self.parameters, expected_type):
+            return self
+            
+        # If it's a dict, try to convert it to the expected type
+        if isinstance(self.parameters, dict):
+            self.parameters = expected_type.model_validate(self.parameters)
+        else:
+            raise ValueError(f"Parameters must be of type {expected_type.__name__} for agent_type {self.agent_type}")
+        
+        return self

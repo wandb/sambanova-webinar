@@ -1,5 +1,7 @@
+import asyncio
 import json
 from collections import deque
+import re
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -8,19 +10,22 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
-from autogen_core.models import SystemMessage
+from autogen_core.models import SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from agent.lead_generation_crew import ResearchCrew
+from api.websocket_manager import WebSocketConnectionManager
 from services.query_router_service import QueryRouterService, QueryType
 
 from api.data_types import (
-    EducationalContentRequest,
+    AgentRequest,
     EndUserMessage,
     CoPilotPlan,
-    FinancialAnalysisRequest,
     HandoffMessage,
-    SalesLeadsRequest,
+    AgentEnum,
+    FinancialAnalysis,
+    EducationalContent,
+    SalesLeads,
 )
 from api.otlp_tracing import logger
 from api.registry import AgentRegistry
@@ -39,7 +44,10 @@ class SemanticRouterAgent(RoutedAgent):
         model_client (OpenAIChatCompletionClient): The model client for agent routing.
         agent_registry (AgentRegistry): The registry containing agent information.
         session_manager (SessionStateManager): Manages the session state for each user.
+        connection_manager (WebSocketConnectionManager): Manages WebSocket connections.
     """
+
+    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
 
     def __init__(
         self,
@@ -49,10 +57,20 @@ class SemanticRouterAgent(RoutedAgent):
         super().__init__("SemanticRouterAgent")
         logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
         self._name = name
-        self._model_client = sn_api_url = "https://api.sambanova.ai/v1"
-        self._model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+        self._reasoning_model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+            model="DeepSeek-R1-Distill-Llama-70B",
+            base_url="https://api.sambanova.ai/v1",
+            api_key=sambanova_key,
+            model_info={
+                "json_output": False,
+                "function_calling": True,
+                "family": "unknown",
+                "vision": False,
+            },
+        )
+        self._structure_extraction_model = lambda sambanova_key: OpenAIChatCompletionClient(
             model="Meta-Llama-3.1-70B-Instruct",
-            base_url=sn_api_url,
+            base_url="https://api.sambanova.ai/v1",
             api_key=sambanova_key,
             model_info={
                 "json_output": False,
@@ -72,65 +90,71 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
-        session_id = ctx.topic_id.source
+        if message.use_planner:
+            conversation_id = ctx.topic_id.source
 
-        # Add the current message to session history
-        self._session_manager.add_to_history(session_id, message)
+            # Add the current message to session history
+            self._session_manager.add_to_history(conversation_id, message)
 
-        # Analyze conversation history for better context
-        history = self._session_manager.get_history(session_id)
-        logger.info("Analyzing conversation history for context")
+            # Analyze conversation history for better context
+            history = self._session_manager.get_history(conversation_id)
+            await self._get_agents_to_route(message, ctx, history)
+        else:
+            await self.route_message_with_query_router(message, ctx)
 
+    def _create_request(self, request_type: str, parameters: dict, message: EndUserMessage) -> AgentRequest:
+        """
+        Creates the appropriate request object based on the request type.
+        
+        Args:
+            request_type (str): The type of request to create
+            parameters (dict): The parameters for the request
+            message (EndUserMessage): The original message containing API keys and document IDs
+            
+        Returns:
+            tuple: (Request object, topic type string)
+        """
+
+        agent_type = AgentEnum(request_type)
+        # Create AgentRequest using model_validate
+        request = AgentRequest.model_validate({
+            "agent_type": agent_type,
+            "parameters": parameters,
+            "api_keys": message.api_keys,
+            "document_ids": message.document_ids,
+            "query": message.content
+        })
+
+        return request
+
+    async def route_message_with_query_router(self, message: EndUserMessage, ctx: MessageContext) -> None:
+        """
+        Routes user messages to appropriate agents based on conversation context.
+
+        Args:
+            message (EndUserMessage): The incoming user message.
+            ctx (MessageContext): Context information for the message.
+        """
         router = QueryRouterService(message.api_keys.sambanova_key)
-
         route_result: QueryType = router.route_query(message.content)
 
-        if route_result.type == "financial_analysis":
-            logger.info(f"Publishing financial analysis request with parameters: {route_result.parameters}")
-            financial_analysis_request = FinancialAnalysisRequest(
-                ticker=route_result.parameters.get("ticker", ""),
-                company_name=route_result.parameters.get("company_name", ""),
-                query_text=message.content,
-                api_keys=message.api_keys,
-                document_ids=message.document_ids
+        try:
+            request_obj = self._create_request(
+                route_result.type,
+                route_result.parameters,
+                message
             )
             await self.publish_message(
-                financial_analysis_request,
-                DefaultTopicId(type="financial_analysis", source=session_id),
+                request_obj,
+                DefaultTopicId(
+                    type=request_obj.agent_type.value, source=ctx.topic_id.source
+                ),
             )
-            logger.info("Financial analysis request published")
-            return
-        elif route_result.type == "educational_content":
-            logger.info(f"Publishing research request with parameters: {route_result.parameters}")
-            research_request = EducationalContentRequest(
-                topic=route_result.parameters.get("topic", ""),
-                audience_level=route_result.parameters.get("audience_level", "intermediate"),
-                focus_areas=route_result.parameters.get("focus_areas", None),
-                api_keys=message.api_keys,
-                document_ids=message.document_ids
-            )
-            await self.publish_message(
-                research_request,
-                DefaultTopicId(type="educational_content", source=session_id),
-            )
-            logger.info("Educational content request published")
-            return
-        elif route_result.type == "sales_leads":
-            sales_leads_request = SalesLeadsRequest(
-                industry=route_result.parameters.get("industry", ""),
-                company_stage=route_result.parameters.get("company_stage", ""),
-                geography=route_result.parameters.get("geography", ""),
-                funding_stage=route_result.parameters.get("funding_stage", ""),
-                product=route_result.parameters.get("product", ""),
-                api_keys=message.api_keys
-            )
-            await self.publish_message(
-                sales_leads_request,
-                DefaultTopicId(type="sales_leads", source=session_id),
-            )
-            logger.info("Sales leads request published")
-            return
+            logger.info(f"{request_obj.agent_type.value} request published")
 
+        except ValueError as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return
 
     @message_handler
     async def handle_handoff(
@@ -155,7 +179,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
 
     async def _get_agents_to_route(
-        self, message: EndUserMessage, history: deque
+        self, message: EndUserMessage, ctx: MessageContext, history: deque
     ) -> CoPilotPlan:
         """
         Determines the appropriate agents to route the message to based on context.
@@ -167,7 +191,6 @@ class SemanticRouterAgent(RoutedAgent):
         Returns:
             CoPilotPlan: A plan indicating which agents should handle the subtasks.
         """
-        # System prompt to determine the appropriate agents to handle the message
         logger.info(f"Analyzing message: {message.content}")
         try:
             logger.info(
@@ -180,24 +203,46 @@ class SemanticRouterAgent(RoutedAgent):
             logger.error(e)
 
         try:
-            response = await self._model_client(message.api_keys.sambanova_key).create(
-                [SystemMessage(content=system_message)],
+            reasoning_model_client = self._reasoning_model_client(message.api_keys.sambanova_key)
+            feature_extractor_model = self._structure_extraction_model(message.api_keys.sambanova_key)
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+
+            # Get the WebSocket connection from the connection manager
+            websocket = self.connection_manager.get_connection(
+                user_id, 
+                conversation_id
             )
 
-            copilot_plan: CoPilotPlan = CoPilotPlan.model_validate(
-                json.loads(response.content)
-            )
-            if copilot_plan.is_greeting:
-                logger.info("User greeting detected")
-                copilot_plan.subtasks = [
-                    {
-                        "task_details": f"Greeting - {message.content}",
-                        "assigned_agent": "default_agent",
-                    }
-                ]
+            planner_response = await reasoning_model_client.create([SystemMessage(content=system_message)])  
 
-            logger.info(f"Received copilot plan: {copilot_plan}")
-            return copilot_plan
+            # Send the chunk through WebSocket if connection exists
+            if websocket:
+                await websocket.send_text(json.dumps({
+                    "event": "think",
+                    "data": planner_response.content,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id
+                }))
+                await asyncio.sleep(0.25)
+
+            cleaned_response = re.sub(r'<think>.*?</think>', '', planner_response.content, flags=re.DOTALL).strip()
+            feature_extractor_response = await feature_extractor_model.create([SystemMessage(content=agent_registry.get_strucuted_output_plan_prompt(cleaned_response))])
+
+            # TODO: add agents working on a set of tasks
+            plan = json.loads(feature_extractor_response.content)
+            plan = plan if isinstance(plan, list) else [plan]
+
+            for p in plan:
+                try:
+                    request_obj = self._create_request(p["agent_type"], p["parameters"], message)
+                    await self.publish_message(
+                        request_obj,
+                        DefaultTopicId(type=request_obj.agent_type.value, source=ctx.topic_id.source),
+                    )
+                except ValueError as e:
+                    logger.error(f"Error processing plan item: {str(e)}")
+                    continue
+
         except Exception as e:
             logger.error(f"Failed to parse activities response: {str(e)}")
-            return CoPilotPlan(subtasks=[])
+            return

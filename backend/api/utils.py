@@ -1,22 +1,16 @@
 import os
 from autogen_core import SingleThreadedAgentRuntime
-from autogen_core import AgentId
 from autogen_core import DefaultSubscription
-from autogen_core.tool_agent import ToolAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
 from api.agents.educational_content import EducationalContentAgent
 from api.agents.route import SemanticRouterAgent
-from pydantic import BaseModel
-from typing import get_origin, get_args, get_type_hints
 
-from api.data_types import APIKeys
 from api.agents.sales_leads import SalesLeadsAgent
 
 from api.otlp_tracing import configure_oltp_tracing, logger
-from api.registry import AgentRegistry
 from api.session_state import SessionStateManager
+from api.agents.user_proxy import UserProxyAgent
 
 session_state_manager = SessionStateManager()
 
@@ -65,6 +59,10 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         "sales_leads",
         lambda: SalesLeadsAgent(),
     )
+
+    # Register the UserProxyAgent instance with the AgentRuntime
+    await UserProxyAgent.register(agent_runtime, "user_proxy", lambda: UserProxyAgent())
+
 
     # Start the runtime
     agent_runtime.start()

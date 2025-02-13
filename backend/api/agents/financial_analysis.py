@@ -16,9 +16,9 @@ from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCr
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
+    AgentRequest,
     AgentStructuredResponse,
-    EndUserMessage,
-    FinancialAnalysisRequest,
+    FinancialAnalysis,
 )
 from ..otlp_tracing import logger
 
@@ -59,18 +59,10 @@ class FinancialAnalysisAgent(RoutedAgent):
     
     @message_handler
     async def handle_analysis_request(
-        self, message: FinancialAnalysisRequest, ctx: MessageContext
+        self, message: AgentRequest, ctx: MessageContext
     ) -> None:
         logger.info(f"FinancialAnalysisAgent received request: {message}")
         try:
-            # Convert message to parameters dict
-            parameters = {
-                "query_text": message.query_text,
-                "ticker": message.ticker,
-                "company_name": message.company_name
-                
-            }
-            
             user_id, conversation_id = ctx.topic_id.source.split(":")
 
             # Initialize crew
@@ -84,7 +76,7 @@ class FinancialAnalysisAgent(RoutedAgent):
             )
 
             # Execute analysis
-            raw_result = await self.execute_financial(crew, message.api_keys.sambanova_key, parameters)
+            raw_result = await self.execute_financial(crew, message.api_keys.sambanova_key, message.parameters.model_dump())
             logger.info(f"Received raw result: {raw_result}")
             
             financial_analysis_result = FinancialAnalysisResult.model_validate(json.loads(raw_result))
@@ -99,7 +91,7 @@ class FinancialAnalysisAgent(RoutedAgent):
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
                 data=financial_analysis_result,
-                message=message.query_text,
+                message=message.parameters.model_dump_json(),
             )
             logger.info(f"Publishing response to user_proxy: {response}")
             await self.publish_message(

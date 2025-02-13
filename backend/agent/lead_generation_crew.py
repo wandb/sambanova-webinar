@@ -78,7 +78,7 @@ class ResearchCrew:
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
-            max_tokens=4096,
+            max_tokens=8192,
             api_key=sambanova_key
         )
         self.exa_key = exa_key

@@ -1,9 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator, Field
 from enum import Enum
 from typing import List, Optional, Union
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
-from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
+from agent.samba_research_flow.crews.edu_research.edu_research_crew import (
+    Section,
+)
 from agent.lead_generation_crew import OutreachList
 
 
@@ -12,29 +14,33 @@ class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
     EducationalContent = "educational_content"
     SalesLeads = "sales_leads"
-    DefaultAgent = "default_agent"
+    Assistant = "assistant"
+    UserProxy = "user_proxy"
 
 class Greeter(BaseModel):
     greeting: str
 
-# Generic Response Wrapper
-class AgentStructuredResponse(BaseModel):
-    agent_type: AgentEnum
-    data: Union[
-        FinancialAnalysisResult,
-        EducationalPlan,
-        OutreachList,
-        Greeter,
-    ]
-    message: Optional[str] = None  # Additional message or notes from the agent
+
+class UserQuestion(BaseModel):
+    user_question: str
+
+class AssistantMessage(BaseModel):
+    query: str
+
+
+class AssistantResponse(BaseModel):
+    response: str
+
 
 # Base class for messages exchanged between agents and users
 class BaseAgentMessage(BaseModel):
     source: str
     timestamp: Optional[date] = None
 
+
 class TestMessage(BaseAgentMessage):
     content: str
+
 
 # SubTask Model
 class CoPilotSubTask(BaseModel):
@@ -44,56 +50,108 @@ class CoPilotSubTask(BaseModel):
     class Config:
         use_enum_values = True  # To serialize enums as their values
 
-class FinancialAnalysisTask(BaseModel):
-    ticker: str
-    company_name: str
-    query_text: str
-
-class SalesLeadsTask(BaseModel):
-    industry: str
-    company_stage: str
-    geography: str
-    funding_stage: str
-    product: str
-
-class CoPilotPlan(BaseModel):
-    main_task: str
-    subtasks: List[Union[FinancialAnalysisTask, SalesLeadsTask]]
-    is_greeting: bool
 
 class HandoffMessage(BaseAgentMessage):
     content: str
 
-
 class APIKeys(BaseModel):
     sambanova_key: str
-    serper_key: str 
+    serper_key: str
     exa_key: str
 
-class FinancialAnalysisRequest(BaseModel):
-    ticker: str
-    company_name: str
-    query_text: str
-    document_ids: Optional[List[str]] = None
-    api_keys: APIKeys
 
-class SalesLeadsRequest(BaseModel):
-    industry: str
-    company_stage: str
-    geography: str
-    funding_stage: str
-    product: str
-    api_keys: APIKeys
+class FinancialAnalysis(BaseModel):
+    ticker: Optional[str] = Field(default=None, description="The ticker of the company")
+    company_name: str = Field(default="", description="The name of the company")
+    query_text: str = Field(default="", description="The query text from the user")
 
-class EducationalContentRequest(BaseModel):
-    topic: str
-    audience_level: str
-    focus_areas: Optional[List[str]] = None
-    api_keys: APIKeys
-    document_ids: Optional[List[str]] = None
+
+class SalesLeads(BaseModel):
+    industry: str = Field(default="", description="The industry of the company")
+    company_stage: Optional[str] = Field(default=None, description="The stage of the company")
+    geography: Optional[str] = Field(default=None, description="The geography for the sales leads")
+    funding_stage: Optional[str] = Field(default=None, description="The funding stage for the sales leads")
+    product: Optional[str] = Field(default=None, description="The product for the sales leads")
+
+
+class EducationalContent(BaseModel):
+    topic: str = Field(default="", description="The topic of the research")
+    audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
+    focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
+
+    # Convert list to string for backwards compatibility
+    @model_validator(mode="before")
+    def convert_focus_areas_list(cls, data):
+        if isinstance(data, dict) and "focus_areas" in data:
+            if isinstance(data["focus_areas"], list):
+                data["focus_areas"] = ", ".join(
+                    str(area) for area in data["focus_areas"]
+                )
+        return data
+
 
 class EndUserMessage(BaseAgentMessage):
     content: str
     api_keys: APIKeys
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
+
+
+class AgentRequest(BaseModel):
+    agent_type: AgentEnum
+    parameters: Union[
+        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion
+    ]
+    query: str
+    api_keys: APIKeys
+    document_ids: Optional[List[str]] = None
+
+    @model_validator(mode="after")
+    def validate_parameters_type(self) -> "AgentRequest":
+        expected_type = {
+            AgentEnum.FinancialAnalysis: FinancialAnalysis,
+            AgentEnum.SalesLeads: SalesLeads,
+            AgentEnum.EducationalContent: EducationalContent,
+            AgentEnum.Assistant: AssistantMessage,
+            AgentEnum.UserProxy: UserQuestion,
+        }[self.agent_type]
+
+        # If parameters is already the correct type, return as is
+        if isinstance(self.parameters, expected_type):
+            return self
+
+        # If it's a dict, try to convert it to the expected type
+        if isinstance(self.parameters, dict):
+            self.parameters = expected_type.model_validate(self.parameters)
+        else:
+            raise ValueError(
+                f"Parameters must be of type {expected_type.__name__} for agent_type {self.agent_type}"
+            )
+
+        return self
+    
+class ExtendedSection(Section):
+    generated_content: str
+    
+class EducationalPlanResult(BaseModel):
+    """
+    Represents the complete educational content plan.
+
+    Attributes:
+        sections: List of content sections
+    """
+
+    sections: List[ExtendedSection] = []
+
+# Generic Response Wrapper
+class AgentStructuredResponse(BaseModel):
+    agent_type: AgentEnum
+    data: Union[
+        FinancialAnalysisResult,
+        EducationalPlanResult,
+        OutreachList,
+        Greeter,
+        AssistantResponse,
+        UserQuestion,
+    ]
+    message: Optional[str] = None  # Additional message or notes from the agent

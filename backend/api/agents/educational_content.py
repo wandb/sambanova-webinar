@@ -14,8 +14,9 @@ from agent.samba_research_flow.crews.edu_research.edu_research_crew import Educa
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 
 from ..data_types import (
+    AgentRequest,
     AgentStructuredResponse,
-    EducationalContentRequest,
+    EducationalPlanResult,
 )
 from ..otlp_tracing import logger
 
@@ -25,7 +26,7 @@ class EducationalContentAgent(RoutedAgent):
         super().__init__("EducationalContentAgent")
 
     @message_handler
-    async def handle_educational_content_request(self, message: EducationalContentRequest, ctx: MessageContext) -> None:
+    async def handle_educational_content_request(self, message: AgentRequest, ctx: MessageContext) -> None:
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
             edu_flow = SambaResearchFlow(
@@ -36,27 +37,26 @@ class EducationalContentAgent(RoutedAgent):
                     docs_included=False
                 )
             edu_inputs = {
-                "topic": message.topic,
-                "audience_level": message.audience_level,
-                "additional_context": ", ".join(message.focus_areas)
+                "topic": message.parameters.topic,
+                "audience_level": message.parameters.audience_level if message.parameters.audience_level else "",
+                "additional_context": message.parameters.focus_areas if message.parameters.focus_areas else ""
             }
             edu_flow.input_variables = edu_inputs
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, edu_flow.kickoff)
+            result = await asyncio.to_thread(edu_flow.kickoff, edu_inputs)
 
             logger.info(f"Educational content flow result: {result}")
 
-            sections_with_content = EducationalPlan.model_validate({"sections": result})
+            sections_with_content = EducationalPlanResult.model_validate({"sections": result})
         except Exception as e:
             logger.error(f"Failed to process educational content request: {str(e)}", exc_info=True)
-            sections_with_content = EducationalPlan()
+            sections_with_content = EducationalPlanResult()
 
         try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
                 data=sections_with_content,
-                message=message.topic,
+                message=message.parameters.model_dump_json(),
             )
             logger.info(f"Publishing response to user_proxy: {response}")
             await self.publish_message(

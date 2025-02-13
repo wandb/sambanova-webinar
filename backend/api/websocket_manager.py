@@ -1,3 +1,4 @@
+from datetime import datetime
 from autogen_core import AgentRuntime, DefaultTopicId
 from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
 import json
@@ -86,7 +87,8 @@ class WebSocketConnectionManager:
                 "event": "connection_established",
                 "data": "WebSocket connection established",
                 "user_id": user_id,
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat()
             })
 
             # Start background task for Redis messages
@@ -102,7 +104,8 @@ class WebSocketConnectionManager:
                         "event": "error",
                         "data": "Invalid JSON message format",
                         "user_id": user_id,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
                     })
                     continue
 
@@ -113,7 +116,8 @@ class WebSocketConnectionManager:
                         "event": "error",
                         "data": "No API keys found for this user",
                         "user_id": user_id,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
                     })
                     continue
                 
@@ -165,17 +169,30 @@ class WebSocketConnectionManager:
                 message = pubsub.get_message(timeout=1.0)
                 if message and message["type"] == "message":
                     data_str = message["data"]
-                    await websocket.send_json({
+                    message_data = {
                         "event": "think",
                         "data": data_str,
                         "user_id": user_id,
-                        "conversation_id": conversation_id
-                    })
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                    # Store think event in Redis
+                    message_key = f"messages:{user_id}:{conversation_id}"
+                    self.redis_client.rpush(
+                        message_key,
+                        json.dumps(message_data)
+                    )
+                    
+                    await websocket.send_json(message_data)
 
-                # Send periodic ping to keep connection alive
+                # Send periodic ping to keep connection alive (not stored in Redis)
                 await websocket.send_json({
                     "event": "ping",
-                    "data": json.dumps({"type": "ping"})
+                    "data": json.dumps({"type": "ping"}),
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat()
                 })
                 await asyncio.sleep(0.25)
 

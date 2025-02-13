@@ -1,5 +1,5 @@
 import os
-from autogen_core import SingleThreadedAgentRuntime
+from autogen_core import SingleThreadedAgentRuntime, TypeSubscription
 from autogen_core import DefaultSubscription
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
@@ -7,10 +7,14 @@ from api.agents.educational_content import EducationalContentAgent
 from api.agents.route import SemanticRouterAgent
 
 from api.agents.sales_leads import SalesLeadsAgent
+from autogen_agentchat.agents import AssistantAgent
 
 from api.otlp_tracing import configure_oltp_tracing, logger
 from api.session_state import SessionStateManager
 from api.agents.user_proxy import UserProxyAgent
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+from api.agents.assistant import AssistantAgentWrapper
 
 session_state_manager = SessionStateManager()
 
@@ -60,9 +64,16 @@ async def initialize_agent_runtime() -> SingleThreadedAgentRuntime:
         lambda: SalesLeadsAgent(),
     )
 
-    # Register the UserProxyAgent instance with the AgentRuntime
-    await UserProxyAgent.register(agent_runtime, "user_proxy", lambda: UserProxyAgent())
+    await AssistantAgentWrapper.register(
+        agent_runtime, "assistant", lambda: AssistantAgentWrapper("assistant")
+    )
 
+    # Register the UserProxyAgent instance with the AgentRuntime
+    await UserProxyAgent.register(
+        agent_runtime,
+        "user_proxy",
+        lambda: UserProxyAgent(session_manager=session_state_manager),
+    )
 
     # Start the runtime
     agent_runtime.start()

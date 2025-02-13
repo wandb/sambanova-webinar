@@ -1,12 +1,12 @@
 from collections import deque
 from typing import Optional
-from autogen_core.models import SystemMessage, UserMessage
+from autogen_core.models import UserMessage, AssistantMessage
 
 from .data_types import EndUserMessage
 
 
 class SessionStateManager:
-    def __init__(self, history_length: int = 100):
+    def __init__(self, history_length: int = 10):
         self.session_states = {}
         self.session_histories = {}
         self.history_length = history_length
@@ -23,7 +23,7 @@ class SessionStateManager:
         if conversation_id in self.session_histories:
             del self.session_histories[conversation_id]
 
-    def add_to_history(self, conversation_id: str, message: SystemMessage | UserMessage) -> None:
+    def add_to_history(self, conversation_id: str, message: UserMessage | AssistantMessage) -> None:
         if conversation_id not in self.session_histories:
             self.session_histories[conversation_id] = deque(maxlen=self.history_length)
         self.session_histories[conversation_id].append(message)

@@ -1,5 +1,4 @@
-
-import asyncio
+from datetime import datetime
 import json
 from typing import Dict, List, Any
 
@@ -8,28 +7,34 @@ from autogen_core import (
     DefaultTopicId,
     RoutedAgent,
     message_handler,
-    type_subscription,
 )
-from autogen_core.models import LLMMessage, SystemMessage, UserMessage
+from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from api.websocket_manager import WebSocketConnectionManager
+from api.session_state import SessionStateManager
 
 from ..data_types import (
     AgentStructuredResponse,
     EndUserMessage,
+    UserQuestion,
 )
 from ..otlp_tracing import logger
+
 
 # User Proxy Agent
 class UserProxyAgent(RoutedAgent):
     """
     Acts as a proxy between the user and the routing agent.
     """
-    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
 
-    def __init__(self) -> None:
+    connection_manager: WebSocketConnectionManager = (
+        None  # Will be set by LeadGenerationAPI
+    )
+
+    def __init__(self, session_manager: SessionStateManager) -> None:
         super().__init__("UserProxyAgent")
+        self.session_manager = session_manager
 
     @message_handler
     async def handle_agent_response(
@@ -50,14 +55,28 @@ class UserProxyAgent(RoutedAgent):
             websocket = self.connection_manager.connections.get(ctx.topic_id.source)
             user_id, conversation_id = ctx.topic_id.source.split(":")
             if websocket:
-                await websocket.send_text(json.dumps({
-                    "event": "completion", 
-                    "data": message.model_dump_json(),
-                    "user_id": user_id,
-                    "conversation_id": conversation_id
-                }))
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "event": "completion",
+                            "data": message.model_dump_json(),
+                            "user_id": user_id,
+                            "conversation_id": conversation_id,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    )
+                )
+
+                self.session_manager.add_to_history(
+                    ctx.topic_id.source,
+                    AssistantMessage(
+                        content=message.data.model_dump_json(), source=ctx.sender.type
+                    ),
+                )
         except Exception as e:
-            logger.error(f"Failed to send message to session {ctx.topic_id.source}: {str(e)}")
+            logger.error(
+                f"Failed to send message to session {ctx.topic_id.source}: {str(e)}"
+            )
 
     @message_handler
     async def handle_user_message(
@@ -72,7 +91,7 @@ class UserProxyAgent(RoutedAgent):
         """
 
         logger.info(f"UserProxyAgent received user message: {message.content}")
-        
+
         # Forward the message to the router
         await self.publish_message(
             message,

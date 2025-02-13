@@ -1,3 +1,4 @@
+from datetime import datetime
 from autogen_core import AgentRuntime, DefaultTopicId
 from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
 import json
@@ -86,7 +87,8 @@ class WebSocketConnectionManager:
                 "event": "connection_established",
                 "data": "WebSocket connection established",
                 "user_id": user_id,
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat()
             })
 
             # Start background task for Redis messages
@@ -102,7 +104,8 @@ class WebSocketConnectionManager:
                         "event": "error",
                         "data": "Invalid JSON message format",
                         "user_id": user_id,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
                     })
                     continue
 
@@ -113,7 +116,8 @@ class WebSocketConnectionManager:
                         "event": "error",
                         "data": "No API keys found for this user",
                         "user_id": user_id,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
                     })
                     continue
                 
@@ -169,13 +173,17 @@ class WebSocketConnectionManager:
                         "event": "think",
                         "data": data_str,
                         "user_id": user_id,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat()
                     })
 
                 # Send periodic ping to keep connection alive
                 await websocket.send_json({
                     "event": "ping",
-                    "data": json.dumps({"type": "ping"})
+                    "data": json.dumps({"type": "ping"}),
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat()
                 })
                 await asyncio.sleep(0.25)
 

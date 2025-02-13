@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
 
     Initializes the agent runtime and registers the UserProxyAgent.
     """
+    # Initialize a default agent runtime for the application
     app.state.agent_runtime = await initialize_agent_runtime()
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
@@ -101,7 +102,16 @@ async def lifespan(app: FastAPI):
 
     yield  # This separates the startup and shutdown logic
 
-    #TODO: Add cleanup logic here
+    # Cleanup chat-specific agent runtimes
+    chat_keys = app.state.redis_client.keys("chat_manager:*")
+    for key in chat_keys:
+        chat_data = app.state.redis_client.get(key)
+        if chat_data:
+            chat_info = json.loads(chat_data)
+            # TODO: Add cleanup for chat-specific agent runtime
+            app.state.redis_client.delete(key)
+
+    # Cleanup default agent runtime
     await app.state.agent_runtime.close()
 
 class LeadGenerationAPI:
@@ -363,6 +373,49 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[stream_logs] Error setting up SSE: {e}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.post("/chat/init")
+        async def init_chat(request: Request):
+            """
+            Initializes a new chat session and stores the provided API keys.
+            Returns a chat ID for subsequent interactions.
+            """
+            sambanova_key = request.headers.get("x-sambanova-key", "")
+            serper_key = request.headers.get("x-serper-key", "")
+            exa_key = request.headers.get("x-exa-key", "")
+            user_id = request.headers.get("x-user-id", "anonymous")
+
+            try:
+                # Generate a unique chat ID
+                chat_id = str(uuid.uuid4())
+
+                # Store keys in Redis with user-specific prefix
+                key_prefix = f"api_keys:{user_id}"
+                self.app.state.redis_client.hset(
+                    key_prefix,
+                    mapping={
+                        "sambanova_key": sambanova_key,
+                        "serper_key": serper_key,
+                        "exa_key": exa_key
+                    }
+                )
+
+                #TODO: init autogen agent
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "chat_id": chat_id,
+                        "message": "Chat session initialized successfully"
+                    }
+                )
+
+            except Exception as e:
+                print(f"[/chat/init] Error initializing chat: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to initialize chat: {str(e)}"}
+                )
 
         # ----------------------------------------------------------------
         # NEW ENDPOINT: /newsletter_chat/init
@@ -648,9 +701,6 @@ class LeadGenerationAPI:
                         "exa_key": keys.exa_key
                     }
                 )
-                
-                # Set expiration for security (24 hours)
-                self.app.state.redis_client.expire(key_prefix, 86400)  
                 
                 return JSONResponse(
                     status_code=200,

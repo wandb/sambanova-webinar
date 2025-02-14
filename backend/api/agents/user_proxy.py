@@ -1,25 +1,27 @@
 from datetime import datetime
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+import asyncio
 
 from autogen_core import MessageContext
 from autogen_core import (
     DefaultTopicId,
     RoutedAgent,
     message_handler,
+    type_subscription,
 )
-from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.models import AssistantMessage
+from fastapi import WebSocket
+import redis
 
-from api.websocket_manager import WebSocketConnectionManager
 from api.session_state import SessionStateManager
 
 from ..data_types import (
     AgentStructuredResponse,
     EndUserMessage,
-    UserQuestion,
+    AgentRequest,
 )
-from ..otlp_tracing import logger
+from utils.logging import logger
 
 
 # User Proxy Agent
@@ -28,13 +30,12 @@ class UserProxyAgent(RoutedAgent):
     Acts as a proxy between the user and the routing agent.
     """
 
-    connection_manager: WebSocketConnectionManager = (
-        None  # Will be set by LeadGenerationAPI
-    )
-
-    def __init__(self, session_manager: SessionStateManager) -> None:
+    def __init__(self, session_manager: SessionStateManager, websocket: WebSocket, redis_client: redis.Redis) -> None:
         super().__init__("UserProxyAgent")
+        logger.info(logger.format_message(None, f"Initializing UserProxyAgent with ID: {self.id} and WebSocket connection"))
         self.session_manager = session_manager
+        self.websocket = websocket
+        self.redis_client = redis_client
 
     @message_handler
     async def handle_agent_response(
@@ -49,12 +50,13 @@ class UserProxyAgent(RoutedAgent):
             message (AgentStructuredResponse): The agent's response message.
             ctx (MessageContext): The message context.
         """
-        logger.info(f"UserProxyAgent received agent response: {message}")
-        # ctx.topic_id.source is already in format "user_id:conversation_id"
+        logger.info(logger.format_message(
+            ctx.topic_id.source,
+            f"Received response from {ctx.sender.type} agent"
+        ))
         try:
-            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
             user_id, conversation_id = ctx.topic_id.source.split(":")
-            if websocket:
+            if self.websocket:
                 message_data = {
                     "event": "completion",
                     "data": message.model_dump_json(),
@@ -65,13 +67,21 @@ class UserProxyAgent(RoutedAgent):
                 
                 # Store in Redis
                 message_key = f"messages:{user_id}:{conversation_id}"
-                self.connection_manager.redis_client.rpush(
+                self.redis_client.rpush(
                     message_key,
                     json.dumps(message_data)
                 )
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    "Stored message in Redis"
+                ))
                 
                 # Send through WebSocket
-                await websocket.send_text(json.dumps(message_data))
+                await self.websocket.send_text(json.dumps(message_data))
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    "Sent response to user via WebSocket"
+                ))
 
                 self.session_manager.add_to_history(
                     ctx.topic_id.source,
@@ -79,10 +89,15 @@ class UserProxyAgent(RoutedAgent):
                         content=message.data.model_dump_json(), source=ctx.sender.type
                     ),
                 )
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    "Updated conversation history"
+                ))
         except Exception as e:
-            logger.error(
-                f"Failed to send message to session {ctx.topic_id.source}: {str(e)}"
-            )
+            logger.error(logger.format_message(
+                ctx.topic_id.source,
+                f"Failed to send message: {str(e)}"
+            ), exc_info=True)
 
     @message_handler
     async def handle_user_message(
@@ -96,7 +111,10 @@ class UserProxyAgent(RoutedAgent):
             ctx (MessageContext): The message context.
         """
 
-        logger.info(f"UserProxyAgent received user message: {message.content}")
+        logger.info(logger.format_message(
+            ctx.topic_id.source,
+            f"Forwarding user message to router: '{message.content[:100]}...'"
+        ))
 
         # Forward the message to the router
         await self.publish_message(

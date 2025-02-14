@@ -31,7 +31,7 @@ class EduDocSummariserCrew:
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None, verbose: bool = True) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
@@ -47,7 +47,7 @@ class EduDocSummariserCrew:
         )
         self.user_id = user_id
         self.run_id = run_id
-
+        self.verbose = verbose
     @agent
     def summariser(self) -> Agent:
         """
@@ -61,7 +61,12 @@ class EduDocSummariserCrew:
             run_id=self.run_id,
             agent_name="Summariser Agent"
         )
-        return Agent(config=self.agents_config['summariser'], llm=self.llm, verbose=True,step_callback=summariser_logger)
+        return Agent(
+            config=self.agents_config["summariser"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=summariser_logger,
+        )
 
     @task
     def summarise_task(self) -> Task:
@@ -87,5 +92,5 @@ class EduDocSummariserCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
         )

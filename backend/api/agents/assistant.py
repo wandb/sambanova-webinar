@@ -13,9 +13,12 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 import requests
 
-from api.data_types import AgentRequest, AgentStructuredResponse, AssistantResponse
+from api.data_types import APIKeys, AgentRequest, AgentStructuredResponse, AssistantResponse
 
-from ..otlp_tracing import logger
+from utils.logging import logger
+
+import asyncio
+from typing import Any, Dict, List, Optional
 
 
 async def get_current_time() -> str:
@@ -52,14 +55,16 @@ def serper_search(api_key: str, query: str, num_results: int = 5):
 
 @type_subscription(topic_type="assistant")
 class AssistantAgentWrapper(RoutedAgent):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self._assistant = lambda serper_key, sambanova_key: AssistantAgent(
-            name,
+    def __init__(self, api_keys: APIKeys) -> None:
+        super().__init__("assistant")
+        logger.info(logger.format_message(None, f"Initializing AssistantAgent with ID: {self.id} and tools: [get_current_time, serper_search]"))
+        self.api_keys = api_keys
+        self._assistant = AssistantAgent(
+            name="assistant",
             model_client=OpenAIChatCompletionClient(
                 model="Meta-Llama-3.1-70B-Instruct",
                 base_url="https://api.sambanova.ai/v1",
-                api_key=sambanova_key,
+                api_key=self.api_keys.sambanova_key,
                 model_info={
                     "json_output": False,
                     "function_calling": True,
@@ -67,26 +72,31 @@ class AssistantAgentWrapper(RoutedAgent):
                     "vision": False,
                 },
             ),
-            tools=[get_current_time, functools.partial(serper_search, serper_key)],
+            tools=[get_current_time, functools.partial(serper_search, self.api_keys.serper_key)],
             system_message="You are a helpful AI assistant.",
             reflect_on_tool_use=True,
         )
-        self._user_proxy = UserProxyAgent("user_proxy")
 
     @message_handler
     async def handle_text_message(
         self, message: AgentRequest, ctx: MessageContext
     ) -> None:
         try:
-            logger.info(f"AssistantAgent received message: {message.parameters.query}")
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                f"Processing request: '{message.parameters.query[:100]}...'"
+            ))
             agent_message = TextMessage(content=message.parameters.query, source="user")
-            response = await self._assistant(
-                message.api_keys.serper_key, message.api_keys.sambanova_key
-            ).on_messages([agent_message], ctx.cancellation_token)
+            response = await self._assistant.on_messages([agent_message], ctx.cancellation_token)
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                "Generated response successfully"
+            ))
         except Exception as e:
-            logger.error(
-                f"Failed to process assistant request: {str(e)}", exc_info=True
-            )
+            logger.error(logger.format_message(
+                ctx.topic_id.source,
+                f"Failed to process request: {str(e)}"
+            ), exc_info=True)
             response = AssistantResponse(response="Unable to assist with this request.")
 
         try:
@@ -96,10 +106,16 @@ class AssistantAgentWrapper(RoutedAgent):
                 data=AssistantResponse(response=response.chat_message.content),
                 message=message.parameters.model_dump_json(),
             )
-            logger.info(f"Publishing response to user_proxy: {response}")
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                "Publishing response to user_proxy"
+            ))
             await self.publish_message(
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
         except Exception as e:
-            logger.error(f"Failed to publish response: {str(e)}", exc_info=True)
+            logger.error(logger.format_message(
+                ctx.topic_id.source,
+                f"Failed to publish response: {str(e)}"
+            ), exc_info=True)

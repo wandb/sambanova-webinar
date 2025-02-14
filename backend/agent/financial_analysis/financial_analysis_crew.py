@@ -165,7 +165,16 @@ class FinancialAnalysisCrew:
     Using partial concurrency to speed up tasks that do not depend on each other.
     """
 
-    def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = "", docs_included: bool = False):
+    def __init__(
+        self,
+        sambanova_key: str,
+        exa_key: str,
+        serper_key: str,
+        user_id: str = "",
+        run_id: str = "",
+        docs_included: bool = False,
+        verbose: bool = True
+    ):
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-8B-Instruct",
             temperature=0.0,
@@ -184,6 +193,7 @@ class FinancialAnalysisCrew:
         self.user_id = user_id
         self.run_id = run_id
         self.docs_included = docs_included
+        self.verbose = verbose
         self._init_agents()
         self._init_tasks()
 
@@ -195,7 +205,7 @@ class FinancialAnalysisCrew:
             backstory="Expert in analyzing sector, fallback to LLM guess if yfinance fails. No extraneous calls needed.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 2) competitor analysis
@@ -206,7 +216,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[competitor_analysis_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 3) fundamental
@@ -217,7 +227,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[fundamental_analysis_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 4) technical
@@ -228,7 +238,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[yf_tech_analysis],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 5) risk
@@ -239,7 +249,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[risk_assessment_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 6) news
@@ -251,7 +261,7 @@ class FinancialAnalysisCrew:
             llm=self.aggregator_llm,
             tools=[SerperDevTool()],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             max_iter=2
         )
 
@@ -263,7 +273,7 @@ class FinancialAnalysisCrew:
                 backstory="Expert at distilling complex financial documents into actionable insights. Focuses on material information that could impact investment decisions.",
                 llm=self.aggregator_llm,
                 allow_delegation=False,
-                verbose=True,
+                verbose=self.verbose,
                 max_iter=1,
             )
 
@@ -276,7 +286,7 @@ class FinancialAnalysisCrew:
             backstory="One-pass aggregator. Minimizes tokens by being succinct. Output must match FinancialAnalysisResult pydantic exactly.",
             llm=self.aggregator_llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         enhanced_competitor_logger = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
@@ -407,7 +417,7 @@ class FinancialAnalysisCrew:
             # aggregator last
             [self.aggregator_task],
             process=Process.sequential,  # now we use parallel for tasks, aggregator last
-            verbose=True,
+            verbose=self.verbose,
         )
         final = crew.kickoff(inputs=inputs)
         return final.pydantic.model_dump_json()

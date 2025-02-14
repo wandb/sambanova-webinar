@@ -13,12 +13,13 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 from starlette.websockets import WebSocketState
 from contextlib import asynccontextmanager
+import logging
 
 from api.agents.user_proxy import UserProxyAgent
 from api.websocket_manager import WebSocketConnectionManager
 
 from api.utils import initialize_agent_runtime
-from api.otlp_tracing import logger
+from utils.logging import logger
 from autogen_core import MessageContext
 
 import redis
@@ -80,8 +81,6 @@ async def lifespan(app: FastAPI):
 
     Initializes the agent runtime and registers the UserProxyAgent.
     """
-    # Initialize a default agent runtime for the application
-    app.state.agent_runtime = await initialize_agent_runtime()
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
@@ -94,7 +93,6 @@ async def lifespan(app: FastAPI):
     print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
 
     app.state.manager = WebSocketConnectionManager(
-        agent_runtime=app.state.agent_runtime,
         redis_client=app.state.redis_client
     )
     UserProxyAgent.connection_manager = app.state.manager
@@ -407,13 +405,12 @@ class LeadGenerationAPI:
                 conversation_id = str(uuid.uuid4())
                 
                 # Use provided chat name or default
-                chat_name = chat_name or ""
                 timestamp = time.time()
                 
                 # Store chat metadata
                 metadata = {
                     "conversation_id": conversation_id,
-                    "name": chat_name,
+                    **({"name": chat_name} if chat_name else {}),
                     "created_at": timestamp,
                     "updated_at": timestamp,
                     "user_id": user_id
@@ -517,7 +514,10 @@ class LeadGenerationAPI:
                     meta_key = f"chat_metadata:{user_id}:{conv_id}"
                     meta_data = self.app.state.redis_client.get(meta_key)
                     if meta_data:
-                        chats.append(json.loads(meta_data))
+                        data = json.loads(meta_data)
+                        if "name" not in data:
+                            data["name"] = ""
+                        chats.append(data)
                 
                 return JSONResponse(
                     status_code=200,

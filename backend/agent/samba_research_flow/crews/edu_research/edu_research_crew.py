@@ -16,9 +16,8 @@ from pydantic import BaseModel
 from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
-repo_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(repo_dir)
-
 
 
 class Section(BaseModel):
@@ -70,7 +69,14 @@ class EduResearchCrew:
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, serper_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(
+        self,
+        sambanova_key: str = None,
+        serper_key: str = None,
+        user_id: str = None,
+        run_id: str = None,
+        verbose: bool = True,
+    ) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
@@ -83,10 +89,11 @@ class EduResearchCrew:
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
             max_tokens=4096,
-            api_key=self.sambanova_key
+            api_key=self.sambanova_key,
         )
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
 
     @agent
     def researcher(self) -> Agent:
@@ -101,12 +108,16 @@ class EduResearchCrew:
         tool = SerperDevTool()
 
         researcher_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Researcher Agent"
+            user_id=self.user_id, run_id=self.run_id, agent_name="Researcher Agent"
         )
-           
-        return Agent(config=self.agents_config['researcher'], llm=self.llm, verbose=True, tools=[tool],step_callback=researcher_logger)
+
+        return Agent(
+            config=self.agents_config["researcher"],
+            llm=self.llm,
+            verbose=self.verbose,
+            tools=[tool],
+            step_callback=researcher_logger,
+        )
 
     @agent
     def planner(self) -> Agent:
@@ -117,11 +128,14 @@ class EduResearchCrew:
             Agent: A configured planning agent
         """
         planner_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Planner Agent"
+            user_id=self.user_id, run_id=self.run_id, agent_name="Planner Agent"
         )
-        return Agent(config=self.agents_config['planner'], llm=self.llm, verbose=True,step_callback=planner_logger)
+        return Agent(
+            config=self.agents_config["planner"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=planner_logger,
+        )
 
     @task
     def research_task(self) -> Task:
@@ -132,7 +146,7 @@ class EduResearchCrew:
             Task: A configured research task
         """
         return Task(
-            config=self.tasks_config['research_task'],
+            config=self.tasks_config["research_task"],
         )
 
     @task
@@ -143,7 +157,9 @@ class EduResearchCrew:
         Returns:
             Task: A configured planning task with EducationalPlan output
         """
-        return Task(config=self.tasks_config['planning_task'], output_pydantic=EducationalPlan)
+        return Task(
+            config=self.tasks_config["planning_task"], output_pydantic=EducationalPlan
+        )
 
     @crew
     def crew(self) -> Crew:
@@ -157,5 +173,5 @@ class EduResearchCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
         )

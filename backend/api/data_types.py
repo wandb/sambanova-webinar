@@ -92,7 +92,6 @@ class EducationalContent(BaseModel):
 
 class EndUserMessage(BaseAgentMessage):
     content: str
-    api_keys: APIKeys
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
 
@@ -103,7 +102,6 @@ class AgentRequest(BaseModel):
         FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion
     ]
     query: str
-    api_keys: APIKeys
     document_ids: Optional[List[str]] = None
 
     @model_validator(mode="after")

@@ -23,6 +23,7 @@ from api.data_types import (
     APIKeys,
     AgentRequest,
     AgentStructuredResponse,
+    AssistantMessage,
     EndUserMessage,
     HandoffMessage,
     AgentEnum,
@@ -327,5 +328,18 @@ class SemanticRouterAgent(RoutedAgent):
                     ctx.topic_id.source,
                     f"SemanticRouterAgent failed to parse activities response: {str(e)}"
                 )
+            )
+            logger.info(logger.format_message(ctx.topic_id.source, "SemanticRouterAgent defaulting to assistant agent"))
+            request_obj = AgentRequest(
+                agent_type=AgentEnum.Assistant,
+                parameters=AssistantMessage(query=message.content),
+                query=message.content,
+            )
+            await self.publish_message(
+                request_obj,
+                DefaultTopicId(
+                    type=request_obj.agent_type.value,
+                    source=ctx.topic_id.source,
+                ),
             )
             return

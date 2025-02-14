@@ -3,10 +3,10 @@
   <div class="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
     <!-- Header -->
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
-      <h2 class="font-semibold text-gray-900">Conversations</h2>
+      
       <button
         class="p-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
-        @click="createNewChat"
+        @click="addMessage"
         :disabled="missingKeys.length > 0"
       >
         + New
@@ -27,7 +27,7 @@
         @click="selectConversation(conv)"
       >
         <div class="font-medium text-gray-800 truncate">
-          {{ conv.title }}
+         Chat  {{ conv.conversation_id	 }}
         </div>
         <div class="text-xs text-gray-500">
           {{ formatDateTime(conv.created_at) }}
@@ -39,10 +39,16 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '@/utils/encryption'   // adapt path if needed
+import { useRoute, useRouter } from 'vue-router'
+import SILogo from '@/components/icons/SILogo.vue'  
 
+
+import axios from 'axios'
+const router = useRouter()
+const route = useRoute() 
 /**
  * We'll store in localStorage under key "my_conversations_<userId>"
  * an array of { conversation_id, title, created_at }
@@ -62,10 +68,13 @@ const conversations = ref([])
  * On mounted => load local conversation list + decrypt keys 
  */
 onMounted(() => {
-  loadConversations()
+  // loadConversations()
+  loadChats()
   loadKeys()
+  // connectWebSocket()
 })
-
+let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
+let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
 async function loadKeys() {
   try {
     const uid = userId.value || 'anonymous'
@@ -88,6 +97,30 @@ const missingKeys = computed(() => {
   if (!exaKey.value) missing.push('Exa')
   return missing
 })
+
+
+async function loadChats() {
+  try {
+    
+    // if (missingKeys.value.length > 0) {
+    //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+    //   return
+    // }
+
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/list/user_2sfDzHK9r5FkXrufqoAFjnjGNPk`,   
+    )
+   
+   console.log(resp)
+
+   conversations.value = resp.data?.chats;
+
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
 
 function loadConversations() {
   try {
@@ -118,7 +151,7 @@ async function createNewChat() {
 
     const uid = userId.value || 'anonymous'
     const resp = await axios.post(
-      `${import.meta.env.VITE_API_URL}/newsletter_chat/init`, 
+      `${import.meta.env.VITE_API_URL}/chat/init`, 
       {}, 
       {
         headers: {
@@ -143,20 +176,113 @@ async function createNewChat() {
     saveConversations()
 
     selectConversation(convMeta)
+    router.push(`/${cid}`)
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
+async function loadOldConversations() {
+  try {
+    if (missingKeys.value.length > 0) {
+      alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+      return
+    }
+
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
+      {}, 
+      
+    )
+    console.log(resp)
+    
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')
   }
 }
 
+
+
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {
   emit('selectConversation', conv)
+  router.push(`/${conv.conversation_id}`)
+
 }
 
 function formatDateTime(ts) {
   if (!ts) return ''
   const d = new Date(ts)
   return d.toLocaleString()
+}
+
+const addMessage=()=>{
+
+  let myMessage="analyse microsoft financial reports this quarter"
+  const payload = {
+      event: "user_input",
+      data: myMessage,
+      id: Date.now(),
+    }
+    socket.send(JSON.stringify(payload))
+}
+
+let socket = null
+
+// Function to establish the WebSocket connection.
+function connectWebSocket() {
+
+  
+  const WEBSOCKET_URL = 'ws://localhost:8000/chat'  // Replace with your actual URL
+  // Construct the full URL using query parameters.
+  const fullUrl = `${WEBSOCKET_URL}?user_id=${userIdStatic}&conversation_id=${convId}`
+  console.log('Connecting to:', fullUrl)
+  // alert("connectng ",fullUrl)
+  socket = new WebSocket(fullUrl)
+
+  socket.onopen = () => {
+    console.log('WebSocket connection opened')
+    // Log the connection open event.
+    // logs.value += `Connection opened at ${new Date().toLocaleTimeString()}\n`
+    // Send the initial payload.
+    // const payload = {
+    //   event: "user_input",
+    //   data: "Iphone vs android"
+    // }
+    // socket.send(JSON.stringify(payload))
+    // logs.value += `Sent: ${JSON.stringify(payload)}\n`
+
+  }
+
+  socket.onmessage = (event) => {
+    console.log('Received message:', event.data)
+    // Append the received data to the log with a newline.
+    // logs.value += `${event.data}\n`
+
+    try {
+      const outerData = JSON.parse(event.data);
+      // Parse the inner data string.
+      const innerData = JSON.parse(outerData.data);
+      // Set agent name and timestamp.
+      agentName.value = innerData.agent_name;
+      timestamp.value = innerData.timestamp;
+      // Parse the text field into sections.
+      sections.value = parseSections(innerData.text);
+    } catch (error) {
+      console.error('Error parsing message:', error);
+    }
+  }
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error)
+    // logs.value += `Error: ${error.message || 'Unknown error'}\n`
+  }
+
+  socket.onclose = (event) => {
+    console.log('WebSocket connection closed:', event)
+    // logs.value += `Connection closed at ${new Date().toLocaleTimeString()}\n`
+  }
 }
 </script>

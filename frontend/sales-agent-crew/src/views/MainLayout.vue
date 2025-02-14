@@ -37,6 +37,7 @@
             :conversationId="selectedConversationId"
             :userId="clerkUserId"
             class="flex-1"
+            @agentThoughtsDataChanged="agentThoughtsDataChanged"
           />
         </div>
 
@@ -47,14 +48,16 @@
        
 
           <SearchNotification
+            
             :show="showNotification"
             :time="searchTime"
             :resultCount="resultCount"
           />
 
           <!-- LOADING SPINNER -->
-          <div v-if="isLoading" class="mt-8">
+          <div v-if="isLoading&&!chatMode" class="mt-8">
             <LoadingSpinner
+            
               :message="loadingMessage"
               :subMessage="loadingSubMessage"
             />
@@ -62,13 +65,14 @@
 
           <!-- ERROR MODAL -->
           <ErrorModal
+          v-if="!chatMode"
             :show="showError"
             :errorMessage="errorMessage"
             @close="showError = false"
           />
 
           <!-- RESULTS SECTION -->
-          <div v-if="hasResults" class="mt-6 space-y-6">
+          <div  v-if="hasResults" class="mt-6 space-y-6">
             <div class="grid grid-cols-1 gap-6">
               <!-- SALES LEADS Results -->
               <template v-if="queryType === 'sales_leads'">
@@ -102,7 +106,7 @@
       </div>
       
     </div>
-        <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
+        <div  v-if="!chatMode" class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
           <SearchSection
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"
@@ -118,9 +122,19 @@
 
         <!-- RIGHT SIDEBAR: Real-time Agent Logs for the current user + run ID -->
     <AgentSidebar
+     v-if="!chatMode"
       :userId="clerkUserId"
       :runId="currentRunId"
     />
+
+    
+    <ChatAgentSidebar
+     v-if="chatMode"
+      :userId="clerkUserId"
+      :runId="currentRunId"
+      :agentData="agentData"
+    />
+
     </div>
 
   
@@ -136,7 +150,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import ChatSidebar from '@/components/ChatSidebar.vue'
-import ChatView from '@/components/ChatView.vue'
+import ChatView from '@/components/ChatMain/ChatView.vue'
 import AgentSidebar from '@/components/AgentSidebar.vue'
 
 import SearchSection from '@/components/SearchSection.vue'
@@ -147,9 +161,17 @@ import ResearchReport from '@/components/ResearchReport.vue'
 import FinancialAnalysisReport from '@/components/FinancialAnalysisReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
-
+import ChatAgentSidebar from '@/components/ChatMain/ChatAgentSidebar.vue' 
 import { useReportStore } from '@/stores/reportStore'
 
+
+// PROPS
+// const props = defineProps({
+//   agentData: {
+//     type: Array,
+//     default: () => []
+//   }
+// })
 // *** Important *** We'll define local refs for the two components we want:
 const sideBarComp = Sidebar
 const chatSidebarComp = ChatSidebar
@@ -188,6 +210,12 @@ const headerRef = ref(null)
 const { user } = useUser()
 const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
+
+const agentData=ref([])
+const agentThoughtsDataChanged=(agentThoughtsData)=>{
+agentData.value=agentThoughtsData
+  
+}
 // The runId for SSE etc.
 const currentRunId = ref('')
 // The sessionId that remains consistent for document uploads and searches
@@ -332,6 +360,7 @@ watch(queryType, (newVal, oldVal) => {
       break
   }
 })
+
 
 function handleSearchComplete(searchResults) {
   queryType.value = searchResults.type

@@ -121,7 +121,3 @@ class UserProxyAgent(RoutedAgent):
             message,
             DefaultTopicId(type="router", source=ctx.topic_id.source),
         )
-        logger.info(logger.format_message(
-            ctx.topic_id.source,
-            "Successfully forwarded message to router"
-        ))

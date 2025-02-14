@@ -294,6 +294,11 @@ class SemanticRouterAgent(RoutedAgent):
                     )
                     continue
 
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    f"Publishing request to {request_obj.agent_type.value} with parameters: {request_obj.parameters}"
+                ))
+
                 if request_obj.agent_type == AgentEnum.UserProxy:
                     response = AgentStructuredResponse(
                         agent_type=request_obj.agent_type,

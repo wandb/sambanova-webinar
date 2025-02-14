@@ -233,10 +233,15 @@ class SemanticRouterAgent(RoutedAgent):
                 + [UserMessage(content=message.content, source="user")]
             )
 
+            self._session_manager.add_to_history(
+                ctx.topic_id.source,
+                UserMessage(content=message.content, source="user")
+            )
+
             # Send the chunk through WebSocket if connection exists
             if self.websocket:
                 message_data = {
-                    "event": "think",
+                    "event": "reason",
                     "data": planner_response.content,
                     "user_id": user_id,
                     "conversation_id": conversation_id,

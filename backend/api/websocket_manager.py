@@ -149,6 +149,22 @@ class WebSocketConnectionManager:
                     use_planner=True,
                 )
 
+                # Store message in Redis asynchronously without waiting
+                message_key = f"messages:{user_id}:{conversation_id}"
+                message_data = {
+                    "event": "user_message", 
+                    "data": user_message_input["data"],
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                # Run Redis rpush in a thread pool since it's blocking
+                asyncio.create_task(asyncio.to_thread(
+                    self.redis_client.rpush,
+                    message_key,
+                    json.dumps(message_data)
+                ))
+
                 logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
 
                 # Publish the user's message to the agent using combined source
@@ -200,7 +216,8 @@ class WebSocketConnectionManager:
                     
                     # Store think event in Redis
                     message_key = f"messages:{user_id}:{conversation_id}"
-                    self.redis_client.rpush(
+                    await asyncio.to_thread(
+                        self.redis_client.rpush,
                         message_key,
                         json.dumps(message_data)
                     )

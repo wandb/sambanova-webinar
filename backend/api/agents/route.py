@@ -242,7 +242,7 @@ class SemanticRouterAgent(RoutedAgent):
             if self.websocket:
                 message_data = {
                     "event": "reason",
-                    "data": {"reasoning": planner_response.content},
+                    "data": json.dumps({"reasoning": planner_response.content}),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
                     "timestamp": datetime.now().isoformat(),

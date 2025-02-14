@@ -405,13 +405,12 @@ class LeadGenerationAPI:
                 conversation_id = str(uuid.uuid4())
                 
                 # Use provided chat name or default
-                chat_name = chat_name or ""
                 timestamp = time.time()
                 
                 # Store chat metadata
                 metadata = {
                     "conversation_id": conversation_id,
-                    "name": chat_name,
+                    **({"name": chat_name} if chat_name else {}),
                     "created_at": timestamp,
                     "updated_at": timestamp,
                     "user_id": user_id
@@ -515,7 +514,10 @@ class LeadGenerationAPI:
                     meta_key = f"chat_metadata:{user_id}:{conv_id}"
                     meta_data = self.app.state.redis_client.get(meta_key)
                     if meta_data:
-                        chats.append(json.loads(meta_data))
+                        data = json.loads(meta_data)
+                        if "name" not in data:
+                            data["name"] = ""
+                        chats.append(data)
                 
                 return JSONResponse(
                     status_code=200,

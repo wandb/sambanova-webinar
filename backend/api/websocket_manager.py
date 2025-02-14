@@ -143,11 +143,24 @@ class WebSocketConnectionManager:
                     })
                     continue
 
+                # Check if name field exists in metadata - non-blocking
+                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                async def update_metadata():
+                    meta_data = await asyncio.to_thread(self.redis_client.get, meta_key)
+                    if meta_data:
+                        metadata = json.loads(meta_data)
+                        if "name" not in metadata:
+                            metadata["name"] = user_message_input["data"]
+                            await asyncio.to_thread(self.redis_client.set, meta_key, json.dumps(metadata))
+                
+                # Create task for metadata update without waiting
+                asyncio.create_task(update_metadata())
+                
                 user_message = EndUserMessage(
                     source="User",
                     content=user_message_input["data"], 
                     use_planner=True,
-                )
+                )    
 
                 # Store message in Redis asynchronously without waiting
                 message_key = f"messages:{user_id}:{conversation_id}"

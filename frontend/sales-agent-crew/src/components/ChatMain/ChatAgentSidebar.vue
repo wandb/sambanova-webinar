@@ -42,7 +42,7 @@
       {{ thought.event }}
     </div> -->
     <!-- <pre>{{ agentThoughtsData }}</pre> -->
-      <!-- <TimelineItem  
+      <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
       :data="thought"
     period="Researcher"
@@ -59,7 +59,7 @@
       subtitle: 'Produce professional, reliable streams using Mailchimp.',
       
     }"
-  />  -->
+  /> 
   <!-- <TimelineItem
    :collapsed="collapsed"
     period="Planner"

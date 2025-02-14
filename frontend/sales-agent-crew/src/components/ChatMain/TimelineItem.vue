@@ -11,7 +11,7 @@
       <div class="grow pb-2 group-last:pb-0">
         <!-- Always show period -->
         <h3 class="mb-1 text-lg text-gray-600 dark:text-neutral-400">
-          {{ parsedData?.event }}
+          {{ props?.data.agent_name }}
         </h3>
         <!-- Only show the rest if not collapsed -->
         <template v-if="!collapsed">

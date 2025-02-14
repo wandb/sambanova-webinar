@@ -4,9 +4,10 @@
   :class="collapsed ? 'w-16' : 'w-80'">
       <!-- Collapse/Expand Button -->
       <button
-        class=" p-2 h-[48px] mb-2 flex items-center border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
+        class=" p-2 h-[48px] mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
         @click="collapsed = !collapsed"
       >
+      <span class="flex items-center">
         <span v-if="!collapsed">
           <!-- Expand icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -30,6 +31,8 @@
           </svg>
         </span>
         <span v-if="!collapsed" class="ml-2">Agent Reasoning</span>
+      </span>
+      <span>26 sources</span>
       </button>
       <div>
     <!-- agentThoughtsData is the array you've shown -->
@@ -38,10 +41,10 @@
     </div>
     <pre>{{ agentThoughtsData }}</pre> For debugging -->
   </div>
-      <!-- <div v-for="(thought, index) in agentThoughtsData" :key="index">
-      {{ thought.event }}
+ <!-- <div v-for="(thought, index) in agentThoughtsData" :key="index">
+      {{ thought.event }}    {{ parsedData(thought.data.agent_name) }}
     </div> -->
-    <!-- <pre>{{ agentThoughtsData }}</pre> -->
+    <pre>{{ agentThoughtsData }}</pre>
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
       :data="thought"
@@ -234,7 +237,7 @@ watch(
       'Child saw array change from',
       ((oldAgentData)),
       'to',
-      ((newAgentData))
+      ((JSON.parse(newAgentData)))
     );
     console.log(typeof newAgentData)
     if (Array.isArray(newAgentData)) {
@@ -393,6 +396,7 @@ onBeforeUnmount(() => {
 //     connectToSSE()
 //   }
 // })
+
 
 
 function parsedData(str) {

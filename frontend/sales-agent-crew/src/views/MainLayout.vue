@@ -28,7 +28,7 @@
       <!-- MAIN CONTENT WRAPPER -->
       <main class="overflow-y-auto relative flex-1 flex flex-col  h-full">
 
-        <div class="flex-1 ">
+        <div class="flex-1 p-4 rounded-sm border-primary-brandFrame ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
         <div v-if="chatMode" class="flex justify-content-center">

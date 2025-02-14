@@ -1,7 +1,7 @@
 <template>
   <div 
   :class="[
-        ' h-full border-r border-gray-300  overflow-y-auto',
+        ' h-full  p-1 border-primary-brandFrame rounded-sm overflow-y-auto',
         isCollapsed ? 'w-18' : 'w-64'
       ]"
   >

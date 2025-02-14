@@ -5,11 +5,11 @@
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
       
       <button
-        class="p-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
-        @click="addMessage"
+        class="p-2 border w-full border-primary-brandBorder text-primary-brandColor rounded  text-sm"
+        @click="createNewChat"
         :disabled="missingKeys.length > 0"
       >
-        + New
+        + New Chat
       </button>
     </div>
 
@@ -27,7 +27,7 @@
         @click="selectConversation(conv)"
       >
         <div class="font-medium text-gray-800 truncate">
-         Chat  {{ conv.conversation_id	 }}
+          {{ conv.name	 }}
         </div>
         <div class="text-xs text-gray-500">
           {{ formatDateTime(conv.created_at) }}

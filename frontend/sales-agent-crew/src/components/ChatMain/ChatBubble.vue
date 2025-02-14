@@ -1,5 +1,4 @@
 <template>
-    <li class="max-w-4xl py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
       <SILogo />
       <div class="space-y-3">
       <component :is="selectedComponent" :parsed="parsedData" />
@@ -12,7 +11,7 @@
           Query: {{ parsedMessage.query }}
         </p>
       </div> -->
-    </li>
+    
   </template>
   
   <script setup>

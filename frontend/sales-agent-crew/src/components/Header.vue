@@ -1,6 +1,6 @@
 <!-- src/components/Header.vue -->
 <template>
-  <header class="shadow-md bg-white sticky top-0 z-50">
+  <header class=" bg-primary-bodyBg sticky top-0 z-50  ">
     <div class="h-16 mx-auto px-4 sm:px-6 flex items-center justify-between">
       <!-- Left: Brand -->
       <div class="flex items-center space-x-2 sm:space-x-4">

@@ -61,7 +61,12 @@ class EduDocSummariserCrew:
             run_id=self.run_id,
             agent_name="Summariser Agent"
         )
-        return Agent(config=self.agents_config['summariser'], llm=self.llm, verbose=True,step_callback=summariser_logger)
+        return Agent(
+            config=self.agents_config["summariser"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=summariser_logger,
+        )
 
     @task
     def summarise_task(self) -> Task:
@@ -76,7 +81,7 @@ class EduDocSummariserCrew:
         )
 
     @crew
-    def crew(self) -> Crew:
+    def crew(self, verbose: bool = True) -> Crew:
         """
         Create and configure the summariser crew.
 
@@ -87,5 +92,5 @@ class EduDocSummariserCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=verbose,
         )

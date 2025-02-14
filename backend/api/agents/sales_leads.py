@@ -6,14 +6,14 @@ from api.data_types import AgentRequest, AgentStructuredResponse, SalesLeads, AP
 from agent.lead_generation_crew import OutreachList, ResearchCrew
 from services.user_prompt_extractor_service import UserPromptExtractor
 
-from ..otlp_tracing import logger
+from ..otlp_tracing import logger, format_log_message
 
 
 @type_subscription(topic_type="sales_leads")
 class SalesLeadsAgent(RoutedAgent):
     def __init__(self, api_keys: APIKeys):
         super().__init__("SalesLeadsAgent")
-        logger.info(f"Initializing SalesLeadsAgent with ID: {self.id}")
+        logger.info(format_log_message(None, f"Initializing SalesLeadsAgent with ID: {self.id}"))
         self.api_keys = api_keys
 
     @message_handler
@@ -22,19 +22,36 @@ class SalesLeadsAgent(RoutedAgent):
     ) -> None:
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")   
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                "Processing sales leads request"
+            ))
+            
             crew = ResearchCrew(
                 sambanova_key=self.api_keys.sambanova_key,
                 exa_key=self.api_keys.exa_key,
                 user_id=user_id,
-                run_id=conversation_id
+                run_id=conversation_id,
+                verbose=False
             )
             parameters_dict = {k: v if v is not None else "" for k, v in message.parameters.model_dump().items()}
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                f"Starting lead research with parameters: {parameters_dict}"
+            ))
 
             raw_result = await asyncio.to_thread(crew.execute_research, parameters_dict)
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                "Successfully generated sales leads"
+            ))
             outreach_list = OutreachList.model_validate_json(raw_result)
 
         except Exception as e:
-            logger.error(f"Failed to process sales leads request: {str(e)}", exc_info=True)
+            logger.error(format_log_message(
+                ctx.topic_id.source,
+                f"Failed to process sales leads request: {str(e)}"
+            ), exc_info=True)
             outreach_list = OutreachList()
 
         try:
@@ -44,12 +61,18 @@ class SalesLeadsAgent(RoutedAgent):
                 data=outreach_list,
                 message=message.parameters.model_dump_json(),
             )
-            logger.info(f"Publishing response to user_proxy: {response}")
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                "Publishing sales leads to user_proxy"
+            ))
             await self.publish_message(
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
         except Exception as e:
-            logger.error(f"Failed to publish response: {str(e)}", exc_info=True)
+            logger.error(format_log_message(
+                ctx.topic_id.source,
+                f"Failed to publish response: {str(e)}"
+            ), exc_info=True)
 
 

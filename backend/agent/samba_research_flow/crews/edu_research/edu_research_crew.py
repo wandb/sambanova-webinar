@@ -146,7 +146,7 @@ class EduResearchCrew:
         return Task(config=self.tasks_config['planning_task'], output_pydantic=EducationalPlan)
 
     @crew
-    def crew(self) -> Crew:
+    def crew(self, verbose: bool = True) -> Crew:
         """
         Create and configure the research crew.
 
@@ -157,5 +157,5 @@ class EduResearchCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=verbose,
         )

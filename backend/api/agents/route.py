@@ -26,7 +26,7 @@ from api.data_types import (
     HandoffMessage,
     AgentEnum,
 )
-from api.otlp_tracing import logger
+from api.otlp_tracing import logger, format_log_message
 from api.registry import AgentRegistry
 from api.session_state import SessionStateManager
 
@@ -52,10 +52,10 @@ class SemanticRouterAgent(RoutedAgent):
         session_manager: SessionStateManager,
         websocket: WebSocket,
         redis_client: redis.Redis,
-        api_keys: APIKeys
+        api_keys: APIKeys,
     ) -> None:
         super().__init__("SemanticRouterAgent")
-        logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
+        logger.info(format_log_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
         self._reasoning_model_client = OpenAIChatCompletionClient(
             model="DeepSeek-R1-Distill-Llama-70B",
@@ -73,10 +73,10 @@ class SemanticRouterAgent(RoutedAgent):
             base_url="https://api.sambanova.ai/v1",
             api_key=api_keys.sambanova_key,
             model_info={
-                    "json_output": False,
-                    "function_calling": True,
-                    "family": "unknown",
-                    "vision": False,
+                "json_output": False,
+                "function_calling": True,
+                "family": "unknown",
+                "vision": False,
             },
         )
         self._session_manager = session_manager
@@ -92,6 +92,10 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
+        logger.info(format_log_message(
+            ctx.topic_id.source,
+            f"Routing message: '{message.content[:100]}...' (use_planner={message.use_planner})"
+        ))
         if message.use_planner:
             await self._get_agents_to_route(message, ctx)
         else:
@@ -109,7 +113,7 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The original message containing API keys and document IDs
 
         Returns:
-            tuple: (Request object, topic type string)
+            AgentRequest: The request object for the agent
         """
 
         agent_type = AgentEnum(request_type)
@@ -118,7 +122,6 @@ class SemanticRouterAgent(RoutedAgent):
             {
                 "agent_type": agent_type,
                 "parameters": parameters,
-                "api_keys": message.api_keys,
                 "document_ids": message.document_ids,
                 "query": message.content,
             }
@@ -136,6 +139,10 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
+        logger.info(format_log_message(
+            ctx.topic_id.source,
+            f"Using query router for message: '{message.content[:100]}...'"
+        ))
         router = QueryRouterService(message.api_keys.sambanova_key)
         route_result: QueryType = router.route_query(message.content)
 
@@ -143,16 +150,26 @@ class SemanticRouterAgent(RoutedAgent):
             request_obj = self._create_request(
                 route_result.type, route_result.parameters, message
             )
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                f"Routing to {request_obj.agent_type.value} agent with parameters: {route_result.parameters}"
+            ))
             await self.publish_message(
                 request_obj,
                 DefaultTopicId(
                     type=request_obj.agent_type.value, source=ctx.topic_id.source
                 ),
             )
-            logger.info(f"{request_obj.agent_type.value} request published")
+            logger.info(format_log_message(
+                ctx.topic_id.source,
+                f"Successfully published request to {request_obj.agent_type.value}"
+            ))
 
         except ValueError as e:
-            logger.error(f"Error processing request: {str(e)}")
+            logger.error(format_log_message(
+                ctx.topic_id.source,
+                f"Error processing request: {str(e)}"
+            ))
             return
 
     @message_handler
@@ -167,12 +184,23 @@ class SemanticRouterAgent(RoutedAgent):
             ctx (MessageContext): Context information for the message.
         """
         session_id = ctx.topic_id.source
-        logger.info(f"Received handoff message from {message.source}")
+        logger.info(format_log_message(
+            session_id,
+            f"Received handoff from {message.source} agent"
+        ))
 
         # Clear session if conversation is complete, otherwise continue routing
         if message.original_task and "complete" in message.content.lower():
+            logger.info(format_log_message(
+                session_id,
+                "Task complete, clearing session"
+            ))
             self._session_manager.clear_session(session_id)
         else:
+            logger.info(format_log_message(
+                session_id,
+                f"Continuing conversation with new message from {message.source}"
+            ))
             await self.route_message(
                 EndUserMessage(content=message.content, source=message.source), ctx
             )
@@ -186,12 +214,12 @@ class SemanticRouterAgent(RoutedAgent):
         Args:
             message (EndUserMessage): The incoming user message.
         """
-        logger.info(f"Analyzing message: {message.content}")
-        try:
-            logger.info(f"Getting planner prompt for message: {message.content}")
-            system_message = agent_registry.get_planner_prompt()
-        except Exception as e:
-            logger.error(e)
+
+        logger.info(format_log_message(
+            ctx.topic_id.source,
+            f"Determining agents to route message: '{message.content[:100]}...'"
+        ))
+        system_message = agent_registry.get_planner_prompt()
 
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
@@ -210,22 +238,26 @@ class SemanticRouterAgent(RoutedAgent):
                     "data": planner_response.content,
                     "user_id": user_id,
                     "conversation_id": conversation_id,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-                
+
                 # Store in Redis
                 message_key = f"messages:{user_id}:{conversation_id}"
-                self.redis_client.rpush(
-                    message_key,
-                    json.dumps(message_data)
-                )
-                
+                self.redis_client.rpush(message_key, json.dumps(message_data))
+
                 # Send through WebSocket
                 await self.websocket.send_text(json.dumps(message_data))
                 await asyncio.sleep(0.25)
 
             cleaned_response = re.sub(
-                r"<think>.*?</think>", "", planner_response.content, flags=re.DOTALL
+                r"<think>.*?</think>",
+                "",
+                (
+                    planner_response.content
+                    if isinstance(planner_response.content, str)
+                    else str(planner_response.content)
+                ),
+                flags=re.DOTALL,
             ).strip()
             feature_extractor_response = await self._structure_extraction_model.create(
                 [
@@ -246,31 +278,36 @@ class SemanticRouterAgent(RoutedAgent):
                     request_obj = self._create_request(
                         p["agent_type"], p["parameters"], message
                     )
-                    if request_obj.agent_type == AgentEnum.UserProxy:
-                        response = AgentStructuredResponse(
-                            agent_type=request_obj.agent_type,
-                            data=request_obj.parameters,
-                            message=request_obj.parameters.model_dump_json(),
-                        )
-                        await self.publish_message(
-                            response,
-                            DefaultTopicId(
-                                type=request_obj.agent_type.value,
-                                source=ctx.topic_id.source,
-                            ),
-                        )
-                    else:
-                        await self.publish_message(
-                            request_obj,
-                            DefaultTopicId(
-                                type=request_obj.agent_type.value,
-                                source=ctx.topic_id.source,
-                            ),
-                        )
-                except ValueError as e:
-                    logger.error(f"Error processing plan item: {str(e)}")
+                except Exception as e:
+                    logger.error(
+                        f"SemanticRouterAgent failed to parse plan item {p}: {str(e)}"
+                    )
                     continue
 
+                if request_obj.agent_type == AgentEnum.UserProxy:
+                    response = AgentStructuredResponse(
+                        agent_type=request_obj.agent_type,
+                        data=request_obj.parameters,
+                        message=request_obj.parameters.model_dump_json(),
+                    )
+                    await self.publish_message(
+                        response,
+                        DefaultTopicId(
+                            type=request_obj.agent_type.value,
+                            source=ctx.topic_id.source,
+                        ),
+                    )
+                else:
+                    await self.publish_message(
+                        request_obj,
+                        DefaultTopicId(
+                            type=request_obj.agent_type.value,
+                            source=ctx.topic_id.source,
+                        ),
+                    )
+
         except Exception as e:
-            logger.error(f"Failed to parse activities response: {str(e)}")
+            logger.error(
+                f"SemanticRouterAgent failed to parse activities response: {str(e)}"
+            )
             return

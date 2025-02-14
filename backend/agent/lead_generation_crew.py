@@ -74,7 +74,9 @@ class ResearchCrew:
                  sambanova_key: str,
                  exa_key: str,
                  user_id: str = "",
-                 run_id: str = ""):
+                 run_id: str = "",
+                 verbose: bool = True
+                 ):
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
@@ -85,6 +87,7 @@ class ResearchCrew:
         self.sambanova_key = sambanova_key
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
 
         self._initialize_agents()
         self._initialize_tasks()
@@ -99,7 +102,7 @@ class ResearchCrew:
             backstory="You retrieve top-level aggregator results from Exa using the tool.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             tools=[CompanyIntelligenceTool(api_key=self.exa_key)]
         )
 
@@ -110,7 +113,7 @@ class ResearchCrew:
             backstory="You parse aggregator text with the LLM to produce structured data.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True
+            verbose=self.verbose
         )
 
         # 3) market_trends_agent
@@ -120,7 +123,7 @@ class ResearchCrew:
             backstory="You are an experienced market research analyst ...",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             tools=[MarketResearchTool(api_key=self.exa_key)]
         )
 
@@ -131,7 +134,7 @@ class ResearchCrew:
             backstory="You craft personalized outreach messages ...",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True
+            verbose=self.verbose
         )
 
         # Create Redis loggers per agent
@@ -314,7 +317,7 @@ class ResearchCrew:
                 self.outreach_task
             ],
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
             memory=False
         )
         results = crew.kickoff(inputs=inputs)

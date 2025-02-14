@@ -20,19 +20,34 @@ def configure_logger():
     logger = logging.getLogger("Co_Pilot")
     logger.setLevel(logging.INFO)
 
-    if not logger.hasHandlers():
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    # Remove all existing handlers to avoid duplicate logging
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    # Create console handler with formatting
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Prevent propagation to avoid duplicate logs
+    logger.propagate = False
 
     return logger
 
 
 logger = configure_logger()
+
+# Helper function to format log messages consistently
+def format_log_message(session_id: str | None, message: str) -> str:
+    """Format log message with consistent session ID prefix if provided."""
+    if session_id:
+        return f"[{session_id[:8]}]{message}"
+    return message
 
 
 def configure_oltp_tracing(

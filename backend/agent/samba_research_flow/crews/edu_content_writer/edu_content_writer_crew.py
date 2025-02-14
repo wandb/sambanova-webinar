@@ -159,7 +159,7 @@ class EduContentWriterCrew:
         )
 
     @crew
-    def crew(self) -> Crew:
+    def crew(self, verbose: bool = True) -> Crew:
         """
         Create and configure the content creation crew.
 
@@ -170,5 +170,5 @@ class EduContentWriterCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=verbose,
         )

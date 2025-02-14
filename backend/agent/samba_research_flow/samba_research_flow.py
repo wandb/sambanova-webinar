@@ -46,6 +46,7 @@ class SambaResearchFlow(Flow):
         user_id: str = None,
         run_id: str = None,
         docs_included: bool = False,
+        verbose: bool = True
     ) -> None:
         """Initialize the educational flow with research and content creation crews."""
         super().__init__()
@@ -53,18 +54,18 @@ class SambaResearchFlow(Flow):
             sambanova_key=sambanova_key,
             user_id=user_id,
             run_id=run_id
-        ).crew()
+        ).crew(verbose=verbose)
         self.research_crew = EduResearchCrew(
             sambanova_key=sambanova_key,
             serper_key=serper_key,
             user_id=user_id,
             run_id=run_id
-        ).crew()
+        ).crew(verbose=verbose)
         self.content_crew = EduContentWriterCrew(
             sambanova_key=sambanova_key,
             user_id=user_id,
             run_id=run_id
-        ).crew()
+        ).crew(verbose=verbose)
         self.docs_included = docs_included
 
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:

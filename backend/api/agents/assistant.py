@@ -15,7 +15,10 @@ import requests
 
 from api.data_types import APIKeys, AgentRequest, AgentStructuredResponse, AssistantResponse
 
-from ..otlp_tracing import logger, format_log_message
+from utils.logging import logger
+
+import asyncio
+from typing import Any, Dict, List, Optional
 
 
 async def get_current_time() -> str:
@@ -54,7 +57,7 @@ def serper_search(api_key: str, query: str, num_results: int = 5):
 class AssistantAgentWrapper(RoutedAgent):
     def __init__(self, api_keys: APIKeys) -> None:
         super().__init__("assistant")
-        logger.info(format_log_message(None, f"Initializing AssistantAgent with ID: {self.id} and tools: [get_current_time, serper_search]"))
+        logger.info(logger.format_message(None, f"Initializing AssistantAgent with ID: {self.id} and tools: [get_current_time, serper_search]"))
         self.api_keys = api_keys
         self._assistant = AssistantAgent(
             name="assistant",
@@ -79,18 +82,18 @@ class AssistantAgentWrapper(RoutedAgent):
         self, message: AgentRequest, ctx: MessageContext
     ) -> None:
         try:
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Processing request: '{message.parameters.query[:100]}...'"
             ))
             agent_message = TextMessage(content=message.parameters.query, source="user")
             response = await self._assistant.on_messages([agent_message], ctx.cancellation_token)
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Generated response successfully"
             ))
         except Exception as e:
-            logger.error(format_log_message(
+            logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Failed to process request: {str(e)}"
             ), exc_info=True)
@@ -103,7 +106,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 data=AssistantResponse(response=response.chat_message.content),
                 message=message.parameters.model_dump_json(),
             )
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Publishing response to user_proxy"
             ))
@@ -112,7 +115,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
         except Exception as e:
-            logger.error(format_log_message(
+            logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Failed to publish response: {str(e)}"
             ), exc_info=True)

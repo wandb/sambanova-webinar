@@ -13,12 +13,13 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 from starlette.websockets import WebSocketState
 from contextlib import asynccontextmanager
+import logging
 
 from api.agents.user_proxy import UserProxyAgent
 from api.websocket_manager import WebSocketConnectionManager
 
 from api.utils import initialize_agent_runtime
-from api.otlp_tracing import logger
+from utils.logging import logger
 from autogen_core import MessageContext
 
 import redis

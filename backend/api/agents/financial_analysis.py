@@ -24,7 +24,7 @@ from ..data_types import (
     FinancialAnalysis,
     APIKeys,
 )
-from ..otlp_tracing import logger, format_log_message
+from utils.logging import logger
 
 
 @type_subscription(topic_type="financial_analysis")
@@ -34,13 +34,13 @@ class FinancialAnalysisAgent(RoutedAgent):
         api_keys: APIKeys,
     ) -> None:
         super().__init__("FinancialAnalysisAgent")
-        logger.info(format_log_message(None, f"Initializing FinancialAnalysisAgent with ID: {self.id}"))
+        logger.info(logger.format_message(None, f"Initializing FinancialAnalysisAgent with ID: {self.id}"))
         self.api_keys = api_keys
 
     async def execute_financial(
         self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any]
     ):
-        logger.info(format_log_message(None, f"Extracting financial information from query: '{parameters.get('query_text', '')[:100]}...'"))
+        logger.info(logger.format_message(None, f"Extracting financial information from query: '{parameters.get('query_text', '')[:100]}...'"))
         fextractor = FinancialPromptExtractor(self.api_keys.sambanova_key)
         query_text = parameters.get("query_text", "")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
@@ -55,27 +55,25 @@ class FinancialAnalysisAgent(RoutedAgent):
         if not extracted_company:
             extracted_company = "Apple Inc"
 
-        logger.info(format_log_message(None, f"Analyzing company: {extracted_company} (ticker: {extracted_ticker})"))
+        logger.info(logger.format_message(None, f"Analyzing company: {extracted_company} (ticker: {extracted_ticker})"))
         inputs = {"ticker": extracted_ticker, "company_name": extracted_company}
 
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]
-            logger.info(format_log_message(None, "Including additional document analysis in financial analysis"))
+            logger.info(logger.format_message(None, "Including additional document analysis in financial analysis"))
 
         # Run the synchronous function in a thread pool
         raw_result = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
         return raw_result
 
     @message_handler
-    async def handle_analysis_request(
-        self, message: AgentRequest, ctx: MessageContext
-    ) -> None:
-        logger.info(format_log_message(
-            ctx.topic_id.source,
-            "Processing financial analysis request"
-        ))
+    async def handle_financial_analysis_request(self, message: AgentRequest, ctx: MessageContext) -> None:
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                f"Processing financial analysis request for company: '{message.parameters.company_name}'"
+            ))
 
             # Initialize crew
             crew = FinancialAnalysisCrew(
@@ -92,21 +90,17 @@ class FinancialAnalysisAgent(RoutedAgent):
             raw_result = await self.execute_financial(
                 crew, message.parameters.model_dump()
             )
-            logger.info(format_log_message(
-                ctx.topic_id.source,
-                "Successfully generated financial analysis"
-            ))
 
             financial_analysis_result = FinancialAnalysisResult.model_validate(
                 json.loads(raw_result)
             )
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Successfully parsed financial analysis result"
             ))
 
         except Exception as e:
-            logger.error(format_log_message(
+            logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Failed to process financial analysis request: {str(e)}"
             ), exc_info=True)
@@ -119,7 +113,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 data=financial_analysis_result,
                 message=message.parameters.model_dump_json(),
             )
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Publishing financial analysis to user_proxy"
             ))
@@ -128,7 +122,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
         except Exception as e:
-            logger.error(format_log_message(
+            logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Failed to publish response: {str(e)}"
             ), exc_info=True)

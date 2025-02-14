@@ -11,7 +11,8 @@ from api.agents.route import SemanticRouterAgent
 from api.agents.sales_leads import SalesLeadsAgent
 from autogen_agentchat.agents import AssistantAgent
 
-from api.otlp_tracing import configure_oltp_tracing, logger
+from api.otlp_tracing import configure_oltp_tracing
+from utils.logging import logger
 from api.session_state import SessionStateManager
 from api.agents.user_proxy import UserProxyAgent
 

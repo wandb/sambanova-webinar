@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 from collections import deque
 import re
+import os
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -26,9 +27,9 @@ from api.data_types import (
     HandoffMessage,
     AgentEnum,
 )
-from api.otlp_tracing import logger, format_log_message
 from api.registry import AgentRegistry
 from api.session_state import SessionStateManager
+from utils.logging import logger
 
 agent_registry = AgentRegistry()
 
@@ -55,7 +56,7 @@ class SemanticRouterAgent(RoutedAgent):
         api_keys: APIKeys,
     ) -> None:
         super().__init__("SemanticRouterAgent")
-        logger.info(format_log_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
+        logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
         self._reasoning_model_client = OpenAIChatCompletionClient(
             model="DeepSeek-R1-Distill-Llama-70B",
@@ -92,7 +93,7 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
-        logger.info(format_log_message(
+        logger.info(logger.format_message(
             ctx.topic_id.source,
             f"Routing message: '{message.content[:100]}...' (use_planner={message.use_planner})"
         ))
@@ -139,7 +140,7 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
-        logger.info(format_log_message(
+        logger.info(logger.format_message(
             ctx.topic_id.source,
             f"Using query router for message: '{message.content[:100]}...'"
         ))
@@ -150,26 +151,27 @@ class SemanticRouterAgent(RoutedAgent):
             request_obj = self._create_request(
                 route_result.type, route_result.parameters, message
             )
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Routing to {request_obj.agent_type.value} agent with parameters: {route_result.parameters}"
             ))
             await self.publish_message(
                 request_obj,
                 DefaultTopicId(
-                    type=request_obj.agent_type.value, source=ctx.topic_id.source
+                    type=request_obj.agent_type.value,
+                    source=ctx.topic_id.source,
                 ),
             )
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Successfully published request to {request_obj.agent_type.value}"
             ))
 
         except ValueError as e:
-            logger.error(format_log_message(
+            logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Error processing request: {str(e)}"
-            ))
+            ), exc_info=True)
             return
 
     @message_handler
@@ -184,20 +186,20 @@ class SemanticRouterAgent(RoutedAgent):
             ctx (MessageContext): Context information for the message.
         """
         session_id = ctx.topic_id.source
-        logger.info(format_log_message(
+        logger.info(logger.format_message(
             session_id,
             f"Received handoff from {message.source} agent"
         ))
 
         # Clear session if conversation is complete, otherwise continue routing
         if message.original_task and "complete" in message.content.lower():
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 session_id,
                 "Task complete, clearing session"
             ))
             self._session_manager.clear_session(session_id)
         else:
-            logger.info(format_log_message(
+            logger.info(logger.format_message(
                 session_id,
                 f"Continuing conversation with new message from {message.source}"
             ))
@@ -215,7 +217,7 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
         """
 
-        logger.info(format_log_message(
+        logger.info(logger.format_message(
             ctx.topic_id.source,
             f"Determining agents to route message: '{message.content[:100]}...'"
         ))
@@ -280,7 +282,10 @@ class SemanticRouterAgent(RoutedAgent):
                     )
                 except Exception as e:
                     logger.error(
-                        f"SemanticRouterAgent failed to parse plan item {p}: {str(e)}"
+                        logger.format_message(
+                            ctx.topic_id.source,
+                            f"SemanticRouterAgent failed to parse plan item {p}: {str(e)}"
+                        )
                     )
                     continue
 
@@ -308,6 +313,9 @@ class SemanticRouterAgent(RoutedAgent):
 
         except Exception as e:
             logger.error(
-                f"SemanticRouterAgent failed to parse activities response: {str(e)}"
+                logger.format_message(
+                    ctx.topic_id.source,
+                    f"SemanticRouterAgent failed to parse activities response: {str(e)}"
+                )
             )
             return

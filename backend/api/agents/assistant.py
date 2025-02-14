@@ -13,7 +13,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 import requests
 
-from api.data_types import AgentRequest, AgentStructuredResponse, AssistantResponse
+from api.data_types import APIKeys, AgentRequest, AgentStructuredResponse, AssistantResponse
 
 from ..otlp_tracing import logger
 
@@ -52,14 +52,16 @@ def serper_search(api_key: str, query: str, num_results: int = 5):
 
 @type_subscription(topic_type="assistant")
 class AssistantAgentWrapper(RoutedAgent):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self._assistant = lambda serper_key, sambanova_key: AssistantAgent(
-            name,
+    def __init__(self, api_keys: APIKeys) -> None:
+        super().__init__("assistant")
+        logger.info(f"Initializing AssistantAgentWrapper with ID: {self.id}")
+        self.api_keys = api_keys
+        self._assistant = AssistantAgent(
+            name="assistant",
             model_client=OpenAIChatCompletionClient(
                 model="Meta-Llama-3.1-70B-Instruct",
                 base_url="https://api.sambanova.ai/v1",
-                api_key=sambanova_key,
+                api_key=self.api_keys.sambanova_key,
                 model_info={
                     "json_output": False,
                     "function_calling": True,
@@ -67,11 +69,10 @@ class AssistantAgentWrapper(RoutedAgent):
                     "vision": False,
                 },
             ),
-            tools=[get_current_time, functools.partial(serper_search, serper_key)],
+            tools=[get_current_time, functools.partial(serper_search, self.api_keys.serper_key)],
             system_message="You are a helpful AI assistant.",
             reflect_on_tool_use=True,
         )
-        self._user_proxy = UserProxyAgent("user_proxy")
 
     @message_handler
     async def handle_text_message(
@@ -80,9 +81,7 @@ class AssistantAgentWrapper(RoutedAgent):
         try:
             logger.info(f"AssistantAgent received message: {message.parameters.query}")
             agent_message = TextMessage(content=message.parameters.query, source="user")
-            response = await self._assistant(
-                message.api_keys.serper_key, message.api_keys.sambanova_key
-            ).on_messages([agent_message], ctx.cancellation_token)
+            response = await self._assistant.on_messages([agent_message], ctx.cancellation_token)
         except Exception as e:
             logger.error(
                 f"Failed to process assistant request: {str(e)}", exc_info=True

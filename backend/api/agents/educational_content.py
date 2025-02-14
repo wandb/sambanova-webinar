@@ -17,21 +17,24 @@ from ..data_types import (
     AgentRequest,
     AgentStructuredResponse,
     EducationalPlanResult,
+    APIKeys,
 )
 from ..otlp_tracing import logger
 
 @type_subscription(topic_type="educational_content")
 class EducationalContentAgent(RoutedAgent):
-    def __init__(self):
+    def __init__(self, api_keys: APIKeys):
         super().__init__("EducationalContentAgent")
+        logger.info(f"Initializing EducationalContentAgent with ID: {self.id}")
+        self.api_keys = api_keys
 
     @message_handler
     async def handle_educational_content_request(self, message: AgentRequest, ctx: MessageContext) -> None:
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
             edu_flow = SambaResearchFlow(
-                    sambanova_key=message.api_keys.sambanova_key,
-                    serper_key=message.api_keys.serper_key,
+                    sambanova_key=self.api_keys.sambanova_key,
+                    serper_key=self.api_keys.serper_key,
                     user_id=user_id,
                     run_id=conversation_id,
                     docs_included=False

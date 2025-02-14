@@ -8,16 +8,15 @@ from autogen_core import (
     RoutedAgent,
     message_handler,
 )
-from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.models import AssistantMessage
+from fastapi import WebSocket
+import redis
 
-from api.websocket_manager import WebSocketConnectionManager
 from api.session_state import SessionStateManager
 
 from ..data_types import (
     AgentStructuredResponse,
     EndUserMessage,
-    UserQuestion,
 )
 from ..otlp_tracing import logger
 
@@ -28,13 +27,12 @@ class UserProxyAgent(RoutedAgent):
     Acts as a proxy between the user and the routing agent.
     """
 
-    connection_manager: WebSocketConnectionManager = (
-        None  # Will be set by LeadGenerationAPI
-    )
-
-    def __init__(self, session_manager: SessionStateManager) -> None:
+    def __init__(self, session_manager: SessionStateManager, websocket: WebSocket, redis_client: redis.Redis) -> None:
         super().__init__("UserProxyAgent")
+        logger.info(f"Initializing UserProxyAgent with ID: {self.id}")
         self.session_manager = session_manager
+        self.websocket = websocket
+        self.redis_client = redis_client
 
     @message_handler
     async def handle_agent_response(
@@ -52,9 +50,8 @@ class UserProxyAgent(RoutedAgent):
         logger.info(f"UserProxyAgent received agent response: {message}")
         # ctx.topic_id.source is already in format "user_id:conversation_id"
         try:
-            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
             user_id, conversation_id = ctx.topic_id.source.split(":")
-            if websocket:
+            if self.websocket:
                 message_data = {
                     "event": "completion",
                     "data": message.model_dump_json(),
@@ -65,13 +62,13 @@ class UserProxyAgent(RoutedAgent):
                 
                 # Store in Redis
                 message_key = f"messages:{user_id}:{conversation_id}"
-                self.connection_manager.redis_client.rpush(
+                self.redis_client.rpush(
                     message_key,
                     json.dumps(message_data)
                 )
                 
                 # Send through WebSocket
-                await websocket.send_text(json.dumps(message_data))
+                await self.websocket.send_text(json.dumps(message_data))
 
                 self.session_manager.add_to_history(
                     ctx.topic_id.source,

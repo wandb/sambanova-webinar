@@ -12,36 +12,42 @@ from autogen_core import (
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisCrew, FinancialAnalysisResult
+from agent.financial_analysis.financial_analysis_crew import (
+    FinancialAnalysisCrew,
+    FinancialAnalysisResult,
+)
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
     AgentRequest,
     AgentStructuredResponse,
     FinancialAnalysis,
+    APIKeys,
 )
 from ..otlp_tracing import logger
+
 
 @type_subscription(topic_type="financial_analysis")
 class FinancialAnalysisAgent(RoutedAgent):
     def __init__(
-        self,  
+        self,
+        api_keys: APIKeys,
     ) -> None:
         super().__init__("FinancialAnalysisAgent")
         logger.info(f"Initializing FinancialAnalysisAgent with ID: {self.id}")
-        self._system_messages: List[LLMMessage] = [
-            SystemMessage(content="You are a helpful AI assistant that helps with financial analysis.")
-        ]
+        self.api_keys = api_keys
 
-    async def execute_financial(self, crew: FinancialAnalysisCrew, sambanova_key: str, parameters: Dict[str,Any]):
-        fextractor = FinancialPromptExtractor(sambanova_key)
-        query_text = parameters.get("query_text","")
+    async def execute_financial(
+        self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any]
+    ):
+        fextractor = FinancialPromptExtractor(self.api_keys.sambanova_key)
+        query_text = parameters.get("query_text", "")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
         if not extracted_ticker:
-            extracted_ticker = parameters.get("ticker","")
+            extracted_ticker = parameters.get("ticker", "")
         if not extracted_company:
-            extracted_company = parameters.get("company_name","")
+            extracted_company = parameters.get("company_name", "")
 
         if not extracted_ticker:
             extracted_ticker = "AAPL"
@@ -56,7 +62,7 @@ class FinancialAnalysisAgent(RoutedAgent):
         # Run the synchronous function in a thread pool
         raw_result = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
         return raw_result
-    
+
     @message_handler
     async def handle_analysis_request(
         self, message: AgentRequest, ctx: MessageContext
@@ -67,23 +73,29 @@ class FinancialAnalysisAgent(RoutedAgent):
 
             # Initialize crew
             crew = FinancialAnalysisCrew(
-                sambanova_key=message.api_keys.sambanova_key,
-                exa_key=message.api_keys.exa_key,
-                serper_key=message.api_keys.serper_key,
+                sambanova_key=self.api_keys.sambanova_key,
+                exa_key=self.api_keys.exa_key,
+                serper_key=self.api_keys.serper_key,
                 user_id=user_id,
                 run_id=conversation_id,
-                docs_included=False 
+                docs_included=False,
             )
 
             # Execute analysis
-            raw_result = await self.execute_financial(crew, message.api_keys.sambanova_key, message.parameters.model_dump())
+            raw_result = await self.execute_financial(
+                crew, message.parameters.model_dump()
+            )
             logger.info(f"Received raw result: {raw_result}")
-            
-            financial_analysis_result = FinancialAnalysisResult.model_validate(json.loads(raw_result))
+
+            financial_analysis_result = FinancialAnalysisResult.model_validate(
+                json.loads(raw_result)
+            )
             logger.info("Successfully parsed financial analysis result")
 
         except Exception as e:
-            logger.error(f"Failed to process financial analysis request: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to process financial analysis request: {str(e)}", exc_info=True
+            )
             financial_analysis_result = FinancialAnalysisResult()
 
         try:

@@ -13,12 +13,13 @@ from autogen_core import (
 )
 from autogen_core.models import SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from fastapi import WebSocket
+import redis
 
-from agent.lead_generation_crew import ResearchCrew
-from api.websocket_manager import WebSocketConnectionManager
 from services.query_router_service import QueryRouterService, QueryType
 
 from api.data_types import (
+    APIKeys,
     AgentRequest,
     AgentStructuredResponse,
     EndUserMessage,
@@ -45,22 +46,21 @@ class SemanticRouterAgent(RoutedAgent):
         connection_manager (WebSocketConnectionManager): Manages WebSocket connections.
     """
 
-    connection_manager: WebSocketConnectionManager = (
-        None  # Will be set by LeadGenerationAPI
-    )
-
     def __init__(
         self,
         name: str,
         session_manager: SessionStateManager,
+        websocket: WebSocket,
+        redis_client: redis.Redis,
+        api_keys: APIKeys
     ) -> None:
         super().__init__("SemanticRouterAgent")
         logger.info(f"Initializing SemanticRouterAgent with ID: {self.id}")
         self._name = name
-        self._reasoning_model_client = lambda sambanova_key: OpenAIChatCompletionClient(
+        self._reasoning_model_client = OpenAIChatCompletionClient(
             model="DeepSeek-R1-Distill-Llama-70B",
             base_url="https://api.sambanova.ai/v1",
-            api_key=sambanova_key,
+            api_key=api_keys.sambanova_key,
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -68,20 +68,20 @@ class SemanticRouterAgent(RoutedAgent):
                 "vision": False,
             },
         )
-        self._structure_extraction_model = (
-            lambda sambanova_key: OpenAIChatCompletionClient(
-                model="Meta-Llama-3.1-70B-Instruct",
-                base_url="https://api.sambanova.ai/v1",
-                api_key=sambanova_key,
-                model_info={
+        self._structure_extraction_model = OpenAIChatCompletionClient(
+            model="Meta-Llama-3.1-70B-Instruct",
+            base_url="https://api.sambanova.ai/v1",
+            api_key=api_keys.sambanova_key,
+            model_info={
                     "json_output": False,
                     "function_calling": True,
                     "family": "unknown",
                     "vision": False,
-                },
-            )
+            },
         )
         self._session_manager = session_manager
+        self.websocket = websocket
+        self.redis_client = redis_client
 
     @message_handler
     async def route_message(self, message: EndUserMessage, ctx: MessageContext) -> None:
@@ -194,26 +194,17 @@ class SemanticRouterAgent(RoutedAgent):
             logger.error(e)
 
         try:
-            reasoning_model_client = self._reasoning_model_client(
-                message.api_keys.sambanova_key
-            )
-            feature_extractor_model = self._structure_extraction_model(
-                message.api_keys.sambanova_key
-            )
             user_id, conversation_id = ctx.topic_id.source.split(":")
 
-            # Get the WebSocket connection from the connection manager
-            websocket = self.connection_manager.get_connection(user_id, conversation_id)
-
             history = self._session_manager.get_history(ctx.topic_id.source)
-            planner_response = await reasoning_model_client.create(
+            planner_response = await self._reasoning_model_client.create(
                 [SystemMessage(content=system_message)]
                 + list(history)
                 + [UserMessage(content=message.content, source="user")]
             )
 
             # Send the chunk through WebSocket if connection exists
-            if websocket:
+            if self.websocket:
                 message_data = {
                     "event": "think",
                     "data": planner_response.content,
@@ -224,19 +215,19 @@ class SemanticRouterAgent(RoutedAgent):
                 
                 # Store in Redis
                 message_key = f"messages:{user_id}:{conversation_id}"
-                self.connection_manager.redis_client.rpush(
+                self.redis_client.rpush(
                     message_key,
                     json.dumps(message_data)
                 )
                 
                 # Send through WebSocket
-                await websocket.send_text(json.dumps(message_data))
+                await self.websocket.send_text(json.dumps(message_data))
                 await asyncio.sleep(0.25)
 
             cleaned_response = re.sub(
                 r"<think>.*?</think>", "", planner_response.content, flags=re.DOTALL
             ).strip()
-            feature_extractor_response = await feature_extractor_model.create(
+            feature_extractor_response = await self._structure_extraction_model.create(
                 [
                     SystemMessage(
                         content=agent_registry.get_strucuted_output_plan_prompt(

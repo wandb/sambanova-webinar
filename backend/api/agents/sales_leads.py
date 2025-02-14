@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Dict
 from autogen_core import DefaultTopicId, RoutedAgent, message_handler, type_subscription
 from autogen_core import MessageContext
-from api.data_types import AgentRequest, AgentStructuredResponse, SalesLeads
+from api.data_types import AgentRequest, AgentStructuredResponse, SalesLeads, APIKeys
 from agent.lead_generation_crew import OutreachList, ResearchCrew
 from services.user_prompt_extractor_service import UserPromptExtractor
 
@@ -11,8 +11,10 @@ from ..otlp_tracing import logger
 
 @type_subscription(topic_type="sales_leads")
 class SalesLeadsAgent(RoutedAgent):
-    def __init__(self):
+    def __init__(self, api_keys: APIKeys):
         super().__init__("SalesLeadsAgent")
+        logger.info(f"Initializing SalesLeadsAgent with ID: {self.id}")
+        self.api_keys = api_keys
 
     @message_handler
     async def handle_sales_leads_request(
@@ -21,8 +23,8 @@ class SalesLeadsAgent(RoutedAgent):
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")   
             crew = ResearchCrew(
-                sambanova_key=message.api_keys.sambanova_key,
-                exa_key=message.api_keys.exa_key,
+                sambanova_key=self.api_keys.sambanova_key,
+                exa_key=self.api_keys.exa_key,
                 user_id=user_id,
                 run_id=conversation_id
             )

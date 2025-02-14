@@ -80,8 +80,6 @@ async def lifespan(app: FastAPI):
 
     Initializes the agent runtime and registers the UserProxyAgent.
     """
-    # Initialize a default agent runtime for the application
-    app.state.agent_runtime = await initialize_agent_runtime()
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
@@ -94,7 +92,6 @@ async def lifespan(app: FastAPI):
     print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
 
     app.state.manager = WebSocketConnectionManager(
-        agent_runtime=app.state.agent_runtime,
         redis_client=app.state.redis_client
     )
     UserProxyAgent.connection_manager = app.state.manager

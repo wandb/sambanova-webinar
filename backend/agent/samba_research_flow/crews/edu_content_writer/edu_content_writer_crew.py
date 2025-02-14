@@ -13,7 +13,6 @@ from crewai.project import CrewBase, agent, crew, task
 from utils.agent_thought import RedisConversationLogger
 
 
-
 @CrewBase
 class EduContentWriterCrew:
     """
@@ -28,7 +27,7 @@ class EduContentWriterCrew:
         input_variables (dict): Configuration variables for educational content generation
     """
 
-    input_variables = Dict[str, Any] # Type hint for the input variables
+    input_variables = Dict[str, Any]  # Type hint for the input variables
     agents_config: Dict[str, Any]  # Type hint for the config attribute
     tasks_config: Dict[str, Any]  # Type hint for the tasks config
     agents: List[Any]  # Type hint for the agents list
@@ -38,7 +37,13 @@ class EduContentWriterCrew:
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(
+        self,
+        sambanova_key: str = None,
+        user_id: str = None,
+        run_id: str = None,
+        verbose: bool = True,
+    ) -> None:
         """Initialize the content writer crew with API key."""
         super().__init__()
         self.agents_config = {}
@@ -51,10 +56,11 @@ class EduContentWriterCrew:
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
             max_tokens=4096,
-            api_key=self.sambanova_key
+            api_key=self.sambanova_key,
         )
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -68,7 +74,7 @@ class EduContentWriterCrew:
         This method ensures that the 'output' directory is available for storing
         generated content files.
         """
-        output_folder = 'output'
+        output_folder = "output"
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
@@ -81,11 +87,14 @@ class EduContentWriterCrew:
             Agent: An AI agent specialized in creating educational content.
         """
         content_writer_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Content Writer Agent"
+            user_id=self.user_id, run_id=self.run_id, agent_name="Content Writer Agent"
         )
-        return Agent(config=self.agents_config['content_writer'], llm=self.llm, verbose=True,step_callback=content_writer_logger)
+        return Agent(
+            config=self.agents_config["content_writer"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=content_writer_logger,
+        )
 
     @agent
     def editor(self) -> Agent:
@@ -96,11 +105,14 @@ class EduContentWriterCrew:
             Agent: An AI agent specialized in editing and refining content.
         """
         editor_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Editor Agent"
+            user_id=self.user_id, run_id=self.run_id, agent_name="Editor Agent"
         )
-        return Agent(config=self.agents_config['editor'], llm=self.llm, verbose=True,step_callback=editor_logger)
+        return Agent(
+            config=self.agents_config["editor"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=editor_logger,
+        )
 
     @agent
     def quality_reviewer(self) -> Agent:
@@ -113,9 +125,14 @@ class EduContentWriterCrew:
         quality_reviewer_logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Quality Reviewer Agent"
+            agent_name="Quality Reviewer Agent",
         )
-        return Agent(config=self.agents_config['quality_reviewer'], llm=self.llm, verbose=True,step_callback=quality_reviewer_logger)
+        return Agent(
+            config=self.agents_config["quality_reviewer"],
+            llm=self.llm,
+            verbose=self.verbose,
+            step_callback=quality_reviewer_logger,
+        )
 
     @task
     def writing_task(self) -> Task:
@@ -126,7 +143,7 @@ class EduContentWriterCrew:
             Task: A task configuration for content creation.
         """
         return Task(
-            config=self.tasks_config['writing_task'],
+            config=self.tasks_config["writing_task"],
         )
 
     @task
@@ -139,12 +156,14 @@ class EduContentWriterCrew:
         Returns:
             Task: A task configuration for content editing.
         """
-        topic = self.input_variables.get('topic')
-        audience_level = self.input_variables.get('audience_level')
-        file_name = f'{topic}_{audience_level}.md'.replace(' ', '_')
-        output_file_path = os.path.join('output', file_name)
+        topic = self.input_variables.get("topic")
+        audience_level = self.input_variables.get("audience_level")
+        file_name = f"{topic}_{audience_level}.md".replace(" ", "_")
+        output_file_path = os.path.join("output", file_name)
 
-        return Task(config=self.tasks_config['editing_task'], output_file=output_file_path)
+        return Task(
+            config=self.tasks_config["editing_task"], output_file=output_file_path
+        )
 
     @task
     def quality_review_task(self) -> Task:
@@ -155,11 +174,11 @@ class EduContentWriterCrew:
             Task: A task configuration for quality review.
         """
         return Task(
-            config=self.tasks_config['quality_review_task'],
+            config=self.tasks_config["quality_review_task"],
         )
 
     @crew
-    def crew(self, verbose: bool = True) -> Crew:
+    def crew(self) -> Crew:
         """
         Create and configure the content creation crew.
 
@@ -170,5 +189,5 @@ class EduContentWriterCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=verbose,
+            verbose=self.verbose,
         )

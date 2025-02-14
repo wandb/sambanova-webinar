@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
-repo_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(repo_dir)
 
 
@@ -31,7 +31,13 @@ class EduDocSummariserCrew:
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None, verbose: bool = True) -> None:
+    def __init__(
+        self,
+        sambanova_key: str = None,
+        user_id: str = None,
+        run_id: str = None,
+        verbose: bool = True,
+    ) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
@@ -43,11 +49,12 @@ class EduDocSummariserCrew:
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
             temperature=0.01,
             max_tokens=4096,
-            api_key=self.sambanova_key
+            api_key=self.sambanova_key,
         )
         self.user_id = user_id
         self.run_id = run_id
         self.verbose = verbose
+
     @agent
     def summariser(self) -> Agent:
         """
@@ -57,9 +64,7 @@ class EduDocSummariserCrew:
             Agent: A configured planning agent
         """
         summariser_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Summariser Agent"
+            user_id=self.user_id, run_id=self.run_id, agent_name="Summariser Agent"
         )
         return Agent(
             config=self.agents_config["summariser"],
@@ -77,7 +82,7 @@ class EduDocSummariserCrew:
             Task: A configured research task
         """
         return Task(
-            config=self.tasks_config['summarise_task'],
+            config=self.tasks_config["summarise_task"],
         )
 
     @crew

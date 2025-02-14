@@ -11,7 +11,7 @@
       <div class="grow pb-2 group-last:pb-0">
         <!-- Always show period -->
         <h3 class="mb-1 text-lg text-gray-600 dark:text-neutral-400">
-          {{ parsedData.event }}
+          {{ parsedData?.event }}
         </h3>
         <!-- Only show the rest if not collapsed -->
         <template v-if="!collapsed">
@@ -23,7 +23,7 @@
               <CorrectIcon class="mr-1 flex-shrink-0" />
               <span class="truncate text-brandTextSecondary font-semibold text-sm">
                 <!-- {{ title }} -->
-                {{ parsedData.event }}
+                {{ parsedData?.event }}
               </span>
             </div>
             <!-- Arrow icon toggles direction based on accordion state -->

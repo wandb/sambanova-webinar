@@ -55,20 +55,20 @@ class SambaResearchFlow(Flow):
             user_id=user_id,
             run_id=run_id,
             verbose=verbose
-        )
+        ).crew()
         self.research_crew = EduResearchCrew(
             sambanova_key=sambanova_key,
             serper_key=serper_key,
             user_id=user_id,
             run_id=run_id,
             verbose=verbose
-        )
+        ).crew()
         self.content_crew = EduContentWriterCrew(
             sambanova_key=sambanova_key,
             user_id=user_id,
             run_id=run_id,
             verbose=verbose
-        )
+        ).crew()
         self.docs_included = docs_included
 
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:

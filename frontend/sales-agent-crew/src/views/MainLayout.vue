@@ -1,7 +1,7 @@
 <!-- src/views/MainLayout.vue -->
 <template>
   <!-- Outer container uses flex so the sidebar, main area, and agent sidebar appear side-by-side -->
-  <div class="min-h-screen transition-all  duration-300 flex flex-col">
+  <div class="min-h-screen transition-all bg-primary-bodyBg duration-300 flex flex-col">
 
       <!-- PAGE HEADER -->
       <Header
@@ -12,7 +12,7 @@
       />
 
     <!-- MAIN COLUMN -->
-    <div class="flex h-[calc(100vh-4rem)]">
+    <div class="flex gap-2 h-[calc(100vh-4rem)]">
 
            <!-- LEFT SIDEBAR -->
     <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 
@@ -26,12 +26,12 @@
     
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="overflow-y-auto relative flex-1 flex flex-col  h-full">
+      <main class="overflow-y-auto border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
 
-        <div class="flex-1 p-4 rounded-sm border-primary-brandFrame ">
+        <div class="flex-1  bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
-        <div v-if="chatMode" class="flex justify-content-center">
+        <div v-if="chatMode" class="flex h-full justify-content-center">
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"
@@ -106,7 +106,7 @@
       </div>
       
     </div>
-        <div  v-if="!chatMode" class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
+        <div  v-if="!chatMode" class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 ">
           <SearchSection
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"

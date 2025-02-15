@@ -1,6 +1,6 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-4 border-r h-full border-l border-gray-300 transition-all duration-300 bg-white"
+  <div class="flex flex-col p-4   border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
   :class="collapsed ? 'w-16' : 'w-80'">
       <!-- Collapse/Expand Button -->
       <button
@@ -42,9 +42,9 @@
     <pre>{{ agentThoughtsData }}</pre> For debugging -->
   </div>
  <!-- <div v-for="(thought, index) in agentThoughtsData" :key="index">
-      {{ thought.event }}    {{ parsedData(thought.data.agent_name) }}
+      {{ (thought) }}  
     </div> -->
-    <pre>{{ agentThoughtsData }}</pre>
+    <!-- <pre>{{ agentThoughtsData }}</pre> -->
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
       :data="thought"
@@ -52,7 +52,7 @@
     title="Search the internet with Exa Search the internet with Exa"
     description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
     :bullets="['Designed template UIs in Figma', 'Converted UIs into responsive HTML/CSS']"
-    :iconSvg="getAgentIcon()"
+    :iconSvg="getAgentIcon(thought.agent_name)"
     :collapsed="collapsed"
     :card="{
       href: '#',
@@ -63,13 +63,16 @@
       
     }"
   /> 
+
+
+  
   <!-- <TimelineItem
    :collapsed="collapsed"
     period="Planner"
     title="Search the internet with Serper"
     description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
     :bullets="['Designed template UIs in Figma', 'Converted UIs into responsive HTML/CSS']"
-    :iconSvg="getAgentIcon()"
+    :iconSvg="getAgentIcon('some')"
     :card="{
       href: '#',
       imgSrc: 'https://images.unsplash.com/photo-1661956600655-e772b2b97db4?q=80&w=560&auto=format&fit=crop',
@@ -237,15 +240,15 @@ watch(
       'Child saw array change from',
       ((oldAgentData)),
       'to',
-      ((JSON.parse(newAgentData)))
+      (((newAgentData)))
     );
     console.log(typeof newAgentData)
-    if (Array.isArray(newAgentData)) {
+    
       agentThoughtsData.value = ((newAgentData)) || []
     
-  } else {
+  
       console.error('Received agentData is not an array:', newAgentData);
-    }
+    
 
   },
   { deep: true } // If you want to detect nested mutations

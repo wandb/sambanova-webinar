@@ -1,6 +1,6 @@
 <!-- src/components/chat/ChatSidebar.vue -->
 <template>
-  <div class="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+  <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  h-screen flex flex-col">
     <!-- Header -->
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
       
@@ -23,15 +23,19 @@
       <div 
         v-for="conv in conversations" 
         :key="conv.conversation_id"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-        @click="selectConversation(conv)"
-      >
-        <div class="font-medium text-gray-800 truncate">
+        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+      <div @click="selectConversation(conv)" class="w-full">
+        <div class="font-medium text-gray-800 truncate">  
           {{ conv.name	 }}
+          
+        </div>
+        <div class="text-xs text-gray-500">
+          {{ conv.conversation_id }}
         </div>
         <div class="text-xs text-gray-500">
           {{ formatDateTime(conv.created_at) }}
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -208,6 +212,8 @@ async function loadOldConversations() {
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {
   emit('selectConversation', conv)
+
+  alert(conv.conversation_id)
   router.push(`/${conv.conversation_id}`)
 
 }

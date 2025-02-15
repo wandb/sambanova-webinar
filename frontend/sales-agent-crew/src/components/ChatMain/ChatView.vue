@@ -3,7 +3,7 @@
   <div class="relative h-full w-full">
 <!-- Content -->
 <div class="relative h-full">
-  <div class="py-10 lg:py-14">
+  <div class="py-10 lg:py-14 h-full">
     <!-- Title -->
     <div class="max-w-4xl px-4 sm:px-6 lg:px-8 mx-auto text-center">
       <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
@@ -32,11 +32,11 @@
       </div> -->
     <ul class="mt-16 space-y-5">
       <!-- Chat Bubble -->
-      <li   v-for="msgItem in messagesData" 
-      :key="msgItem.conversation_id"
-       class="max-w-4xl py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
-        <ChatBubble :data="msgItem.data"  />
-      </li>
+     
+         <!-- {{msgItem.event}}  {{msgItem.data}}        -->
+        <ChatBubble v-for="msgItem in messagesData" 
+        :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
+      
       
       <!-- End Chat Bubble -->
 
@@ -47,13 +47,14 @@
 <div class="sticky bottom-0 left-0 right-0 bg-white  p-2">
   <div class="sticky bottom-0 z-10  border-t border-gray-200 pt-2 pb-3 sm:pt-4 sm:pb-6 dark:bg-neutral-900 dark:border-neutral-700">
     <!-- Textarea -->
+
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-0">
       <div class="flex justify-between items-center mb-3">
         <button type="button" class="inline-flex justify-center items-center gap-x-2 rounded-lg font-medium text-gray-800 hover:text-blue-600 focus:outline-none focus:text-blue-600 text-xs sm:text-sm dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:text-blue-500">
           <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           New chat
         </button>
-
+      <StatusText  v-if="isLoading"/>
         <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
           <svg class="size-3" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
@@ -216,8 +217,10 @@ import { decryptKey } from '../../utils/encryption'
 import ErrorModal from '../ErrorModal.vue'
 import { uploadDocument } from '../../services/api'
 import Popover from '@/components/Common/UIComponents/CustomPopover.vue'
+import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-
+const newMessage = ref('') // User input field
+const socket = ref(null) // WebSocket reference
 
 
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings',"agentThoughtsDataChanged"])
@@ -234,10 +237,7 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
-  isLoading: {
-    type: Boolean,
-    default: false,
-  },
+  
   // The runId from MainLayout
   runId: {
     type: String,
@@ -252,6 +252,7 @@ const props = defineProps({
 const messages = ref([])
 const draftMessage = ref('')
 const assistantThinking = ref(false)
+const isLoading = ref(false)
 const messagesContainer = ref(null)
 
 // Observe conversation changes => reload
@@ -266,7 +267,15 @@ watch(
   () => route.params.id,
   (newId, oldId) => {
     if (newId) {
+      messagesData.value=[]
+      currentId.value = newId
       loadPreviousChat(newId)
+       // Close the existing WebSocket connection if it exists.
+       if (socket.value) {
+        socket.value.close()
+      }
+        // Create a new WebSocket connection with the updated currentId.
+        connectWebSocket()
     }
   }
 )
@@ -307,6 +316,8 @@ let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
 let convIdStatic="db5ff51c-2886-46f6-bbda-6f041ad69a41"
 async function loadPreviousChat(convId) {
   try {
+
+    isLoading.value=true
     // if (missingKeys.value.length > 0) {
     //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
     //   return
@@ -318,6 +329,8 @@ async function loadPreviousChat(convId) {
       {}, 
       
     )
+    isLoading.value=false
+
       console.log(resp)
       filterChat((resp.data))
   } catch (err) {
@@ -329,28 +342,24 @@ async function loadPreviousChat(convId) {
 // Reactive variable to store the ID
 const currentId = ref(route.params.id || '')
 
-// Watch for changes in the route ID
-watch(
-  () => route.params.id,  // Watching the 'id' param in the route
-  (newId) => {
-    if (newId) {
-      currentId.value = newId
-      console.log('Route ID changed:', currentId.value)
-    }
-  },
-  { immediate: true } // Runs once when the component mounts
-)
+
 const messagesData = ref([])
 const agentThoughtsData = ref([])
 
-const filterChat=(msgData)=>{
+ const filterChat=async (msgData)=>{
 
-  messagesData.value=msgData.messages.filter(message => message.event === "completion");
+  messagesData.value=msgData.messages.filter(message => message.event === "completion"||message.event === "user_message")
 
-  agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
 
+
+
+  // agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
+  agentThoughtsData.value = msgData.messages
+  .filter(message => message.event === "think")
+  .map(message => JSON.parse(message.data));
 
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
+  await nextTick()
 
 
 }
@@ -494,7 +503,7 @@ onMounted(async () => {
   await loadKeys()
   await loadUserDocuments()
   authRequest()
-  connectWebSocket()
+  // connectWebSocket()
 })
 
 watch(
@@ -817,8 +826,8 @@ async function authRequest() {
     const response = await axios.post(url, postParams)
     if (response.status === 200) {
       // Call the next function after success
-      collapsed.value=false
-      connectWebSocket()
+    
+      // connectWebSocket()
     }
   } catch (error) {
     console.error('Error in POST request:', error)
@@ -826,77 +835,84 @@ async function authRequest() {
 }
 
 onBeforeUnmount(() => {
-  if (eventSource) {
-    eventSource.close()
+  if (socket.value) {
+    socket.value.close()
   }
 })
 
 const addMessage=()=>{
+  //  isLoading.value=true
 
-let myMessage="analyse microsoft financial reports this quarter"
-const payload = {
-    event: "user_input",
-    data: searchQuery.value,
-    id: Date.now(),
-  }
-  socket.send(JSON.stringify(payload))
+  try{  
+  if (!searchQuery.value.trim()) return
+
+const messagePayload = {
+  event: "user_input",
+  data: searchQuery.value,
+  timestamp: new Date().toISOString()
 }
 
-let socket = null
+// Add message to local state so the user sees it immediately
+messagesData.value.push(messagePayload)
+
+// Send message via WebSocket
+socket.value.send(JSON.stringify(messagePayload))
+
+// Clear input field
+searchQuery.value = ''
+// isLoading.value=false
+
+}catch(e){
+    console.log("ChatView error", e)
+  }
+}
+
+
 
 // Function to establish the WebSocket connection.
 function connectWebSocket() {
 
 
-const WEBSOCKET_URL = 'ws://localhost:8000/chat'  // Replace with your actual URL
-// Construct the full URL using query parameters.
-const fullUrl = `${WEBSOCKET_URL}?user_id=${userIdStatic}&conversation_id=${currentId.value}`
-console.log('Connecting to:', fullUrl)
-// alert("connectng ",fullUrl)
-socket = new WebSocket(fullUrl)
+  const WEBSOCKET_URL = 'ws://localhost:8000/chat'
+  const fullUrl = `${WEBSOCKET_URL}?user_id=${userIdStatic}&conversation_id=${currentId.value}`
 
-socket.onopen = () => {
-  console.log('WebSocket connection opened')
-  // Log the connection open event.
-  // logs.value += `Connection opened at ${new Date().toLocaleTimeString()}\n`
-  // Send the initial payload.
-  // const payload = {
-  //   event: "user_input",
-  //   data: "Iphone vs android"
-  // }
-  // socket.send(JSON.stringify(payload))
-  // logs.value += `Sent: ${JSON.stringify(payload)}\n`
+  socket.value = new WebSocket(fullUrl)
 
-}
-
-socket.onmessage = (event) => {
-  console.log('Received message:', event.data)
-  // Append the received data to the log with a newline.
-  // logs.value += `${event.data}\n`
-
-  try {
-    const outerData = JSON.parse(event.data);
-    // Parse the inner data string.
-    const innerData = JSON.parse(outerData.data);
-    // Set agent name and timestamp.
-    // agentName.value = innerData.agent_name;
-    // timestamp.value = innerData.timestamp;
-    // // Parse the text field into sections.
-    // sections.value = parseSections(innerData.text);
-  } catch (error) {
-    console.error('Error parsing message:', error);
+  socket.value.onopen = () => {
+    console.log('WebSocket connection opened')
   }
-}
 
-socket.onerror = (error) => {
-  console.error('WebSocket error:', error)
-  // logs.value += `Error: ${error.message || 'Unknown error'}\n`
-}
+  socket.value.onmessage = (event) => {
+    try {
+      const receivedData = JSON.parse(event.data)
 
-socket.onclose = (event) => {
-  console.log('WebSocket connection closed:', event)
-  // logs.value += `Connection closed at ${new Date().toLocaleTimeString()}\n`
-}
+      // Add new message to messages array
+      
+      if(receivedData.event=="user_message"||receivedData.event=="completion"){
+
+        messagesData.value.push(receivedData)
+        isLoading.value=false
+        
+      }
+      
+
+
+
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error)
+    }
+  }
+
+  socket.value.onerror = (error) => {
+    console.error('WebSocket error:', error)
+  }
+
+  socket.value.onclose = () => {
+    console.log('WebSocket closed, attempting to reconnect...')
+    setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
+  }
+
+
 }
 async function removeDocument(docId) {
   try {

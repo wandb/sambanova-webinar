@@ -4,6 +4,7 @@
       <!-- Icon Container (always visible; timeline line is part of this container) -->
       <div :class="iconContainerClasses">
         <div class="relative z-10 size-6 flex justify-center items-center" v-html="iconSvg"></div>
+        {{ props?.agent_name }}
       </div>
       <!-- End Icon -->
   
@@ -11,7 +12,7 @@
       <div class="grow pb-2 group-last:pb-0">
         <!-- Always show period -->
         <h3 class="mb-1 text-lg text-gray-600 dark:text-neutral-400">
-          {{ parsedData?.event }}
+          {{ props?.agent_name }}
         </h3>
         <!-- Only show the rest if not collapsed -->
         <template v-if="!collapsed">
@@ -54,7 +55,7 @@
           </div>
           <div v-show="isOpen">
             <p v-if="description" class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
-              {{ parsedData?.data.text }}
+              {{ parsedData?.text }}
             </p>
             <ul v-if="bullets?.length" class="list-disc ms-6 mt-3 space-y-1.5">
               <li

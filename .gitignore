@@ -174,4 +174,4 @@ cython_debug/
 .vscode/**
 *.http
 output/
-backend/output/None_None.md
+backend/output/

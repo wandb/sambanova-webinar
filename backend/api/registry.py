@@ -49,13 +49,13 @@ class AgentRegistry:
         self.agents = {
             "assistant": {
                 "agent_type": "assistant",
-                "description": "Handles user queries that do not fit into other specific categories. Route messages here if they are general queries that do not specify a destination or service.",
-                "examples": "'What is the weather in Tokyo?', 'What is the capital of France?'",
+                "description": "Handles user queries that do not fit into other specific categories. ALWAYS Route messages here if they are general queries that do not specify a destination or service. If the query is a factual answer or quick information about a company person or product, use this agent. For examlple What is Apple's stock price today or another company can be answered by this agent vs the financial_analysis agent.",
+                "examples": "'What is the weather in Tokyo?', 'What is the capital of France?' What is Tesla's stock price? What is the latest news on Apple? What is the latest news on Elon Musk?",
             },
             "financial_analysis": {
                 "agent_type": "financial_analysis",
-                "description": "Handles financial analysis queries, including stock prices, financial statements, and market trends. For this agent to work you need at least one ticker or company name.",
-                "examples": "Tell me about the stock price of Apple, What's the financial statement of Tesla?, Market trends in the tech sector?",
+                "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers.",
+                "examples": "Tell me about Apples financials, What's the financial statement of Tesla?, Market trends in the tech sector?",
             },
             "sales_leads": {
                 "agent_type": "sales_leads",

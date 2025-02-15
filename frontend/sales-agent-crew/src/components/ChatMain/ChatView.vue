@@ -325,7 +325,7 @@ async function loadPreviousChat(convId) {
 
     // const uid = userId.value || 'anonymous'
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
+      `${import.meta.env.VITE_API_URL}/chat/history/${userId.value}/${convId}`, 
       {}, 
       
     )
@@ -878,7 +878,7 @@ function connectWebSocket() {
 
 
   const WEBSOCKET_URL = 'ws://localhost:8000/chat'
-  const fullUrl = `${WEBSOCKET_URL}?user_id=${userIdStatic}&conversation_id=${currentId.value}`
+  const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
 
   socket.value = new WebSocket(fullUrl)
 

@@ -275,7 +275,7 @@ watch(
         socket.value.close()
       }
         // Create a new WebSocket connection with the updated currentId.
-        // connectWebSocket()
+        connectWebSocket()
     }
   }
 )
@@ -325,7 +325,7 @@ async function loadPreviousChat(convId) {
 
     // const uid = userId.value || 'anonymous'
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convIdStatic}`, 
+      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
       {}, 
       
     )
@@ -845,13 +845,13 @@ onBeforeUnmount(() => {
 })
 
 const addMessage=()=>{
-  //  isLoading.value=true
+   isLoading.value=true
 
   try{  
   if (!searchQuery.value.trim()) return
 
 const messagePayload = {
-  event: "user_input",
+  event: "user_message",
   data: searchQuery.value,
   timestamp: new Date().toISOString()
 }
@@ -898,9 +898,6 @@ function connectWebSocket() {
         isLoading.value=false
         
       }
-      
-
-
 
     } catch (error) {
       console.error('Error parsing WebSocket message:', error)

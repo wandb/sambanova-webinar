@@ -119,7 +119,7 @@ function connectWebSocket() {
   // Construct the full URL using query parameters.
   const fullUrl = `${WEBSOCKET_URL}?user_id=${props.userId}&conversation_id=${props.runId}`
   console.log('Connecting to:', fullUrl)
-  alert("connectng ",fullUrl)
+  // alert("connectng ",fullUrl)
   socket = new WebSocket(fullUrl)
 
   socket.onopen = () => {

@@ -213,7 +213,7 @@ async function loadOldConversations() {
 function selectConversation(conv) {
   emit('selectConversation', conv)
 
-  alert(conv.conversation_id)
+  // alert(conv.conversation_id)
   router.push(`/${conv.conversation_id}`)
 
 }

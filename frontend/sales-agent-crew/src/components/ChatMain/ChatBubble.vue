@@ -49,6 +49,7 @@
     type: String,
     required: true // Ensure it's always provided
   },
+  
   })
   
   // Parse the JSON string safely

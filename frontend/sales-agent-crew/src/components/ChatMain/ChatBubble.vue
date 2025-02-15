@@ -37,6 +37,7 @@
   import UserAvatar from '@/components/Common/UIComponents/UserAvtar.vue'
   import AssistantComponent from '@/components/ChatMain/ResponseTypes/AssistantComponent.vue'
   import UserProxyComponent from '@/components/ChatMain/ResponseTypes/UserProxyComponent.vue'
+  import SalesLeadComponent from '@/components/ChatMain/ResponseTypes/SalesLeadsComponent.vue'
   import UnknownTypeComponent from '@/components/ChatMain/ResponseTypes/UnknownTypeComponent.vue'
   
   // Define props
@@ -69,6 +70,8 @@
         return AssistantComponent
       case 'user_proxy':
         return UserProxyComponent
+        case 'sales_leads':
+        return SalesLeadComponent
       default:
         return UnknownTypeComponent
     }

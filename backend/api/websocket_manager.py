@@ -169,7 +169,7 @@ class WebSocketConnectionManager:
                     "data": user_message_input["data"],
                     "user_id": user_id,
                     "conversation_id": conversation_id,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": user_message_input["timestamp"]
                 }
                 # Run Redis rpush in a thread pool since it's blocking
                 asyncio.create_task(asyncio.to_thread(

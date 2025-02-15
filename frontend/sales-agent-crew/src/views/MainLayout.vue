@@ -12,7 +12,7 @@
       />
 
     <!-- MAIN COLUMN -->
-    <div class="flex gap-2 h-[calc(100vh-4rem)]">
+    <div class="flex gap-2 p-2 h-[calc(100vh-4rem)]">
 
            <!-- LEFT SIDEBAR -->
     <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 

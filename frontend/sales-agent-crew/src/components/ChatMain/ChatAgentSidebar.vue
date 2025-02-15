@@ -1,6 +1,6 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-4   border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
+  <div class="flex flex-col p-4 overflow-y-auto overflow-x-hidden  border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
   :class="collapsed ? 'w-16' : 'w-80'">
       <!-- Collapse/Expand Button -->
       <button

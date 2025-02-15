@@ -275,7 +275,7 @@ watch(
         socket.value.close()
       }
         // Create a new WebSocket connection with the updated currentId.
-        connectWebSocket()
+        // connectWebSocket()
     }
   }
 )
@@ -325,7 +325,7 @@ async function loadPreviousChat(convId) {
 
     // const uid = userId.value || 'anonymous'
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${currentId.value}`, 
+      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convIdStatic}`, 
       {}, 
       
     )
@@ -349,14 +349,18 @@ const agentThoughtsData = ref([])
  const filterChat=async (msgData)=>{
 
   messagesData.value=msgData.messages.filter(message => message.event === "completion"||message.event === "user_message")
-
-
-
-
   // agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
   agentThoughtsData.value = msgData.messages
   .filter(message => message.event === "think")
-  .map(message => JSON.parse(message.data));
+  .reduce((acc, message) => {
+    try {
+      const parsed = JSON.parse(message.data);
+      acc.push(parsed);
+    } catch (error) {
+      console.error("Failed to parse JSON for message:", message, error);
+    }
+    return acc;
+  }, []);
 
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
   await nextTick()

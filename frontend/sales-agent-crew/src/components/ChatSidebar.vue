@@ -1,6 +1,6 @@
 <!-- src/components/chat/ChatSidebar.vue -->
 <template>
-  <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  h-screen flex flex-col">
+  <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  flex flex-col">
     <!-- Header -->
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
       

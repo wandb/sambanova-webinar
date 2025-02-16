@@ -26,9 +26,9 @@
     
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="overflow-y-auto border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
+      <main class="overflow-hidden  border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
 
-        <div class="flex-1  bg-white  ">
+        <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
         <div v-if="chatMode" class="flex h-full justify-content-center">
@@ -41,7 +41,7 @@
           />
         </div>
 
-        <div v-else class="flex ">
+        <div v-else class="flex items-center">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
@@ -129,7 +129,7 @@
 
     
     <ChatAgentSidebar
-     v-if="chatMode"
+     
       :userId="clerkUserId"
       :runId="currentRunId"
       :agentData="agentData"

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
+
 const props = defineProps({
   initials: {
     type: String,

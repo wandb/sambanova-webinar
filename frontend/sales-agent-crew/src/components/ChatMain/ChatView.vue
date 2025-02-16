@@ -1,11 +1,11 @@
 <!-- src/components/chat/ChatView.vue -->
 <template>
-  <div class="relative h-full w-full">
+  <div class="relative h-full w-full ">
 <!-- Content -->
-<div class="relative h-full">
-  <div class="py-10 lg:py-14 h-full">
+<div class="relative h-full overflow-hdden">
+  <div class="h-full  overflow-y-auto">
     <!-- Title -->
-    <div class="max-w-4xl px-4 sm:px-6 lg:px-8 mx-auto text-center">
+    <div v-if="messagesData.length==0" class="max-w-4xl py-10 lg:py-14  px-4 sm:px-6 lg:px-8 mx-auto text-center">
       <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
        
        <SILogo/>
@@ -45,22 +45,22 @@
     </ul>
   </div>
 <div class="sticky bottom-0 left-0 right-0 bg-white  p-2">
-  <div class="sticky bottom-0 z-10  border-t border-gray-200 pt-2 pb-3 sm:pt-4 sm:pb-6 dark:bg-neutral-900 dark:border-neutral-700">
+  <div class="sticky bottom-0 z-10   pt-2 pb-3 sm:pt-4 sm:pb-6 dark:bg-neutral-900 dark:border-neutral-700">
     <!-- Textarea -->
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-0">
       <div class="flex justify-between items-center mb-3">
-        <button type="button" class="inline-flex justify-center items-center gap-x-2 rounded-lg font-medium text-gray-800 hover:text-blue-600 focus:outline-none focus:text-blue-600 text-xs sm:text-sm dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:text-blue-500">
+        <!-- <button type="button" class="inline-flex justify-center items-center gap-x-2 rounded-lg font-medium text-gray-800 hover:text-blue-600 focus:outline-none focus:text-blue-600 text-xs sm:text-sm dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:text-blue-500">
           <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           New chat
-        </button>
-      <StatusText  v-if="isLoading"/>
-        <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+        </button> -->
+      <StatusText  v-if="isLoading" :text="statusText"  />
+        <!-- <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
           <svg class="size-3" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
           </svg>
           Stop generating
-        </button>
+        </button> -->
       </div>
 
       <!-- Input -->
@@ -267,7 +267,12 @@ watch(
   () => route.params.id,
   (newId, oldId) => {
     if (newId) {
-      messagesData.value=[]
+
+      isLoading.value=false
+      messagesData.value=[]  
+   agentThoughtsData.value = []
+   searchQuery.value=''
+
       currentId.value = newId
       loadPreviousChat(newId)
        // Close the existing WebSocket connection if it exists.
@@ -362,7 +367,9 @@ const agentThoughtsData = ref([])
     return acc;
   }, []);
 
+  // emit('agentThoughtsDataChanged', agentThoughtsData.value)
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
+
   await nextTick()
 
 
@@ -525,6 +532,8 @@ const missingKeys = computed(() => {
   if (!serperKey.value) missing.push('Serper')
   return missing
 })
+
+const statusText=ref('Loading...')
 
 async function performSearch() {
   try {
@@ -728,8 +737,10 @@ async function transcribeAudio(audioBlob) {
     const cleanedText = cleanTranscription(transcribedText)
     searchQuery.value = cleanedText.trim()
 
+    
+
     if (searchQuery.value) {
-      performSearch()
+      addMessage()
     }
 
   } catch (error) {
@@ -846,6 +857,8 @@ onBeforeUnmount(() => {
 
 const addMessage=()=>{
    isLoading.value=true
+   agentThoughtsData.value=[]
+        emit('agentThoughtsDataChanged', agentThoughtsData.value)
 
   try{  
   if (!searchQuery.value.trim()) return
@@ -893,24 +906,37 @@ function connectWebSocket() {
       // Add new message to messages array
       
       if(receivedData.event=="user_message"||receivedData.event=="completion"){
-
         messagesData.value.push(receivedData)
         isLoading.value=false
-        
       }
+     else if(receivedData.event==="think"){
+      console.log("think event fired")
+      
+      let dataParsed=JSON.parse(receivedData.data)
+        agentThoughtsData.value.push( dataParsed)
+        console.log("Socket on message:think ", dataParsed.agent_name)
+        statusText.value=dataParsed.agent_name
+        emit('agentThoughtsDataChanged', agentThoughtsData.value)
 
+      }else{
+        console.log("ping event fired: ", receivedData.event)
+      }
+      
     } catch (error) {
       console.error('Error parsing WebSocket message:', error)
+      isLoading.value=false
+      
     }
   }
 
   socket.value.onerror = (error) => {
     console.error('WebSocket error:', error)
+    isLoading.value=false
   }
 
   socket.value.onclose = () => {
     console.log('WebSocket closed, attempting to reconnect...')
-    setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
+    // setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
   }
 
 

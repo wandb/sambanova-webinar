@@ -25,8 +25,8 @@
         :key="conv.conversation_id"
         class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
       <div @click="selectConversation(conv)" class="w-full">
-        <div class="font-medium text-gray-800 truncate">  
-          {{ conv.name	 }}
+        <div class="font-medium capitalize text-gray-800 truncate">  
+          {{ conv.name?conv.name:"New Chat"	 }}
           
         </div>
         <div class="text-xs text-gray-500">

@@ -1,10 +1,11 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-4 overflow-y-auto overflow-x-hidden  border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
-  :class="collapsed ? 'w-16' : 'w-80'">
+  <div class="flex flex-col p-1 overflow-y-auto overflow-x-hidden  border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
+  :class="collapsed ? 'w-[64px]  ' : 'w-80'">
       <!-- Collapse/Expand Button -->
       <button
-        class=" p-2 h-[48px] mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
+      :class="collapsed?'w-100 h-[36px]  mx-auto':' ' "
+        class=" p-2  mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
         @click="collapsed = !collapsed"
       >
       <span class="flex items-center">
@@ -32,19 +33,13 @@
         </span>
         <span v-if="!collapsed" class="ml-2">Agent Reasoning</span>
       </span>
-      <span>26 sources</span>
+      <span v-if="!collapsed">26 sources</span>
       </button>
       <div>
-    <!-- agentThoughtsData is the array you've shown -->
-    <!-- <div v-for="(thought, i) in agentThoughtsData" :key="i">
-      <pre> event: {{ parsedData(thought.event) }} </pre>
-    </div>
-    <pre>{{ agentThoughtsData }}</pre> For debugging -->
+   
   </div>
- <!-- <div v-for="(thought, index) in agentThoughtsData" :key="index">
-      {{ (thought) }}  
-    </div> -->
-    <!-- <pre>{{ agentThoughtsData }}</pre> -->
+ 
+     <div>
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
       :data="thought"
@@ -52,7 +47,7 @@
     title="Search the internet with Exa Search the internet with Exa"
     description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
     :bullets="['Designed template UIs in Figma', 'Converted UIs into responsive HTML/CSS']"
-    :iconSvg="getAgentIcon(thought.agent_name)"
+    :iconSvg="getAgentIcon()"
     :collapsed="collapsed"
     :card="{
       href: '#',
@@ -60,29 +55,9 @@
       imgAlt: 'Blog Image',
       title: 'Studio by Mailchimp',
       subtitle: 'Produce professional, reliable streams using Mailchimp.',
-      
     }"
-  /> 
-
-
-  
-  <!-- <TimelineItem
-   :collapsed="collapsed"
-    period="Planner"
-    title="Search the internet with Serper"
-    description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
-    :bullets="['Designed template UIs in Figma', 'Converted UIs into responsive HTML/CSS']"
-    :iconSvg="getAgentIcon('some')"
-    :card="{
-      href: '#',
-      imgSrc: 'https://images.unsplash.com/photo-1661956600655-e772b2b97db4?q=80&w=560&auto=format&fit=crop',
-      imgAlt: 'Blog Image',
-      title: 'Studio by Mailchimp',
-      subtitle: 'Produce professional, reliable streams using Mailchimp.'
-    }"
-  />  -->
-
-    
+    />
+</div>    
   </div>
   
 </template>
@@ -243,6 +218,8 @@ watch(
       (((newAgentData)))
     );
     console.log(typeof newAgentData)
+    
+
     
       agentThoughtsData.value = ((newAgentData)) || []
     

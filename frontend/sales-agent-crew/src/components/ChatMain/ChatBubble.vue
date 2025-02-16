@@ -1,7 +1,8 @@
 <template>
     
       <!-- Check if event is 'user_input' -->
-      <li v-if="props.event == 'user_message'" class="max-w-2xl ms-auto flex justify-end gap-x-2 sm:gap-x-4">
+      <li v-if="props.event == 'user_message'" 
+      class=" py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
         <div class="grow text-end space-y-3">
           <!-- Card -->
           <div class="inline-block bg-blue-600 rounded-lg p-4 shadow-sm">
@@ -19,7 +20,7 @@
       </li>
      
       <li   v-else 
-      class="max-w-4xl py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
+      class=" py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
       <!-- v-else for all other cases -->
       <div class="flex items-start space-x-3">
         <SILogo />
@@ -38,7 +39,9 @@
   import AssistantComponent from '@/components/ChatMain/ResponseTypes/AssistantComponent.vue'
   import UserProxyComponent from '@/components/ChatMain/ResponseTypes/UserProxyComponent.vue'
   import SalesLeadComponent from '@/components/ChatMain/ResponseTypes/SalesLeadsComponent.vue'
+    import EducationalComponent from '@/components/ChatMain/ResponseTypes/EducationalComponent.vue'
   import UnknownTypeComponent from '@/components/ChatMain/ResponseTypes/UnknownTypeComponent.vue'
+  import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   
   // Define props
   const props = defineProps({
@@ -68,10 +71,17 @@
     switch (parsedData.value.agent_type) {
       case 'assistant':
         return AssistantComponent
+        case 'educational_content':
+        return EducationalComponent
+        
       case 'user_proxy':
         return UserProxyComponent
         case 'sales_leads':
         return SalesLeadComponent
+
+        case 'financial_analysis':
+        return FinancialAnalysisComponent
+        
       default:
         return UnknownTypeComponent
     }

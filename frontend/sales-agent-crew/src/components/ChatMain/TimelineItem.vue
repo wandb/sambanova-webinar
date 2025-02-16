@@ -1,160 +1,168 @@
 <template>
-    <!-- Timeline Item -->
-    <div :class="['group relative flex', collapsed ? 'min-h-16' : '']">
-      <!-- Icon Container (always visible; timeline line is part of this container) -->
-      <div :class="iconContainerClasses">
-        <div class="relative z-10 size-6 flex justify-center items-center" v-html="iconSvg"></div>
-        {{ props?.agent_name }}
-      </div>
-      <!-- End Icon -->
   
-      <!-- Right Content -->
-      <div class="grow pb-2 group-last:pb-0">
-        <!-- Always show period -->
-        <h3 class="mb-1 text-lg text-gray-600 dark:text-neutral-400">
-          {{ props?.agent_name }}
-        </h3>
-        <!-- Only show the rest if not collapsed -->
-        <template v-if="!collapsed">
-          <div 
-            @click="isOpen = !isOpen"  
-            class="flex justify-between items-center cursor-pointer min-w-0"
-          >
-            <div class="flex items-center flex-1 min-w-0">
-              <CorrectIcon class="mr-1 flex-shrink-0" />
-              <span class="truncate text-brandTextSecondary font-semibold text-sm">
-                <!-- {{ title }} -->
-                {{ parsedData?.agent_name }}
-              </span>
-            </div>
-            <!-- Arrow icon toggles direction based on accordion state -->
-            <div class="transition-all duration-300 flex-shrink-0">
-              <svg
-                v-if="!isOpen"
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4 text-gray-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 9l-7 7-7-7" />
-              </svg>
-              <svg
-                v-else
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4 text-gray-600 transform rotate-180"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          <div v-show="isOpen">
-            <p v-if="description" class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
-              {{ parsedData?.text }}
-            </p>
-            <ul v-if="bullets?.length" class="list-disc ms-6 mt-3 space-y-1.5">
-              <li
-                v-for="(bullet, index) in bullets"
-                :key="index"
-                class="ps-1 text-sm text-gray-600 dark:text-neutral-400"
-              >
-                <!-- {{ bullet }} -->
-              </li>
-            </ul>
-            <!-- Optional Card Section -->
-            <div v-if="card" class="mt-3 hidden">
-              <a
-                :href="card.href"
-                class="block border border-gray-200 rounded-lg hover:shadow-sm focus:outline-none dark:border-neutral-700"
-              >
-                <div class="relative flex items-center overflow-hidden">
-                  <img
-                    :src="card.imgSrc"
-                    :alt="card.imgAlt"
-                    class="w-full absolute inset-0 object-cover rounded-s-lg"
-                  />
-                  <div class="grow p-4 ms-32 sm:ms-48">
-                    <div class="min-h-24 flex flex-col justify-center">
-                      <h3 class="font-semibold text-sm text-gray-800 dark:text-neutral-300">
-                        <!-- {{ card.title }} -->
-                      </h3>
-                      <p class="mt-1 text-sm text-gray-500 dark:text-neutral-500">
-                        <!-- {{ card.subtitle }} -->
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </a>
-            </div>
-          </div>
-        </template>
-     
+  <div 
+    class="group relative flex p-2">
+    <!-- Icon Container (always visible; timeline line is part of this container) -->
+    
+    <div  class="grow pb-2 group-last:pb-0 min-w-0">
+      <!-- Always show period -->
+      <h3 :class="collapsed?'justify-center':''" class="mb-1 truncate text-md  text-primary-brandTextPrimary  flex items-center">
+        <div :class="iconContainerClasses" class="color-primary-brandGray flex items-center">
+      <component :is="iconComponent" />
+    </div> 
+    <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
+      </h3>
+      <!-- Only show the rest if not collapsed -->
+      <div class="ml-2 my-1"    v-for="(section, index) in sections" :key="index" v-if="!collapsed">
+        <TimelineCollapsibleContent :data="section" />
+      
       </div>
-      <!-- End Right Content -->
+   
     </div>
-  </template>
-  
-  <script setup>
-  import { computed, ref } from 'vue'
-  import CorrectIcon from '@/components/icons/CorrectIcon.vue'
-  
+    <!-- End Right Content -->
+  </div>
+</template>
 
+<script setup>
+import { computed, ref, h, defineComponent, watch } from 'vue'
+import CorrectIcon from '@/components/icons/CorrectIcon.vue'
+import TimelineCollapsibleContent from '@/components/ChatMain/TimelineCollapsibleContent.vue'
+import SearchIcon from '@/components/icons/SearchIcon.vue'
+import TechIcon from '@/components/icons/TechIcon.vue'
+import SpecialistIcon from '@/components/icons/SpecialistIcon.vue'
+import CompetitorIcon from '@/components/icons/CompetitorIcon.vue'
+import NewsIcon from '@/components/icons/NewsIcon.vue'
+import DataIcon from '@/components/icons/DataIcon.vue'
+import RiskIcon from '@/components/icons/RiskIcon.vue'
+import TrendsIcon from '@/components/icons/TrendsIcon.vue'
+import FundamentalIcon from '@/components/icons/FundamentalIcon.vue'
+// State for accordion toggle (single toggle used for all sections in this example)
+const isOpen = ref(false);
 
-  // The parent passes a JSON string as the "data" prop.
-  const props = defineProps({
-    data: {
-      type: [],
-      required: true
-    }
-  });
-  
-  const parsedData = computed(() => {
-  try {
-    return (props.data)
-  } catch (error) {
-    console.error('Error parsing data in ChatBubble:', error)
-    return {}
+// Define props for TimelineItem
+const props = defineProps({
+  data: {
+    type: Object,
+    required: true
+  },
+  collapsed: {
+    type: Boolean,
+    default: false
+  },
+  isLast: {
+    type: Boolean,
+    default: false
   }
-});
+})
+
+// -------------------------------------------------------------------
+// Timeline UI - Icon Container Classes
+// -------------------------------------------------------------------
+const iconContainerClasses = computed(() => {
+  let base =
+    "relative after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
+  if (props.isLast) {
+    base += " after:hidden"
+  }
+  return base
+})
 
 
+// -------------------------------------------------------------------
+// Helper Function: Return a Random Icon Based on Agent Name
+// -------------------------------------------------------------------
+function getAgentIcon(agentName) {
+  console.log("getAgentIcon called for agentName:", agentName)
+  const agentIcons = {
+    'Competitor Analysis Agent': CompetitorIcon,
+   
+    'Financial Analysis Agent': SearchIcon,
+    ' Enhanced Competitor Finder Agent': SearchIcon,
+    'Aggregator Search Agent': SearchIcon,
+    'Fundamental Agent': FundamentalIcon,
+    'News Agent': NewsIcon,
+    'Technical Agent': TechIcon,
+    'Financial Analysis Agent': SearchIcon,
+    'Risk Agent': RiskIcon,
+    'Outreach Specialist':  SpecialistIcon,
+    'Data Extraction Agent': DataIcon,
+    'Market Trends Analyst': TrendsIcon,
+  }
+  const icon = agentIcons[agentName] || [SearchIcon]
   
+  console.log("Selected icon:", icon.name)
+  return icon
+}
 
+// Compute the icon component for this timeline item based on data.agent_name
+const iconComponent = computed(() => getAgentIcon(props.data.agent_name))
 
+// -------------------------------------------------------------------
+// Text Parsing Helpers
+// -------------------------------------------------------------------
 
-// // 2. Choose which sub-component to display based on agent_type
-// const selectedComponent = computed(() => {
-//   switch (parsedData.value.agent_type) {
-//     case 'assistant':
-//       return AssistantComponent
-//     case 'user_proxy':
-//       return UserProxyComponent
-//     // Add cases for other agent types as needed
-//     default:
-//       return UnknownTypeComponent
-//   }
-// });
-  const isOpen = ref(false);
+/**
+ * Checks if a heading is primary.
+ * For this example, only "Thought" and "Final Answer" (case-insensitive) are primary.
+ */
+function isPrimaryHeading(title) {
+  if (!title) return false
+  const lower = title.toLowerCase()
+  return lower === 'thought' || lower === 'final answer'
+}
 
-  
-  // Compute the classes for the icon container.
-  // This remains unchanged so that the timeline line is always visible.
-  const iconContainerClasses = computed(() => {
-    let base =
-      "relative after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
-    if (props.isLast) {
-      base += " after:hidden"
+/**
+ * Process section content.
+ * Replace newline characters with <br> tags.
+ */
+function formatContent(content) {
+  return content.replace(/\n/g, '<br/>')
+}
+
+/**
+ * Parse props.data.text into sections.
+ * Only lines starting with "Thought:" or "Final Answer:" (case-insensitive) start new sections.
+ * All subsequent lines are appended to that section's content.
+ */
+const sections = computed(() => {
+  const lines = props.data.text.split('\n')
+  const parsed = []
+  let currentSection = null
+
+  for (let line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    // Check for primary heading pattern
+    const match = trimmed.match(/^(Thought|Final Answer|Action Input|Action):\s*(.*)$/i)
+    if (match) {
+      if (currentSection) {
+        currentSection.content = currentSection.content.trim()
+        parsed.push(currentSection)
+      }
+      currentSection = {
+        title: match[1].trim(),
+        content: match[2] ? match[2].trim() + "\n" : "\n"
+      }
+    } else {
+      if (currentSection) {
+        currentSection.content += trimmed + "\n"
+      } else {
+        // If there's no current section, create one with an empty title
+        currentSection = { title: '', content: trimmed + "\n" }
+      }
     }
-    return base
-  })
-  </script>
-  
-  <style scoped>
-  /* You can adjust min-h-16 (4rem) to a different value if needed */
-  </style>
-  
+  }
+  if (currentSection) {
+    currentSection.content = currentSection.content.trim()
+    parsed.push(currentSection)
+  }
+  return parsed
+})
+</script>
+
+<style scoped>
+/* Adjust styles as needed */
+.timeline-item {
+  background-color: #fff;
+}
+</style>

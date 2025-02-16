@@ -42,7 +42,7 @@ sys.path.append(repo_dir)
 # NEW: We'll import the new classes
 from api.data_types import DeepResearchReport, DeepResearchSection
 
-os.environ["SAMBANOVA_API_KEY"] = "4957c8f9-2468-4cbd-9899-7ba15bd046b4"
+os.environ["SAMBANOVA_API_KEY"] = "pass_in_from_env"
 
 writer_model = ChatSambaNovaCloud(
     model=Configuration.writer_model, temperature=0, max_tokens=8192

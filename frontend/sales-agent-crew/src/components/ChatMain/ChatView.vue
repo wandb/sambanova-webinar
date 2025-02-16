@@ -3,7 +3,7 @@
   <div class="relative h-full w-full ">
 <!-- Content -->
 <div class="relative h-full flex flex-col overflow-hdden">
-  <div class="flex-1  overflow-y-auto">
+  <div ref="container" class="flex-1  overflow-y-auto">
     <!-- Title -->
     <div v-if="messagesData.length==0" class="max-w-4xl py-10 lg:py-14  px-4 sm:px-6 lg:px-8 mx-auto text-center">
       <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
@@ -221,7 +221,14 @@ import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 const newMessage = ref('') // User input field
 const socket = ref(null) // WebSocket reference
-
+const container = ref(null)
+function AutoScrollToBottom() {
+  nextTick(() => {
+    if (container.value) {
+      container.value.scrollTop = container.value.scrollHeight;
+    }
+  });
+}
 
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings',"agentThoughtsDataChanged"])
 const props = defineProps({
@@ -354,6 +361,7 @@ const agentThoughtsData = ref([])
  const filterChat=async (msgData)=>{
 
   messagesData.value=msgData.messages.filter(message => message.event === "completion"||message.event === "user_message")
+  AutoScrollToBottom();
   // agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
   agentThoughtsData.value = msgData.messages
   .filter(message => message.event === "think")

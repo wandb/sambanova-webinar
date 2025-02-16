@@ -1,3 +1,4 @@
+########## NEW CODE ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
 from typing import List, Optional, Union
@@ -8,7 +9,6 @@ from agent.samba_research_flow.crews.edu_research.edu_research_crew import (
 )
 from agent.lead_generation_crew import OutreachList
 
-
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
@@ -16,10 +16,11 @@ class AgentEnum(str, Enum):
     SalesLeads = "sales_leads"
     Assistant = "assistant"
     UserProxy = "user_proxy"
+    # NEWLY ADDED AGENT:
+    DeepResearch = "deep_research"  # <-- For advanced research (LangGraph)
 
 class Greeter(BaseModel):
     greeting: str
-
 
 class UserQuestion(BaseModel):
     user_question: str
@@ -27,20 +28,16 @@ class UserQuestion(BaseModel):
 class AssistantMessage(BaseModel):
     query: str
 
-
 class AssistantResponse(BaseModel):
     response: str
-
 
 # Base class for messages exchanged between agents and users
 class BaseAgentMessage(BaseModel):
     source: str
     timestamp: Optional[date] = None
 
-
 class TestMessage(BaseAgentMessage):
     content: str
-
 
 # SubTask Model
 class CoPilotSubTask(BaseModel):
@@ -50,7 +47,6 @@ class CoPilotSubTask(BaseModel):
     class Config:
         use_enum_values = True  # To serialize enums as their values
 
-
 class HandoffMessage(BaseAgentMessage):
     content: str
 
@@ -59,12 +55,10 @@ class APIKeys(BaseModel):
     serper_key: str
     exa_key: str
 
-
 class FinancialAnalysis(BaseModel):
     ticker: Optional[str] = Field(default=None, description="The ticker of the company")
     company_name: str = Field(default="", description="The name of the company")
     query_text: str = Field(default="", description="The query text from the user")
-
 
 class SalesLeads(BaseModel):
     industry: str = Field(default="", description="The industry of the company")
@@ -73,6 +67,9 @@ class SalesLeads(BaseModel):
     funding_stage: Optional[str] = Field(default=None, description="The funding stage for the sales leads")
     product: Optional[str] = Field(default=None, description="The product for the sales leads")
 
+class DeepResearch(BaseModel):
+    topic: str = Field(default="", description="The topic of the research")
+ 
 
 class EducationalContent(BaseModel):
     topic: str = Field(default="", description="The topic of the research")
@@ -89,12 +86,10 @@ class EducationalContent(BaseModel):
                 )
         return data
 
-
 class EndUserMessage(BaseAgentMessage):
     content: str
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
-
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
@@ -112,6 +107,9 @@ class AgentRequest(BaseModel):
             AgentEnum.EducationalContent: EducationalContent,
             AgentEnum.Assistant: AssistantMessage,
             AgentEnum.UserProxy: UserQuestion,
+            # For now we still parse advanced requests the same way as EducationalContent,
+            # or you could define a new pydantic model, if needed
+            AgentEnum.DeepResearch: EducationalContent,
         }[self.agent_type]
 
         # If parameters is already the correct type, return as is
@@ -127,10 +125,10 @@ class AgentRequest(BaseModel):
             )
 
         return self
-    
+
 class ExtendedSection(Section):
     generated_content: str
-    
+
 class EducationalPlanResult(BaseModel):
     """
     Represents the complete educational content plan.

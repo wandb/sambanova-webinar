@@ -1,3 +1,4 @@
+########## NEW CODE ##########
 import os
 from autogen_core import SingleThreadedAgentRuntime, TypeSubscription
 from autogen_core import DefaultSubscription
@@ -19,10 +20,12 @@ from api.agents.user_proxy import UserProxyAgent
 from api.agents.assistant import AssistantAgentWrapper
 from api.data_types import APIKeys
 
+# NEW IMPORT: our new DeepResearchAgent
+from api.agents.deep_research_agent import DeepResearchAgent
+
 session_state_manager = SessionStateManager()
 
 tracer = configure_oltp_tracing()
-
 
 async def initialize_agent_runtime(
     websocket: WebSocket, redis_client: redis.Redis, api_keys: APIKeys
@@ -61,6 +64,7 @@ async def initialize_agent_runtime(
         lambda: FinancialAnalysisAgent(api_keys=api_keys),
     )
 
+    # Keep old educational content agent for “basic” usage
     await EducationalContentAgent.register(
         agent_runtime,
         "educational_content",
@@ -75,6 +79,13 @@ async def initialize_agent_runtime(
 
     await AssistantAgentWrapper.register(
         agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys)
+    )
+
+    # Register the new deep research agent:
+    await DeepResearchAgent.register(
+        agent_runtime,
+        "deep_research",
+        lambda: DeepResearchAgent(api_keys=api_keys, session_manager=session_state_manager),
     )
 
     # Register the UserProxyAgent instance with the AgentRuntime

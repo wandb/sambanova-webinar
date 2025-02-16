@@ -332,7 +332,7 @@
     computed: {
       error() {
         // If an error message exists within parsed.data.error, display it.
-        return parsed.data?.error || '';
+        return this.parsed.data?.error || '';
       },
     },
   };

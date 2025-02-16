@@ -222,14 +222,16 @@ import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 const newMessage = ref('') // User input field
 const socket = ref(null) // WebSocket reference
 const container = ref(null)
+
 function AutoScrollToBottom() {
+
   nextTick(() => {
     if (container.value) {
       container.value.scrollTop = container.value.scrollHeight;
     }
   });
-}
 
+}
 const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings',"agentThoughtsDataChanged"])
 const props = defineProps({
   conversationId: {
@@ -361,7 +363,7 @@ const agentThoughtsData = ref([])
  const filterChat=async (msgData)=>{
 
   messagesData.value=msgData.messages.filter(message => message.event === "completion"||message.event === "user_message")
-  AutoScrollToBottom();
+  scrollToBottom();
   // agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
   agentThoughtsData.value = msgData.messages
   .filter(message => message.event === "think")
@@ -373,11 +375,13 @@ const agentThoughtsData = ref([])
       console.error("Failed to parse JSON for message:", message, error);
     }
     return acc;
+
+   
   }, []);
 
   // emit('agentThoughtsDataChanged', agentThoughtsData.value)
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
-
+  AutoScrollToBottom()
   await nextTick()
 
 

@@ -129,7 +129,7 @@
 
     
     <ChatAgentSidebar
-     
+      v-if="chatMode"
       :userId="clerkUserId"
       :runId="currentRunId"
       :agentData="agentData"

@@ -5,7 +5,7 @@
       <!-- Collapse/Expand Button -->
       <button
       :class="collapsed?'w-100 h-[36px]  mx-auto':' ' "
-        class=" p-2  mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
+        class=" p-2  border-primary-brandFrame mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
         @click="collapsed = !collapsed"
       >
       <span class="flex items-center">

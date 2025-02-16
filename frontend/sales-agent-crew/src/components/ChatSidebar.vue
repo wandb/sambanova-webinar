@@ -23,6 +23,7 @@
       <div 
         v-for="conv in conversations" 
         :key="conv.conversation_id"
+        :class="preselectedChat===conv.conversation_id?'bg-primary-brandDarkGray  border-primary-brandFrame':''"
         class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
       <div @click="selectConversation(conv)" class="w-full">
         <div class="font-medium capitalize text-gray-800 truncate">  
@@ -75,8 +76,15 @@ onMounted(() => {
   // loadConversations()
   loadChats()
   loadKeys()
-  // connectWebSocket()
+let cId=route.params.id
+  if(cId)
+  preselectedChat.value=cId
+  
+  
 })
+
+
+
 let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
 let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
 async function loadKeys() {
@@ -207,14 +215,17 @@ async function loadOldConversations() {
   }
 }
 
-
+const preselectedChat=ref('')
 
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {
   emit('selectConversation', conv)
 
+  preselectedChat.value=conv.conversation_id
   // alert(conv.conversation_id)
   router.push(`/${conv.conversation_id}`)
+
+  
 
 }
 
@@ -224,71 +235,6 @@ function formatDateTime(ts) {
   return d.toLocaleString()
 }
 
-const addMessage=()=>{
 
-  let myMessage="analyse microsoft financial reports this quarter"
-  const payload = {
-      event: "user_input",
-      data: myMessage,
-      id: Date.now(),
-    }
-    socket.send(JSON.stringify(payload))
-}
 
-let socket = null
-
-// Function to establish the WebSocket connection.
-function connectWebSocket() {
-
-  
-  const WEBSOCKET_URL = 'ws://localhost:8000/chat'  // Replace with your actual URL
-  // Construct the full URL using query parameters.
-  const fullUrl = `${WEBSOCKET_URL}?user_id=${userIdStatic}&conversation_id=${convId}`
-  console.log('Connecting to:', fullUrl)
-  // alert("connectng ",fullUrl)
-  socket = new WebSocket(fullUrl)
-
-  socket.onopen = () => {
-    console.log('WebSocket connection opened')
-    // Log the connection open event.
-    // logs.value += `Connection opened at ${new Date().toLocaleTimeString()}\n`
-    // Send the initial payload.
-    // const payload = {
-    //   event: "user_input",
-    //   data: "Iphone vs android"
-    // }
-    // socket.send(JSON.stringify(payload))
-    // logs.value += `Sent: ${JSON.stringify(payload)}\n`
-
-  }
-
-  socket.onmessage = (event) => {
-    console.log('Received message:', event.data)
-    // Append the received data to the log with a newline.
-    // logs.value += `${event.data}\n`
-
-    try {
-      const outerData = JSON.parse(event.data);
-      // Parse the inner data string.
-      const innerData = JSON.parse(outerData.data);
-      // Set agent name and timestamp.
-      agentName.value = innerData.agent_name;
-      timestamp.value = innerData.timestamp;
-      // Parse the text field into sections.
-      sections.value = parseSections(innerData.text);
-    } catch (error) {
-      console.error('Error parsing message:', error);
-    }
-  }
-
-  socket.onerror = (error) => {
-    console.error('WebSocket error:', error)
-    // logs.value += `Error: ${error.message || 'Unknown error'}\n`
-  }
-
-  socket.onclose = (event) => {
-    console.log('WebSocket connection closed:', event)
-    // logs.value += `Connection closed at ${new Date().toLocaleTimeString()}\n`
-  }
-}
 </script>

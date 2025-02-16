@@ -2,8 +2,8 @@
 <template>
   <div class="relative h-full w-full ">
 <!-- Content -->
-<div class="relative h-full overflow-hdden">
-  <div class="h-full  overflow-y-auto">
+<div class="relative h-full flex flex-col overflow-hdden">
+  <div class="flex-1  overflow-y-auto">
     <!-- Title -->
     <div v-if="messagesData.length==0" class="max-w-4xl py-10 lg:py-14  px-4 sm:px-6 lg:px-8 mx-auto text-center">
       <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
@@ -267,7 +267,7 @@ watch(
   () => route.params.id,
   (newId, oldId) => {
     if (newId) {
-
+      
       isLoading.value=false
       messagesData.value=[]  
    agentThoughtsData.value = []
@@ -515,6 +515,12 @@ onMounted(async () => {
   await loadUserDocuments()
   authRequest()
   // connectWebSocket()
+
+  let newId=route.params.id
+  if(newId)
+  loadPreviousChat(newId)
+
+  
 })
 
 watch(

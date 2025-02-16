@@ -1,12 +1,10 @@
 ########## NEW CODE ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
-from agent.samba_research_flow.crews.edu_research.edu_research_crew import (
-    Section,
-)
+from agent.samba_research_flow.crews.edu_research.edu_research_crew import Section
 from agent.lead_generation_crew import OutreachList
 
 # Enum to Define Agent Types
@@ -17,7 +15,7 @@ class AgentEnum(str, Enum):
     Assistant = "assistant"
     UserProxy = "user_proxy"
     # NEWLY ADDED AGENT:
-    DeepResearch = "deep_research"  # <-- For advanced research (LangGraph)
+    DeepResearch = "deep_research"  # For advanced research (LangGraph)
 
 class Greeter(BaseModel):
     greeting: str
@@ -69,7 +67,6 @@ class SalesLeads(BaseModel):
 
 class DeepResearch(BaseModel):
     topic: str = Field(default="", description="The topic of the research")
- 
 
 class EducationalContent(BaseModel):
     topic: str = Field(default="", description="The topic of the research")
@@ -81,9 +78,7 @@ class EducationalContent(BaseModel):
     def convert_focus_areas_list(cls, data):
         if isinstance(data, dict) and "focus_areas" in data:
             if isinstance(data["focus_areas"], list):
-                data["focus_areas"] = ", ".join(
-                    str(area) for area in data["focus_areas"]
-                )
+                data["focus_areas"] = ", ".join(str(area) for area in data["focus_areas"])
         return data
 
 class EndUserMessage(BaseAgentMessage):
@@ -107,23 +102,17 @@ class AgentRequest(BaseModel):
             AgentEnum.EducationalContent: EducationalContent,
             AgentEnum.Assistant: AssistantMessage,
             AgentEnum.UserProxy: UserQuestion,
-            # For now we still parse advanced requests the same way as EducationalContent,
-            # or you could define a new pydantic model, if needed
-            AgentEnum.DeepResearch: EducationalContent,
+            AgentEnum.DeepResearch: EducationalContent,  # same as before
         }[self.agent_type]
 
-        # If parameters is already the correct type, return as is
         if isinstance(self.parameters, expected_type):
             return self
-
-        # If it's a dict, try to convert it to the expected type
         if isinstance(self.parameters, dict):
             self.parameters = expected_type.model_validate(self.parameters)
         else:
             raise ValueError(
                 f"Parameters must be of type {expected_type.__name__} for agent_type {self.agent_type}"
             )
-
         return self
 
 class ExtendedSection(Section):
@@ -131,15 +120,28 @@ class ExtendedSection(Section):
 
 class EducationalPlanResult(BaseModel):
     """
-    Represents the complete educational content plan.
-
-    Attributes:
-        sections: List of content sections
+    Represents the complete educational content plan (the older approach).
     """
-
     sections: List[ExtendedSection] = []
 
-# Generic Response Wrapper
+#
+# NEW DEEP-RESEARCH STRUCTURES
+#
+class DeepResearchSection(BaseModel):
+    name: str
+    description: str
+    content: str
+    citations: List[Dict[str, str]] = Field(default_factory=list)
+
+class DeepResearchReport(BaseModel):
+    """
+    A structured object that collects the final multi-section
+    deep research report, plus the raw final text if needed.
+    """
+    sections: List[DeepResearchSection]
+    final_report: str  # The entire compiled text in one string
+
+# We now allow AgentStructuredResponse to return DeepResearchReport
 class AgentStructuredResponse(BaseModel):
     agent_type: AgentEnum
     data: Union[
@@ -149,5 +151,6 @@ class AgentStructuredResponse(BaseModel):
         Greeter,
         AssistantResponse,
         UserQuestion,
+        DeepResearchReport,  # ADDED
     ]
     message: Optional[str] = None  # Additional message or notes from the agent

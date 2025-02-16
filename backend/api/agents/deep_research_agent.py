@@ -24,7 +24,8 @@ from api.data_types import (
     AgentEnum,
     EducationalContent,
     UserQuestion,
-    EndUserMessage
+    EndUserMessage,
+    DeepResearchReport
 )
 from utils.logging import logger
 from api.session_state import SessionStateManager
@@ -158,34 +159,38 @@ class DeepResearchAgent(RoutedAgent):
                         )
                     return  # We stop here, waiting for user feedback
 
-            # If we exhaust the loop => the graph is done
+           # If we reach here => graph completed
             final_state = graph.get_state(thread_config, subgraphs=True)
-            final_report = final_state.values.get("final_report", "")
+            # recall compile_final_report returns { final_report, deep_research_report }
+            dr_report = final_state.values.get("deep_research_report", None)
+            if dr_report is None:
+                # fallback if something is missing
+                # We'll just send back an empty
+                logger.warning(logger.format_message(session_id, "No deep_research_report found. Fallback."))
+                # or you can create a minimal
+                dr_report = {
+                    "sections": [],
+                    "final_report": final_state.values.get("final_report", ""),
+                }
 
-            # Build our structured output
-            sections_out = EducationalPlanResult.model_validate({
-                "sections": [
-                    {
-                        "name": "DeepResearch Final",
-                        "description": "Full advanced research result",
-                        "research": False,
-                        "content": "",
-                        "generated_content": final_report
-                    }
-                ]
-            })
+            # Because it's a dict from the graph, we parse it into the model
+            structured_report = DeepResearchReport.model_validate(dr_report)
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.DeepResearch,
-                data=sections_out,
-                message=f"Deep research flow completed with topic: {final_report[:80]}..."
+                data=structured_report,
+                message="Deep research flow completed."
             )
 
         except Exception as e:
-            logger.error(logger.format_message(session_id, f"DeepResearch flow error: {str(e)}"), exc_info=True)
-            sections_out = EducationalPlanResult(sections=[])
+            logger.error(
+                logger.format_message(session_id, f"DeepResearch flow error: {str(e)}"),
+                exc_info=True
+            )
+            # fallback
+            structured_report = DeepResearchReport(sections=[], final_report="")
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.DeepResearch,
-                data=sections_out,
+                data=structured_report,
                 message=f"Deep research flow error: {str(e)}"
             )
 

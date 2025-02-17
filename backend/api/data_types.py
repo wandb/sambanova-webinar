@@ -1,4 +1,4 @@
-########## NEW CODE ##########
+########## data_types.py (FULL UPDATED CODE) ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
 from typing import List, Optional, Union, Dict
@@ -124,9 +124,13 @@ class EducationalPlanResult(BaseModel):
     """
     sections: List[ExtendedSection] = []
 
-#
-# NEW DEEP-RESEARCH STRUCTURES
-#
+
+# NEW: A citation data structure
+class DeepCitation(BaseModel):
+    section_name: str
+    desc: str
+    url: str
+
 class DeepResearchSection(BaseModel):
     name: str
     description: str
@@ -137,9 +141,12 @@ class DeepResearchReport(BaseModel):
     """
     A structured object that collects the final multi-section
     deep research report, plus the raw final text if needed.
+    We also add an optional 'citations' field for the global references.
     """
     sections: List[DeepResearchSection]
-    final_report: str  # The entire compiled text in one string
+    final_report: str
+    citations: List[DeepCitation] = Field(default_factory=list)  # new for global references
+
 
 # We now allow AgentStructuredResponse to return DeepResearchReport
 class AgentStructuredResponse(BaseModel):

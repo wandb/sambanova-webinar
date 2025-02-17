@@ -141,22 +141,26 @@ class ResearchCrew:
         aggregator_redis_logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Aggregator Search Agent"
+            agent_name="Aggregator Search Agent",
+            workflow_name="Lead Generation"
         )
         data_extraction_redis_logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Data Extraction Agent"
+            agent_name="Data Extraction Agent",
+            workflow_name="Lead Generation"
         )
         market_trends_redis_logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Market Trends Analyst"
+            agent_name="Market Trends Analyst",
+            workflow_name="Lead Generation"
         )
         outreach_redis_logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Outreach Specialist"
+            agent_name="Outreach Specialist",
+            workflow_name="Lead Generation"
         )
 
         # Hook them in

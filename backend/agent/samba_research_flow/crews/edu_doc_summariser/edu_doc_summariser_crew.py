@@ -64,7 +64,10 @@ class EduDocSummariserCrew:
             Agent: A configured planning agent
         """
         summariser_logger = RedisConversationLogger(
-            user_id=self.user_id, run_id=self.run_id, agent_name="Summariser Agent"
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Summariser Agent",
+            workflow_name="Research",
         )
         return Agent(
             config=self.agents_config["summariser"],

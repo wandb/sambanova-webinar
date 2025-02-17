@@ -289,15 +289,55 @@ class FinancialAnalysisCrew:
             verbose=self.verbose,
         )
 
-        enhanced_competitor_logger = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
-        competitor_analysis_logger = RedisConversationLogger(self.user_id, self.run_id, "Competitor Analysis Agent")
-        fundamental_logger = RedisConversationLogger(self.user_id, self.run_id, "Fundamental Agent")
-        technical_logger = RedisConversationLogger(self.user_id, self.run_id, "Technical Agent")
-        risk_logger = RedisConversationLogger(self.user_id, self.run_id, "Risk Agent")
-        news_logger = RedisConversationLogger(self.user_id, self.run_id, "News Agent")
+        enhanced_competitor_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Enhanced Competitor Finder Agent",
+            workflow_name="Financial Analysis",
+        )
+        competitor_analysis_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Competitor Analysis Agent",
+            workflow_name="Financial Analysis",
+        )
+        fundamental_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Fundamental Agent",
+            workflow_name="Financial Analysis",
+        )
+        technical_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Technical Agent",
+            workflow_name="Financial Analysis",
+        )
+        risk_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Risk Agent",
+            workflow_name="Financial Analysis",
+        )
+        news_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="News Agent",
+            workflow_name="Financial Analysis",
+        )
         if self.docs_included:
-            document_summarizer_logger = RedisConversationLogger(self.user_id, self.run_id, "Document Summarizer Agent")
-        aggregator_logger = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
+            document_summarizer_logger = RedisConversationLogger(
+                user_id=self.user_id,
+                run_id=self.run_id,
+                agent_name="Document Summarizer Agent",
+                workflow_name="Financial Analysis",
+            )
+        aggregator_logger = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Aggregator Agent",
+            workflow_name="Financial Analysis",
+        )
 
         # Redis logs
 

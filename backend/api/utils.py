@@ -78,7 +78,7 @@ async def initialize_agent_runtime(
     )
 
     await AssistantAgentWrapper.register(
-        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys)
+        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys, websocket=websocket, redis_client=redis_client)
     )
 
     # Register the new deep research agent:

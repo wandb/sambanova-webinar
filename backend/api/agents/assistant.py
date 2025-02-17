@@ -1,5 +1,7 @@
 from datetime import datetime
 import functools
+import json
+import time
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
 
 from autogen_core import (
@@ -11,6 +13,8 @@ from autogen_core import (
 )
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
+from fastapi import WebSocket
+import redis
 import requests
 from api.data_types import (
     APIKeys,
@@ -118,7 +122,14 @@ def exa_news_search(
 
 @type_subscription(topic_type="assistant")
 class AssistantAgentWrapper(RoutedAgent):
-    def __init__(self, api_keys: APIKeys) -> None:
+
+    def __init__(
+        self,
+        websocket: WebSocket,
+        api_keys: APIKeys,
+        redis_client: redis.Redis,
+        provider: str = "sambanova",
+    ) -> None:
         super().__init__("assistant")
         logger.info(
             logger.format_message(
@@ -127,11 +138,19 @@ class AssistantAgentWrapper(RoutedAgent):
             )
         )
         self.api_keys = api_keys
+        self.websocket = websocket
+        self.redis_client = redis_client
+        self.provider = provider
+        if self.provider == "sambanova":
+            base_url = "https://api.sambanova.ai/v1"
+        else:
+            raise ValueError("Invalid provider")
+
         self._assistant = AssistantAgent(
             name="assistant",
             model_client=OpenAIChatCompletionClient(
                 model="Meta-Llama-3.1-70B-Instruct",
-                base_url="https://api.sambanova.ai/v1",
+                base_url=base_url,
                 api_key=self.api_keys.sambanova_key,
                 model_info={
                     "json_output": False,
@@ -163,6 +182,7 @@ class AssistantAgentWrapper(RoutedAgent):
             )
             agent_message = TextMessage(content=message.parameters.query, source="user")
 
+            start_time = time.time()
             response = await self._assistant.on_messages(
                 [agent_message], ctx.cancellation_token
             )
@@ -183,6 +203,36 @@ class AssistantAgentWrapper(RoutedAgent):
                     else "Unable to assist with this request."
                 )
             )
+
+            end_time = time.time()
+            processing_time = end_time - start_time
+
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+
+            assistant_metadata = {
+                "duration": processing_time,
+                "model": self._assistant._model_client._resolved_model,
+                "provider": self.provider,
+                "workflow": "General Assistant",
+                "agent_name": "General Assistant",
+            }
+            assistant_event = {
+                "event": "think",
+                "data": json.dumps(
+                    {
+                        "user_id": user_id,
+                        "run_id": conversation_id,
+                        "agent_name": "General Assistant",
+                        "text": response_content,
+                        "metadata": assistant_metadata,
+                    }
+                ),
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+            await self.websocket.send_text(json.dumps(assistant_event))
+            await self.redis_client.rpush(f"messages:{user_id}:{conversation_id}", json.dumps(assistant_event))
 
         except Exception as e:
             logger.error(

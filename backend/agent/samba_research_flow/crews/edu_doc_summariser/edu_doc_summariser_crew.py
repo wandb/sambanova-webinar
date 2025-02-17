@@ -63,18 +63,19 @@ class EduDocSummariserCrew:
         Returns:
             Agent: A configured planning agent
         """
-        summariser_logger = RedisConversationLogger(
+        summariser = Agent(
+            config=self.agents_config["summariser"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        summariser.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Summariser Agent",
             workflow_name="Research",
+            llm_name=summariser.llm.model,
         )
-        return Agent(
-            config=self.agents_config["summariser"],
-            llm=self.llm,
-            verbose=self.verbose,
-            step_callback=summariser_logger,
-        )
+        return summariser
 
     @task
     def summarise_task(self) -> Task:

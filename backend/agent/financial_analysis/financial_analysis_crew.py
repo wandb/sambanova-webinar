@@ -289,67 +289,65 @@ class FinancialAnalysisCrew:
             verbose=self.verbose,
         )
 
-        enhanced_competitor_logger = RedisConversationLogger(
+        # Redis logs
+
+        self.enhanced_competitor_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Enhanced Competitor Finder Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.enhanced_competitor_agent.llm.model,
         )
-        competitor_analysis_logger = RedisConversationLogger(
+        self.competitor_analysis_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Competitor Analysis Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.competitor_analysis_agent.llm.model,
         )
-        fundamental_logger = RedisConversationLogger(
+        self.fundamental_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Fundamental Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.fundamental_agent.llm.model,
         )
-        technical_logger = RedisConversationLogger(
+        self.technical_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Technical Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.technical_agent.llm.model,
         )
-        risk_logger = RedisConversationLogger(
+        self.risk_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Risk Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.risk_agent.llm.model,
         )
-        news_logger = RedisConversationLogger(
+        self.news_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="News Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.news_agent.llm.model,
         )
         if self.docs_included:
-            document_summarizer_logger = RedisConversationLogger(
+            self.document_summarizer_agent.step_callback = RedisConversationLogger(
                 user_id=self.user_id,
                 run_id=self.run_id,
                 agent_name="Document Summarizer Agent",
                 workflow_name="Financial Analysis",
+                llm_name=self.document_summarizer_agent.llm.model,
             )
-        aggregator_logger = RedisConversationLogger(
+        self.aggregator_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Aggregator Agent",
             workflow_name="Financial Analysis",
+            llm_name=self.aggregator_agent.llm.model,
         )
-
-        # Redis logs
-
-        self.enhanced_competitor_agent.step_callback = enhanced_competitor_logger
-        self.competitor_analysis_agent.step_callback = competitor_analysis_logger
-        self.fundamental_agent.step_callback = fundamental_logger
-        self.technical_agent.step_callback = technical_logger
-        self.risk_agent.step_callback = risk_logger
-        self.news_agent.step_callback = news_logger
-        if self.docs_included:
-            self.document_summarizer_agent.step_callback = document_summarizer_logger
-        self.aggregator_agent.step_callback = aggregator_logger
 
     def _init_tasks(self):
         # 1) competitor tasks => sequential

@@ -33,8 +33,8 @@ class PlannerProvider(Enum):
 class Configuration:
     """The configurable fields for the chatbot."""
     report_structure: str = DEFAULT_REPORT_STRUCTURE # Defaults to the default report structure
-    number_of_queries: int = 2 # Number of search queries to generate per iteration
-    max_search_depth: int = 2 # Maximum number of reflection + search iterations
+    number_of_queries: int = 3 # Number of search queries to generate per iteration
+    max_search_depth: int = 3 # Maximum number of reflection + search iterations
     planner_provider: PlannerProvider = PlannerProvider.SAMBANOVA # Defaults to OpenAI as provider
     planner_model: str = "Meta-Llama-3.3-70B-Instruct" # Defaults to OpenAI o3-mini as planner model
     writer_model: str = "Meta-Llama-3.1-70B-Instruct" # Defaults to Anthropic as provider

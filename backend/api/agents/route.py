@@ -60,8 +60,7 @@ class SemanticRouterAgent(RoutedAgent):
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
         self._reasoning_model_client = OpenAIChatCompletionClient(
-            # model="Meta-Llama-3.1-70B-Instruct",
-            model="DeepSeek-R1-Distill-Llama-70B",
+            model="Meta-Llama-3.1-70B-Instruct",
             base_url="https://api.sambanova.ai/v1",
             api_key=api_keys.sambanova_key,
             model_info={

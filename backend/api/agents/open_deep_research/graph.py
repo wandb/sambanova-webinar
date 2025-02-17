@@ -1,4 +1,4 @@
-########## NEW CODE ##########
+########## graph.py (NEW CODE) ##########
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -33,76 +33,65 @@ from .configuration import Configuration
 from .utils import tavily_search_async, deduplicate_and_format_sources, format_sections, perplexity_search
 import os
 import sys
+import re
 
-current_dir = os.getcwd()
-repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
-sys.path.append(repo_dir)
-
-
-# NEW: We'll import the new classes
 from api.data_types import DeepResearchReport, DeepResearchSection
 
-os.environ["SAMBANOVA_API_KEY"] = "pass_in_from_env"
+os.environ["SAMBANOVA_API_KEY"] = "your_key_here"
 
 writer_model = ChatSambaNovaCloud(
     model=Configuration.writer_model, temperature=0, max_tokens=8192
 )
 
-# -------------------------------
-# Helper function to parse citations
-# -------------------------------
-def extract_citations_and_clean(content: str):
+###############################################################################
+# 1) A new helper function to parse out raw URLs, remove them from text, and
+#    store them in citations. We do line-by-line or an entire text approach.
+###############################################################################
+def extract_urls_and_clean(content: str):
     """
-    Look for a line with either:
-      - '### Sources' or
-      - 'Sources:' or 'Sources:\n'
-    Then parse each subsequent line of the form:
-         Title : URL
-    Return a list of {title, url}, plus the content with that block removed if desired.
+    Scans the entire content for raw http/https URLs using a regex. For each URL:
+      - we remove it from the text
+      - we store a citation entry with "url" and "desc" = the line's text minus the URL.
+
+    Returns: (cleaned_content, citations_list)
+    Where citations_list is a list of dicts like: { "url": "...", "desc": "some text" }
     """
-    lines = content.split("\n")
+    # We'll keep a list of citations
     citations = []
-    new_lines = []
-    in_sources_block = False
+
+    # We'll go line-by-line, scanning for URLs
+    url_pattern = re.compile(r'(https?://[^\s]+)')
+
+    lines = content.split("\n")
+    cleaned_lines = []
 
     for line in lines:
-        lower_line = line.strip().lower()
-        if "### sources" in lower_line or lower_line.startswith("sources:"):
-            in_sources_block = True
-            # skip adding this line to new_lines
-            continue
-
-        if in_sources_block:
-            # we expect lines like "Title : URL"
-            line_stripped = line.strip(" -*")  # remove bullets
-            if not line_stripped:
-                # blank line => end sources block
-                in_sources_block = False
-                continue
-            # Attempt parse
-            parts = line_stripped.split(" : ")
-            if len(parts) == 2:
-                the_title, the_url = parts
-                citations.append({"title": the_title.strip(), "url": the_url.strip()})
-            else:
-                # Might be a partial or weird line => skip or end block if you prefer
-                # We'll try a second pattern "title: URL"
-                parts2 = line_stripped.split(": ")
-                if len(parts2) == 2:
-                    citations.append({"title": parts2[0].strip(), "url": parts2[1].strip()})
-                else:
-                    # no match => ignore
-                    pass
+        found_urls = url_pattern.findall(line)
+        if not found_urls:
+            # No URLs in this line, keep it as-is
+            cleaned_lines.append(line)
         else:
-            new_lines.append(line)
+            # We'll remove each URL from the line, store it in citations
+            # We store the leftover text as "desc"
+            new_line = line
+            for url in found_urls:
+                # store a citation
+                # "desc" can be the line minus the URL
+                # or a short snippet
+                # We'll do a naive approach: everything except the url => desc
+                desc = new_line.replace(url, "").strip()
+                citations.append({"url": url, "desc": desc})
+                # Remove the url from the line
+                new_line = new_line.replace(url, "").strip()
+            if new_line.strip():
+                cleaned_lines.append(new_line.strip())
 
-    # join new_lines => the content minus the sources
-    cleaned_content = "\n".join(new_lines).strip()
+    cleaned_content = "\n".join(cleaned_lines).strip()
     return cleaned_content, citations
 
-# -------------------------------
-# The main nodes
-# -------------------------------
+###############################################################################
+# The rest of the nodes
+###############################################################################
 
 async def generate_report_plan(state: ReportState, config: RunnableConfig):
     """Generate the report plan."""
@@ -136,7 +125,7 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
 
     if search_api == "tavily":
         search_results = await tavily_search_async(query_list)
-        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1000, include_raw_content=False)
+        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1500, include_raw_content=False)
     elif search_api == "perplexity":
         search_results = perplexity_search(query_list)
         source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1000, include_raw_content=False)
@@ -181,7 +170,10 @@ def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Litera
         for section in sections
     )
 
-    feedback = interrupt(f"Please provide feedback on the following report plan. \n\n{sections_str}\n\n Does the report plan meet your needs? Pass 'true' to approve the report plan or provide feedback to regenerate the report plan:")
+    feedback = interrupt(
+        f"Please provide feedback on the following report plan. \n\n{sections_str}\n\n"
+        "Does the report plan meet your needs? Pass 'true' to approve the report plan or provide feedback to regenerate the report plan:"
+    )
 
     if isinstance(feedback, bool):
         return Command(goto=[
@@ -304,43 +296,70 @@ def initiate_final_section_writing(state: ReportState):
 def compile_final_report(state: ReportState):
     """
     Compile the final report into a structured DeepResearchReport with parsed citations.
+    - For each section in 'sections' (with updated content from 'completed_sections'),
+      we remove raw URLs, store them in citations, then build a DeepResearchSection.
+    - The final_report is just a concatenation of all cleaned sections.
     """
     sections = state["sections"]
-    # We map each "completed_section" back into the final sections
     completed_map = {s.name: s.content for s in state["completed_sections"]}
 
-    # Build a list of DeepResearchSection
     deep_sections = []
     for sec in sections:
-        # update the final content from the completed_map
-        if sec.name in completed_map:
-            sec.content = completed_map[sec.name]
-        # parse citations
-        cleaned_content, citations = extract_citations_and_clean(sec.content)
-        deep_sec = DeepResearchSection(
+        # fetch final content if completed
+        final_content = completed_map.get(sec.name, sec.content or "")
+        # parse out raw URLs => citations
+        cleaned_content, citations = extract_urls_and_clean(final_content)
+
+        ds = DeepResearchSection(
             name=sec.name,
             description=sec.description,
             content=cleaned_content.strip(),
             citations=citations
         )
-        deep_sections.append(deep_sec)
+        deep_sections.append(ds)
 
-    # We'll join everything into final_report
-    final_text = "\n\n".join([s.content for s in deep_sections])
+    # Build a final compiled text
+    # For each section, we might show "## {section.name}\n{section.content}\n"
+    # Then a small "Citations:\n..." block or combine at the end. 
+    # The user specifically wants a single final block that includes these citations
+    # "in a separate section"? We'll do it at the very end for global references.
+    # Or we keep them local? The prompt says "the final report simply lists these citations at the end
+    # in a separate section." We'll do that. We'll gather them globally:
+    global_citations = []
+    final_text_lines = []
+    for ds in deep_sections:
+        # Append a section header
+        final_text_lines.append(f"# {ds.name}\n{ds.content}\n")
+        # accumulate citations
+        global_citations.extend(ds.citations)
 
-    # Save to file if you wish
+    # Add a "References" or "Citations" block at the end
+    if global_citations:
+        final_text_lines.append("\n## Citations\n")
+        for i, c in enumerate(global_citations, 1):
+            # We'll show as: - (i) [desc] (url)
+            desc = c["desc"] or f"Citation {i}"
+            url = c["url"]
+            final_text_lines.append(f"- [{desc}]({url})")
+
+    final_report = "\n".join(final_text_lines).strip()
+
     with open("final_report.md", "w") as f:
-        f.write(final_text)
+        f.write(final_report)
 
-    # Return a dict with "final_report" since the graph expects it
-    # But also, we store a structured "DeepResearchReport"
     deep_research_report = DeepResearchReport(
         sections=deep_sections,
-        final_report=final_text
+        final_report=final_report
     )
-    return {"final_report": final_text, "deep_research_report": deep_research_report}
 
-# Sub-graph
+    # The graph expects "final_report" to be in the dict,
+    # plus we'll store our structured object.
+    return {
+        "final_report": final_report,
+        "deep_research_report": deep_research_report
+    }
+
+# Build sub-graph
 section_builder = StateGraph(SectionState, output=SectionOutputState)
 section_builder.add_node("generate_queries", generate_queries)
 section_builder.add_node("search_web", search_web)

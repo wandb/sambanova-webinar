@@ -1,6 +1,6 @@
 <template>
     <div class="assistant-message">
-      <h3>Assistant Message:</h3>
+      
       <!-- The raw text from data.response -->
       <div v-html="formattedText"></div>
       <!-- Possibly parse the nested message if needed -->

@@ -34,7 +34,7 @@
         <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
-        <div v-if="chatMode" class="flex h-full justify-content-center">
+        <div v-if="chatMode" class="flex h-full justify-center">
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"
@@ -44,7 +44,7 @@
           />
         </div>
 
-        <div v-else class="flex items-center w-full justify-center">
+        <div v-else class="flex h-full w-full justify-center items-center overflow-y-auto">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
@@ -58,7 +58,7 @@
           />
 
           <!-- LOADING SPINNER -->
-          <div v-if="isLoading&&!chatMode" class="mt-8">
+          <div v-if="isLoading&&!chatMode" class="mt-8 w-full">
             <LoadingSpinner
             
               :message="loadingMessage"
@@ -75,7 +75,7 @@
           />
 
           <!-- RESULTS SECTION -->
-          <div  v-if="hasResults" class="mt-6 space-y-6  w-full">
+          <div  v-if="hasResults" class="mt-6 w-full h-full space-y-6">
             <div class="grid grid-cols-1 gap-6">
               <!-- SALES LEADS Results -->
               <template v-if="queryType === 'sales_leads'">

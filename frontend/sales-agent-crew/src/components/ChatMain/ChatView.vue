@@ -23,9 +23,10 @@
     <ul class="mt-16 space-y-5">
       <!-- Chat Bubble -->
      
-        <ChatBubble v-for="msgItem in messagesData" 
+        <ChatBubble v-for="msgItem in messagesData" :plannerText="plannerText" 
         :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
 
+        <ChatLoaderBubble v-if="isLoading" :statusText="'Planning...'"  :plannerText="plannerText"    />
       <!-- End Chat Bubble -->
     </ul>
   </div>
@@ -39,7 +40,7 @@
           <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           New chat
         </button> -->
-      <StatusText  v-if="isLoading" :text="statusText"  />
+        <StatusText v-if="isLoading"   :text="statusText"  />
         <!-- <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
           <svg class="size-3" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
@@ -197,6 +198,7 @@ import { useRoute, useRouter } from 'vue-router'
 import SILogo from '@/components/icons/SILogo.vue' 
 import axios from 'axios'
 import ChatBubble from '@/components/ChatMain/ChatBubble.vue'
+import ChatLoaderBubble from '@/components/ChatMain/ChatLoaderBubble.vue'
 const router = useRouter()
 const route = useRoute() 
 import { useAuth } from '@clerk/vue'
@@ -335,7 +337,6 @@ async function loadPreviousChat(convId) {
     const resp = await axios.get(
       `${import.meta.env.VITE_API_URL}/chat/history/${userId.value}/${convId}`, 
       {}, 
-      
     )
     isLoading.value=false
 
@@ -356,11 +357,16 @@ const agentThoughtsData = ref([])
 
  const filterChat=async (msgData)=>{
 
-  messagesData.value=msgData.messages.filter(message => message.event === "completion"||message.event === "user_message")
-  scrollToBottom();
-  // agentThoughtsData.value=msgData.messages.filter(message => message.event === "think");
-  agentThoughtsData.value = msgData.messages
+// Sort messagesData by created_at in ascending order
+messagesData.value = msgData.messages
+  .filter(message => message.event === "completion" || message.event === "user_message")
+  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+scrollToBottom();
+
+// For agentThoughtsData, filter, sort and then reduce the data
+agentThoughtsData.value = msgData.messages
   .filter(message => message.event === "think")
+  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
   .reduce((acc, message) => {
     try {
       const parsed = JSON.parse(message.data);
@@ -369,9 +375,8 @@ const agentThoughtsData = ref([])
       console.error("Failed to parse JSON for message:", message, error);
     }
     return acc;
-
-   
   }, []);
+
 
   // emit('agentThoughtsDataChanged', agentThoughtsData.value)
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
@@ -546,7 +551,7 @@ const missingKeys = computed(() => {
 })
 
 const statusText=ref('Loading...')
-
+const plannerText=ref('')
 async function performSearch() {
   try {
     // 1) Indicate we are about to do "routing_query"
@@ -869,6 +874,9 @@ onBeforeUnmount(() => {
 
 const addMessage=()=>{
    isLoading.value=true
+   plannerText.value=''
+   statusText.value='Loading...'
+   AutoScrollToBottom()
    agentThoughtsData.value=[]
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
 
@@ -918,11 +926,14 @@ function connectWebSocket() {
       // Add new message to messages array
       
       if(receivedData.event=="user_message"||receivedData.event=="completion"){
+        // if(receivedData.event=="completion"){
+        //   receivedData.planner_chunk=plannerText.value
+        // }
+       
         messagesData.value.push(receivedData)
         isLoading.value=false
       }
      else if(receivedData.event==="think"){
-      console.log("think event fired")
       
       let dataParsed=JSON.parse(receivedData.data)
         agentThoughtsData.value.push( dataParsed)
@@ -930,7 +941,16 @@ function connectWebSocket() {
         statusText.value=dataParsed.agent_name
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
 
-      }else{
+      }
+      else if(receivedData.event==="planner_chunk"){
+      
+      let dataParsed=JSON.parse(receivedData.data)
+      
+        plannerText.value=`${plannerText.value} ${dataParsed.chunk}`
+        
+
+      }
+      else{
         console.log("ping event fired: ", receivedData.event)
       }
       

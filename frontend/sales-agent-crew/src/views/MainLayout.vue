@@ -1,7 +1,7 @@
 <!-- src/views/MainLayout.vue -->
 <template>
   <!-- Outer container uses flex so the sidebar, main area, and agent sidebar appear side-by-side -->
-  <div class="min-h-screen transition-all  duration-300 flex flex-col">
+  <div class="min-h-screen transition-all bg-primary-bodyBg duration-300 flex flex-col">
 
       <!-- PAGE HEADER -->
       <Header
@@ -12,7 +12,7 @@
       />
 
     <!-- MAIN COLUMN -->
-    <div class="flex h-[calc(100vh-4rem)]">
+    <div class="flex gap-2 p-2 h-[calc(100vh-4rem)]">
 
            <!-- LEFT SIDEBAR -->
     <!-- If chatMode => <ChatSidebar>, else => <Sidebar>. 
@@ -34,12 +34,13 @@
         <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
-        <div v-if="chatMode" class="flex justify-content-center">
+        <div v-if="chatMode" class="flex h-full justify-content-center">
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"
             :userId="clerkUserId"
             class="flex-1"
+            @agentThoughtsDataChanged="agentThoughtsDataChanged"
           />
         </div>
 
@@ -50,14 +51,16 @@
        
 
           <SearchNotification
+            
             :show="showNotification"
             :time="searchTime"
             :resultCount="resultCount"
           />
 
           <!-- LOADING SPINNER -->
-          <div v-if="isLoading" class="mt-8">
+          <div v-if="isLoading&&!chatMode" class="mt-8">
             <LoadingSpinner
+            
               :message="loadingMessage"
               :subMessage="loadingSubMessage"
             />
@@ -65,6 +68,7 @@
 
           <!-- ERROR MODAL -->
           <ErrorModal
+          v-if="!chatMode"
             :show="showError"
             :errorMessage="errorMessage"
             @close="showError = false"
@@ -105,7 +109,7 @@
       </div>
       
     </div>
-        <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2">
+        <div  v-if="!chatMode" class="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 ">
           <SearchSection
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"
@@ -121,6 +125,7 @@
 
         <!-- RIGHT SIDEBAR: Real-time Agent Logs for the current user + run ID -->
     <AgentSidebar
+     v-if="!chatMode"
       :userId="clerkUserId"
       :runId="currentRunId"
     />
@@ -148,7 +153,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import ChatSidebar from '@/components/ChatSidebar.vue'
-import ChatView from '@/components/ChatView.vue'
+import ChatView from '@/components/ChatMain/ChatView.vue'
 import AgentSidebar from '@/components/AgentSidebar.vue'
 
 import SearchSection from '@/components/SearchSection.vue'
@@ -159,9 +164,17 @@ import ResearchReport from '@/components/ResearchReport.vue'
 import FinancialAnalysisReport from '@/components/FinancialAnalysisReport.vue'
 import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
-
+import ChatAgentSidebar from '@/components/ChatMain/ChatAgentSidebar.vue' 
 import { useReportStore } from '@/stores/reportStore'
 
+
+// PROPS
+// const props = defineProps({
+//   agentData: {
+//     type: Array,
+//     default: () => []
+//   }
+// })
 // *** Important *** We'll define local refs for the two components we want:
 const sideBarComp = Sidebar
 const chatSidebarComp = ChatSidebar
@@ -355,6 +368,7 @@ watch(queryType, (newVal, oldVal) => {
       break
   }
 })
+
 
 function handleSearchComplete(searchResults) {
   queryType.value = searchResults.type

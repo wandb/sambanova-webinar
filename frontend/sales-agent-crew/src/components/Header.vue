@@ -61,8 +61,9 @@
 
         <SignedIn>
           <UserButton 
+
             afterSignOutUrl="/login"
-            :appearance="{ elements: { avatarBox: 'h-8 w-8 sm:h-10 sm:w-10' } }"
+            :appearance="{ elements: { avatarBox: 'bg-primary-brandAvatarGray h-8 w-8 sm:h-10 sm:w-10' } }"
           />
         </SignedIn>
       </div>

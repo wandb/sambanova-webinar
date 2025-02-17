@@ -22,13 +22,16 @@
       :is="chatMode ? chatSidebarComp : sideBarComp"
       @selectReport="handleSavedReportSelect"       
       @selectConversation="handleSelectConversation"
+      ref="chatSideBarRef"
+      
+
     />
     
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="overflow-y-auto relative flex-1 flex flex-col  h-full">
+      <main class="overflow-hidden  border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
 
-        <div class="flex-1 ">
+        <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
          <div class="flex-1  h-full w-full   ">
         <div v-if="chatMode" class="flex justify-content-center">
@@ -40,7 +43,7 @@
           />
         </div>
 
-        <div v-else class="flex ">
+        <div v-else class="flex items-center w-full justify-center">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
@@ -68,7 +71,7 @@
           />
 
           <!-- RESULTS SECTION -->
-          <div v-if="hasResults" class="mt-6 space-y-6">
+          <div  v-if="hasResults" class="mt-6 space-y-6  w-full">
             <div class="grid grid-cols-1 gap-6">
               <!-- SALES LEADS Results -->
               <template v-if="queryType === 'sales_leads'">
@@ -107,7 +110,7 @@
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"
             :runId="currentRunId"
-          :sessionId="sessionId"
+            :sessionId="sessionId"
             @searchStart="handleSearchStart"
             @searchComplete="handleSearchComplete"
             @searchError="handleSearchError"
@@ -121,6 +124,15 @@
       :userId="clerkUserId"
       :runId="currentRunId"
     />
+
+    
+    <ChatAgentSidebar
+      v-if="chatMode"
+      :userId="clerkUserId"
+      :runId="currentRunId"
+      :agentData="agentData"
+    />
+
     </div>
 
   
@@ -188,6 +200,17 @@ const headerRef = ref(null)
 const { user } = useUser()
 const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
+
+const agentData=ref([])
+const chatSideBarRef = ref(null)
+const agentThoughtsDataChanged=(agentThoughtsData)=>{
+agentData.value=agentThoughtsData
+
+if (chatSideBarRef.value && typeof chatSideBarRef.value.loadChats === 'function') {
+  chatSideBarRef.value.loadChats()
+  }
+  
+}
 // The runId for SSE etc.
 const currentRunId = ref('')
 // The sessionId that remains consistent for document uploads and searches

@@ -23,11 +23,15 @@
       <div 
         v-for="conv in conversations" 
         :key="conv.conversation_id"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-        @click="selectConversation(conv)"
-      >
-        <div class="font-medium text-gray-800 truncate">
-          {{ conv.title }}
+        :class="preselectedChat===conv.conversation_id?'bg-primary-brandDarkGray border border-primary-brandFrame':''"
+        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+      <div @click="selectConversation(conv)" class="w-full">
+        <div class="font-medium capitalize text-gray-800 truncate">  
+          {{ conv.name?conv.name:"New Chat"	 }}
+          
+        </div>
+        <div class="text-xs text-gray-500">
+          {{ conv.conversation_id }}
         </div>
         <div class="text-xs text-gray-500">
           {{ formatDateTime(conv.created_at) }}
@@ -64,8 +68,17 @@ const conversations = ref([])
 onMounted(() => {
   loadConversations()
   loadKeys()
+let cId=route.params.id
+  if(cId)
+  preselectedChat.value=cId
+  
+  
 })
 
+
+
+let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
+let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
 async function loadKeys() {
   try {
     const uid = userId.value || 'anonymous'
@@ -88,6 +101,30 @@ const missingKeys = computed(() => {
   if (!exaKey.value) missing.push('Exa')
   return missing
 })
+defineExpose({loadChats})
+
+async function loadChats() {
+  try {
+    
+    // if (missingKeys.value.length > 0) {
+    //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+    //   return
+    // }
+
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/list/${uid}`,   
+    )
+   
+   console.log(resp)
+
+   conversations.value = resp.data?.chats;
+
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
 
 function loadConversations() {
   try {
@@ -130,28 +167,60 @@ async function createNewChat() {
       }
     )
     const cid = resp.data.conversation_id
-    const assistantMsg = resp.data.assistant_message || "New Conversation"
-    const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
+    // const assistantMsg = resp.data.assistant_message || "New Conversation"
+    // const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
 
-    const convMeta = {
-      conversation_id: cid,
-      title: shortTitle,
-      created_at: Date.now()
+    // const convMeta = {
+    //   conversation_id: cid,
+    //   title: shortTitle,
+    //   created_at: Date.now()
+    // }
+    // // Prepend
+    // conversations.value.unshift(convMeta)
+    // saveConversations()
+
+    // selectConversation(convMeta)
+
+    loadChats()
+    router.push(`/${cid}`)
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
+async function loadOldConversations() {
+  try {
+    if (missingKeys.value.length > 0) {
+      alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+      return
     }
-    // Prepend
-    conversations.value.unshift(convMeta)
-    saveConversations()
 
-    selectConversation(convMeta)
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
+      {}, 
+      
+    )
+    console.log(resp)
+    
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')
   }
 }
 
+const preselectedChat=ref('')
+
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {
   emit('selectConversation', conv)
+
+  preselectedChat.value=conv.conversation_id
+  // alert(conv.conversation_id)
+  router.push(`/${conv.conversation_id}`)
+
+  
+
 }
 
 function formatDateTime(ts) {
@@ -159,4 +228,7 @@ function formatDateTime(ts) {
   const d = new Date(ts)
   return d.toLocaleString()
 }
+
+
+
 </script>

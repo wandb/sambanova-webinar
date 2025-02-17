@@ -66,6 +66,8 @@
       <!-- Input -->
       <div class="relative">
         <textarea 
+        
+          @keydown="handleKeyDown"
         v-model="searchQuery"
           type="search"
           placeholder="Ask me about...companies to target, research topics, or company stocks and financials"   
@@ -223,6 +225,13 @@ const newMessage = ref('') // User input field
 const socket = ref(null) // WebSocket reference
 const container = ref(null)
 
+function handleKeyDown(e) {
+  // When Enter is pressed without Shift, prevent newline and submit
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    addMessage()
+  }
+}
 function AutoScrollToBottom() {
 
   nextTick(() => {

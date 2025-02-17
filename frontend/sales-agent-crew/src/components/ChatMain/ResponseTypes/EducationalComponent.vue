@@ -1,41 +1,13 @@
 <template>
   <div class="parsed-content">
-    <!-- Loop over each parsed section -->
+    <!-- Loop over parsed sections -->
     <div v-for="(section, index) in sections" :key="index" class="section mb-4">
-      <!-- Section Title -->
-      <h3 v-if="section.title" class="section-title mb-1">{{ section.title }}</h3>
-      <!-- Generated Content rendered as markdown -->
+      <!-- Render a heading if available -->
+      <h3 v-if="section.title" class="section-title mb-1">
+        {{ section.title }}
+      </h3>
+      <!-- Render the content as HTML -->
       <div class="section-content text-sm" v-html="renderMarkdown(section.content)"></div>
-      
-      <!-- Optional: high-level goal -->
-      <div v-if="section.high_level_goal" class="mt-2 text-sm text-gray-700">
-        <strong>Goal:</strong> {{ section.high_level_goal }}
-      </div>
-      
-      <!-- Optional: why important -->
-      <div v-if="section.why_important" class="mt-2 text-sm text-gray-700">
-        <strong>Why Important:</strong> {{ section.why_important }}
-      </div>
-      
-      <!-- Optional: content outline -->
-      <div v-if="section.content_outline && section.content_outline.length" class="mt-2 text-sm text-gray-700">
-        <strong>Outline:</strong>
-        <ul class="list-disc ml-4">
-          <li v-for="(item, i) in section.content_outline" :key="i">{{ item }}</li>
-        </ul>
-      </div>
-      
-      <!-- Optional: sources (rendered as clickable links) -->
-      <div v-if="section.sources && section.sources.length" class="mt-2 text-sm text-gray-700">
-        <strong>Sources:</strong>
-        <ul class="list-disc ml-4">
-          <li v-for="(link, i) in section.sources" :key="i">
-            <a :href="link" target="_blank" rel="noopener noreferrer" class="text-blue-500 underline">
-              {{ link }}
-            </a>
-          </li>
-        </ul>
-      </div>
     </div>
   </div>
 </template>
@@ -44,14 +16,21 @@
 import { computed, defineProps } from 'vue'
 import { marked } from 'marked'
 
-// Configure marked with a custom renderer to make links clickable.
+// Configure a custom renderer for marked so that links are clickable and open in a new tab.
 const renderer = new marked.Renderer()
-renderer.link = (href, title, text) => {
-  return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text || href}</a>`
+renderer.link = function(href, title, text) {
+  let out = `<a href="${href}" target="_blank" rel="noopener noreferrer">`
+  out += text || href
+  out += `</a>`
+  return out
 }
-marked.use({ renderer, gfm: true, breaks: true })
+marked.setOptions({
+  renderer,
+  gfm: true,
+  breaks: true
+})
 
-// Declare a prop "parsed" which may be a string or an object.
+// Declare a prop "parsed" which can be either a string or an object.
 const props = defineProps({
   parsed: {
     type: [String, Object],
@@ -59,13 +38,14 @@ const props = defineProps({
   }
 })
 
-// Helper: parse the input data. If it's a string, try to JSON.parse it.
+// Helper: parse input data. If it's a string, try to JSON.parse it,
+// otherwise assume it's an object.
 function parseData(input) {
   if (typeof input === 'string') {
     try {
       return JSON.parse(input)
     } catch (e) {
-      // Not valid JSON, so treat as raw text.
+      // If not valid JSON, return an object with raw text.
       return { text: input }
     }
   }
@@ -74,24 +54,26 @@ function parseData(input) {
 
 const parsedData = computed(() => parseData(props.parsed))
 
-// Compute sections: if parsedData has data.sections, use that; otherwise, fall back to parsing raw text.
+// If the parsed data contains a "data" property with "sections", use that;
+// otherwise, assume a flat text string in "text" that needs to be parsed.
 const sections = computed(() => {
   if (parsedData.value.data && Array.isArray(parsedData.value.data.sections)) {
+    // Map each section in the sections array.
+    // Here we assume each section object contains:
+    // - title: the heading text
+    // - generated_content: the content to display
     return parsedData.value.data.sections.map(sec => ({
       title: sec.title || '',
-      content: sec.generated_content || '',
-      high_level_goal: sec.high_level_goal || '',
-      why_important: sec.why_important || '',
-      content_outline: sec.content_outline || [],
-      sources: sec.sources || []
+      content: sec.generated_content || ''
     }))
-  } else if (parsedData.value.text) {
-    return parseSections(parsedData.value.text)
+  } else {
+    // Otherwise, use a fallback: parse a raw text (if available) from parsedData.value.text.
+    const text = parsedData.value.text || ''
+    return parseSections(text)
   }
-  return []
 })
 
-// Fallback parser for raw text: splits text into sections using "Thought:" or "Final Answer:" as headings.
+// Fallback parser: split text into sections by headings ("Thought:" or "Final Answer:")
 function parseSections(text) {
   const lines = text.split('\n')
   const sections = []
@@ -102,9 +84,9 @@ function parseSections(text) {
     const match = trimmed.match(/^(Thought|Final Answer):\s*(.*)$/i)
     if (match) {
       if (currentSection.title || currentSection.content) {
-        sections.push({
-          title: currentSection.title,
-          content: currentSection.content.trim()
+        sections.push({ 
+          title: currentSection.title, 
+          content: currentSection.content.trim() 
         })
       }
       currentSection = { title: match[1].trim(), content: match[2] + "\n" }
@@ -113,9 +95,9 @@ function parseSections(text) {
     }
   }
   if (currentSection.title || currentSection.content) {
-    sections.push({
-      title: currentSection.title,
-      content: currentSection.content.trim()
+    sections.push({ 
+      title: currentSection.title, 
+      content: currentSection.content.trim() 
     })
   }
   return sections

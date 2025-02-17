@@ -6,9 +6,9 @@
     
     <div  class="grow pb-2 group-last:pb-0 min-w-0">
       <!-- Always show period -->
-      <h3 :class="collapsed?'justify-center':''" class="mb-1 truncate text-md  text-primary-brandTextPrimary  flex items-center">
+      <h3 :class="collapsed?'justify-center':''" class="mb-1 p-1 truncate text-md  text-primary-brandTextPrimary  flex items-center">
         <div :class="iconContainerClasses" class="color-primary-brandGray flex items-center">
-      <component :is="iconComponent" />
+      <component :is="iconComponent"  />
     </div> 
     <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
       </h3>
@@ -35,7 +35,12 @@ import NewsIcon from '@/components/icons/NewsIcon.vue'
 import DataIcon from '@/components/icons/DataIcon.vue'
 import RiskIcon from '@/components/icons/RiskIcon.vue'
 import TrendsIcon from '@/components/icons/TrendsIcon.vue'
+import DefaultIcon from '@/components/icons/DefaultIcon.vue'
 import FundamentalIcon from '@/components/icons/FundamentalIcon.vue'
+import FinanceIcon from '@/components/icons/FinanceIcon.vue'
+
+
+
 // State for accordion toggle (single toggle used for all sections in this example)
 const isOpen = ref(false);
 
@@ -76,19 +81,20 @@ function getAgentIcon(agentName) {
   const agentIcons = {
     'Competitor Analysis Agent': CompetitorIcon,
    
-    'Financial Analysis Agent': SearchIcon,
+    'Financial Analysis Agent': FinanceIcon,
     ' Enhanced Competitor Finder Agent': SearchIcon,
     'Aggregator Search Agent': SearchIcon,
     'Fundamental Agent': FundamentalIcon,
     'News Agent': NewsIcon,
     'Technical Agent': TechIcon,
     'Financial Analysis Agent': SearchIcon,
+    'Research Agent': SearchIcon,
     'Risk Agent': RiskIcon,
     'Outreach Specialist':  SpecialistIcon,
     'Data Extraction Agent': DataIcon,
     'Market Trends Analyst': TrendsIcon,
   }
-  const icon = agentIcons[agentName] || [SearchIcon]
+  const icon = agentIcons[agentName] || DefaultIcon
   
   console.log("Selected icon:", icon.name)
   return icon

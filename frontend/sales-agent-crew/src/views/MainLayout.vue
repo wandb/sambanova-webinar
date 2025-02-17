@@ -44,7 +44,7 @@
           />
         </div>
 
-        <div v-else class="flex items-center">
+        <div v-else class="flex items-center justify-center">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->

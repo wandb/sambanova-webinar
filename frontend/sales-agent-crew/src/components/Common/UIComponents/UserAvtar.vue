@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
-
+import { useUser } from '@clerk/vue'
 
 const props = defineProps({
   initials: {
@@ -20,11 +20,15 @@ const avatarClass = computed(() => `shrink-0 inline-flex items-center justify-ce
 <template>
   <span :class="avatarClass">
     <span class="text-sm font-medium text-white leading-none">
-      {{ initials }}
+      AD
     </span>
   </span>
 </template>
+<script setup>
 
+</script>
 <style scoped>
 /* Scoped CSS if any additional styling is needed */
+
+
 </style>

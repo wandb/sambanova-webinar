@@ -6,13 +6,13 @@
   <div ref="container" class="flex-1  overflow-y-auto">
     <!-- Title -->
     <div v-if="messagesData.length==0" class="max-w-4xl py-10 lg:py-14  px-4 sm:px-6 lg:px-8 mx-auto text-center">
-      <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
+      <!-- <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
        
        <SILogo/>
-      </a>
+      </a> -->
 
       <h1  class="text-3xl font-bold text-gray-800 sm:text-4xl dark:text-white">
-        Welcome to SI Agents
+        Welcome to <span class="bg-clip-text bg-gradient-to-tl from-orange-600 to-orange-100 text-transparent">SI Agents</span>
       </h1>
       <p class="mt-3 text-gray-600 dark:text-neutral-400">
         Your AI-powered agent

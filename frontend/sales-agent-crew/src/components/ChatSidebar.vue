@@ -121,7 +121,7 @@ async function loadChats() {
 
     const uid = userId.value || 'anonymous'
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/list/user_2sfDzHK9r5FkXrufqoAFjnjGNPk`,   
+      `${import.meta.env.VITE_API_URL}/chat/list/${uid}`,   
     )
    
    console.log(resp)

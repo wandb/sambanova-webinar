@@ -72,7 +72,8 @@ class ConvoNewsletterCrew:
         logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.conversation_id,
-            agent_name="Synthesizer Agent"
+            agent_name="Synthesizer Agent",
+            workflow_name="Newsletter"
         )
         return Agent(
             config=self.agents_config.get("synthesizer", {}),
@@ -91,7 +92,8 @@ class ConvoNewsletterCrew:
         logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.conversation_id,
-            agent_name="Newsletter Writer Agent"
+            agent_name="Newsletter Writer Agent",
+            workflow_name="Newsletter",
         )
         serper_tool = SerperDevTool()
         return Agent(
@@ -110,7 +112,8 @@ class ConvoNewsletterCrew:
         logger = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.conversation_id,
-            agent_name="Newsletter Editor Agent"
+            agent_name="Newsletter Editor Agent",
+            workflow_name="Newsletter",
         )
         return Agent(
             config=self.agents_config.get("newsletter_editor", {}),

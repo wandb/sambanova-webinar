@@ -87,7 +87,10 @@ class EduContentWriterCrew:
             Agent: An AI agent specialized in creating educational content.
         """
         content_writer_logger = RedisConversationLogger(
-            user_id=self.user_id, run_id=self.run_id, agent_name="Content Writer Agent"
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Content Writer Agent",
+            workflow_name="Research",
         )
         return Agent(
             config=self.agents_config["content_writer"],
@@ -105,7 +108,10 @@ class EduContentWriterCrew:
             Agent: An AI agent specialized in editing and refining content.
         """
         editor_logger = RedisConversationLogger(
-            user_id=self.user_id, run_id=self.run_id, agent_name="Editor Agent"
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Editor Agent",
+            workflow_name="Research",
         )
         return Agent(
             config=self.agents_config["editor"],
@@ -126,6 +132,7 @@ class EduContentWriterCrew:
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Quality Reviewer Agent",
+            workflow_name="Research",
         )
         return Agent(
             config=self.agents_config["quality_reviewer"],

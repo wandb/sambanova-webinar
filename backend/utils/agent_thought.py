@@ -9,7 +9,7 @@ class RedisConversationLogger:
     Publishes each agent step to Redis pub/sub for real-time streaming.
     Reads REDIS_HOST/REDIS_PORT from environment to handle local vs. Docker.
     """
-    def __init__(self, user_id="", run_id="", agent_name=""):
+    def __init__(self, user_id="", run_id="", agent_name="", workflow_name=""):
         # Read from env or default
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
@@ -37,7 +37,18 @@ class RedisConversationLogger:
             
         self.run_id = str(run_id) if run_id else ""
         self.agent_name = agent_name
-        
+        self.workflow_name = workflow_name
+
+    #TODO: log llm usage
+    def log_success_event(
+                        kwargs,
+                        response_obj,
+                        start_time,
+                        end_time,
+                    ):
+        pass
+
+   
 
     def __call__(self, output: Any):
         try:
@@ -47,7 +58,11 @@ class RedisConversationLogger:
                     "run_id": self.run_id,
                     "agent_name": self.agent_name,
                     "text": output.text,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "metadata": {
+                        "workflow_name": self.workflow_name,
+                        "agent_name": self.agent_name,
+                    },
                 }
                 channel = f"agent_thoughts:{self.user_id}:{self.run_id}"
                 self.r.publish(channel, json.dumps(message))

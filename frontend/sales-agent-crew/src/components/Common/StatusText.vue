@@ -1,6 +1,6 @@
 <template>
   <div class="flex-container">
-    <h1 class="box-progress" :data-text="text">{{ text }}</h1>
+    <h1 class="capitalize box-progress" :data-text="text">{{ text }}</h1>
     <!-- <span class="box-text">{{ number }}%</span> -->
   </div>
 </template>
@@ -13,7 +13,7 @@ import { ref, onMounted, onUnmounted ,toRefs} from 'vue'
 const props = defineProps({
   text: {
     type: String,
-    default: 'Loading...'
+    default: ''
   }
 })
 

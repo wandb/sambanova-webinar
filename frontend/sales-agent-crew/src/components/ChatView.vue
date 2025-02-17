@@ -117,12 +117,10 @@
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
+import axios from 'axios'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
-import { useRoute, useRouter } from 'vue-router'
-const router = useRouter()
-const route = useRoute() 
-import axios from 'axios'
+
 const props = defineProps({
   conversationId: {
     type: String,
@@ -140,27 +138,18 @@ const assistantThinking = ref(false)
 const messagesContainer = ref(null)
 
 // Observe conversation changes => reload
-// watch(() => props.conversationId, async (newVal, oldVal) => {
-//   if (newVal && newVal !== oldVal) {
-//     messages.value = []
-//     await loadFullHistory()
-//   }
-// })
-
-watch(
-  () => route.params.id,
-  (newId, oldId) => {
-    if (newId) {
-      loadPreviousChat(newId)
-    }
+watch(() => props.conversationId, async (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    messages.value = []
+    await loadFullHistory()
   }
-)
+})
 
 // On mount => load if we have conversation
 onMounted(async () => {
-  // if (props.conversationId) {
-  //   await loadFullHistory()
-  // }
+  if (props.conversationId) {
+    await loadFullHistory()
+  }
 })
 
 async function loadFullHistory() {
@@ -183,27 +172,6 @@ async function loadFullHistory() {
   } catch (err) {
     console.error('[ChatView] Error loading conversation history:', err)
     messages.value = []
-  }
-}
-let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
-async function loadPreviousChat(convId) {
-  try {
-    // if (missingKeys.value.length > 0) {
-    //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
-    //   return
-    // }
-
-    // const uid = userId.value || 'anonymous'
-    const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
-      {}, 
-      
-    )
-    console.log(resp)
-    
-  } catch (err) {
-    console.error('Error creating new chat:', err)
-    alert('Failed to create new conversation. Check keys or console.')
   }
 }
 

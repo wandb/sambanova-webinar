@@ -1,15 +1,15 @@
 <!-- src/components/chat/ChatSidebar.vue -->
 <template>
-  <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  flex flex-col">
+  <div class="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
     <!-- Header -->
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
-      
+      <h2 class="font-semibold text-gray-900">Conversations</h2>
       <button
-        class="p-2 border w-full border-primary-brandBorder text-primary-brandColor rounded  text-sm"
+        class="p-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
         @click="createNewChat"
         :disabled="missingKeys.length > 0"
       >
-        + New Chat
+        + New
       </button>
     </div>
 
@@ -37,23 +37,16 @@
           {{ formatDateTime(conv.created_at) }}
         </div>
       </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-
+import axios from 'axios'
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '@/utils/encryption'   // adapt path if needed
-import { useRoute, useRouter } from 'vue-router'
-import SILogo from '@/components/icons/SILogo.vue'  
 
-
-import axios from 'axios'
-const router = useRouter()
-const route = useRoute() 
 /**
  * We'll store in localStorage under key "my_conversations_<userId>"
  * an array of { conversation_id, title, created_at }
@@ -73,8 +66,7 @@ const conversations = ref([])
  * On mounted => load local conversation list + decrypt keys 
  */
 onMounted(() => {
-  // loadConversations()
-  loadChats()
+  loadConversations()
   loadKeys()
 let cId=route.params.id
   if(cId)
@@ -163,7 +155,7 @@ async function createNewChat() {
 
     const uid = userId.value || 'anonymous'
     const resp = await axios.post(
-      `${import.meta.env.VITE_API_URL}/chat/init`, 
+      `${import.meta.env.VITE_API_URL}/newsletter_chat/init`, 
       {}, 
       {
         headers: {

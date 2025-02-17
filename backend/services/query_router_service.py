@@ -207,6 +207,12 @@ class QueryRouterService:
             "ticker": params.get("ticker",""),
             "company_name": params.get("company_name","")
         }
+    
+    def _normalize_deep_research_params(self, params: Dict) -> Dict:
+        """Normalize deep research parameters with safe defaults."""
+        return {
+            "topic": params.get("topic", "")
+        }
 
     def _final_override(self, user_query: str, chosen_type: str) -> str:
         """
@@ -237,7 +243,7 @@ class QueryRouterService:
         You are a query routing expert that categorizes queries and extracts structured information.
         Always return a valid JSON object with 'type' and 'parameters'.
 
-        We have three possible types: 'sales_leads', 'educational_content', or 'financial_analysis'.
+        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', or 'deep_research'.
 
         Rules:
         1. For 'educational_content':
@@ -250,12 +256,43 @@ class QueryRouterService:
            - Provide 'query_text' (the user’s full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
+        4. For 'deep_research':
+           - Provide 'topic' (the users full research query)
+     
 
         Examples:
 
-        Query: "Dark Matter, Black Holes and Quantum Physics"
+        Query: Write me a report on the future of AI 
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "topic": "Write me a report on the future of AI"
+          }}
+        }}
+
+        Query: "Prepare a syllabus for a course on flowers"
         {{
           "type": "educational_content",
+          "parameters": {{
+            "topic": "Prepare a syllabus for a course on flowers",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+        
+        Query: "Write me a report on the second world war"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "Write me a report on the second world war",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+
+        Query: "Dark Matter, Black Holes and Quantum Physics"
+        {{
+          "type": "deep_research",
           "parameters": {{
             "topic": "Dark Matter, Black Holes and Quantum Physics",
             "audience_level": "intermediate",
@@ -265,11 +302,9 @@ class QueryRouterService:
 
         Query: "Explain the relationship between quantum entanglement and teleportation"
         {{
-          "type": "educational_content",
+          "type": "deep_research",
           "parameters": {{
             "topic": "relationship between quantum entanglement and teleportation",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "theoretical principles", "practical applications"]
           }}
         }}
 
@@ -360,6 +395,10 @@ class QueryRouterService:
                 )
             elif parsed_result["type"] == "financial_analysis":
                 parsed_result["parameters"] = self._normalize_financial_params(
+                    parsed_result.get("parameters", {})
+                )
+            elif parsed_result["type"] == "deep_research":
+                parsed_result["parameters"] = self._normalize_deep_research_params(
                     parsed_result.get("parameters", {})
                 )
             else:

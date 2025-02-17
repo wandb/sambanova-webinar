@@ -174,6 +174,25 @@ class SemanticRouterAgent(RoutedAgent):
                 f"Error processing request: {str(e)}"
             ), exc_info=True)
             return
+        
+    def _reconcile_plans(self, plans: list) -> list:
+        """
+        Reconciles multiple plans into a single plan.
+        """
+        user_proxy_plans = []
+        assistant_plans = []
+        for plan in plans:
+            if plan["agent_type"] == AgentEnum.UserProxy:
+                user_proxy_plans.append(plan)
+            elif plan["agent_type"] == AgentEnum.Assistant:
+                assistant_plans.append(plan)
+
+        if len(user_proxy_plans) > 0:
+            return [user_proxy_plans[0]]
+        elif len(assistant_plans) > 0:
+            return [assistant_plans[0]]
+        else:
+            return plans
 
     @message_handler
     async def handle_handoff(
@@ -296,6 +315,9 @@ class SemanticRouterAgent(RoutedAgent):
                 # TODO: add agents working on a set of tasks
                 plan = json.loads(feature_extractor_response.content)
                 plan = plan if isinstance(plan, list) else [plan]
+
+                # reconcile multiple plans
+                plan = self._reconcile_plans(plan)
 
                 for p in plan:
                     try:

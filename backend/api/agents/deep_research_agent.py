@@ -36,10 +36,9 @@ class DeepResearchAgent(RoutedAgent):
     Handles advanced multi-section research with user feedback (interrupt).
     """
 
-    def __init__(self, api_keys: APIKeys, session_manager: SessionStateManager):
+    def __init__(self, api_keys: APIKeys):
         super().__init__("DeepResearchAgent")
         self.api_keys = api_keys
-        self.session_manager = session_manager
         logger.info(
             logger.format_message(
                 None, f"Initializing DeepResearchAgent with ID: {self.id}"

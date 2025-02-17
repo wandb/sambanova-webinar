@@ -36,8 +36,7 @@ class SessionStateManager:
                     message = (timestamp, UserMessage(content=message_data["data"], source="User"))
                     messages.append(message)
                 elif message_data["event"] == "completion":
-                    completion_data = json.loads(message_data["data"])
-                    message = (timestamp, AssistantMessage(content=completion_data["data"], source=completion_data.get("source", "Assistant")))
+                    message = (timestamp, AssistantMessage(content=message_data["data"], source=message_data.get("source", "Assistant")))
                     messages.append(message)
             
             # Sort by timestamp and add to history

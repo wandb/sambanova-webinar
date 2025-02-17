@@ -257,15 +257,15 @@ class SemanticRouterAgent(RoutedAgent):
 
             start_time = time.time()
 
-            history = self._session_manager.get_history(ctx.topic_id.source)
+            history = self._session_manager.get_history(conversation_id)
             planner_response = self._reasoning_model_client.create_stream(
-                [UserMessage(content=system_message, source="system")]
+                [SystemMessage(content=system_message, source="system")]
                 + list(history)
                 + [UserMessage(content=message.content, source="user")],
             )
 
             self._session_manager.add_to_history(
-                ctx.topic_id.source,
+                conversation_id,
                 UserMessage(content=message.content, source="user")
             )
 

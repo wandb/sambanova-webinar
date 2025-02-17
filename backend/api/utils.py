@@ -27,8 +27,13 @@ session_state_manager = SessionStateManager()
 
 tracer = configure_oltp_tracing()
 
+
 async def initialize_agent_runtime(
-    websocket: WebSocket, redis_client: redis.Redis, api_keys: APIKeys
+    websocket: WebSocket,
+    redis_client: redis.Redis,
+    api_keys: APIKeys,
+    user_id: str,
+    conversation_id: str,
 ) -> SingleThreadedAgentRuntime:
     """
     Initializes the agent runtime with the required agents and tools.
@@ -37,6 +42,10 @@ async def initialize_agent_runtime(
         SingleThreadedAgentRuntime: The initialized runtime for managing agents.
     """
     global session_state_manager, aoai_model_client
+
+    #load back session state
+    session_state_manager.init_conversation(redis_client, user_id, conversation_id)
+
     agent_runtime = SingleThreadedAgentRuntime(tracer_provider=tracer)
 
     # Add subscriptions
@@ -78,14 +87,14 @@ async def initialize_agent_runtime(
     )
 
     await AssistantAgentWrapper.register(
-        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys)
+        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys, websocket=websocket, redis_client=redis_client)
     )
 
     # Register the new deep research agent:
     await DeepResearchAgent.register(
         agent_runtime,
         "deep_research",
-        lambda: DeepResearchAgent(api_keys=api_keys, session_manager=session_state_manager),
+        lambda: DeepResearchAgent(api_keys=api_keys),
     )
 
     # Register the UserProxyAgent instance with the AgentRuntime

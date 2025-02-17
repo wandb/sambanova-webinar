@@ -98,7 +98,7 @@ class UserProxyAgent(RoutedAgent):
                 ))
 
                 self.session_manager.add_to_history(
-                    ctx.topic_id.source,
+                    conversation_id,
                     AssistantMessage(
                         content=message.data.model_dump_json(), source=ctx.sender.type
                     ),

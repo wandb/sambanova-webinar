@@ -44,7 +44,7 @@
           />
         </div>
 
-        <div v-else class="flex items-center justify-center">
+        <div v-else class="flex items-center w-full justify-center">
           <!-- OLD WORKFLOW MODE -->
 
           <!-- Pass currentRunId to <SearchSection> so it uses it in /execute calls -->
@@ -75,7 +75,7 @@
           />
 
           <!-- RESULTS SECTION -->
-          <div  v-if="hasResults" class="mt-6 space-y-6">
+          <div  v-if="hasResults" class="mt-6 space-y-6  w-full">
             <div class="grid grid-cols-1 gap-6">
               <!-- SALES LEADS Results -->
               <template v-if="queryType === 'sales_leads'">

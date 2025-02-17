@@ -232,7 +232,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 "timestamp": datetime.now().isoformat(),
             }
             await self.websocket.send_text(json.dumps(assistant_event))
-            await self.redis_client.rpush(f"messages:{user_id}:{conversation_id}", json.dumps(assistant_event))
+            self.redis_client.rpush(f"messages:{user_id}:{conversation_id}", json.dumps(assistant_event))
 
         except Exception as e:
             logger.error(

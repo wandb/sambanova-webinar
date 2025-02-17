@@ -13,7 +13,6 @@ from api.utils import initialize_agent_runtime
 from .otlp_tracing import logger
 
 
-
 class WebSocketConnectionManager:
     """
     Manages WebSocket connections for user sessions.
@@ -102,7 +101,7 @@ class WebSocketConnectionManager:
                 })
                 await websocket.close(code=4006, reason="No API keys found")
                 return
-            
+
             api_keys = APIKeys(
                 sambanova_key=redis_api_keys.get("sambanova_key", ""),
                 serper_key=redis_api_keys.get("serper_key", ""),
@@ -111,7 +110,13 @@ class WebSocketConnectionManager:
 
             # Initialize agent runtime with error handling
             try:
-                agent_runtime = await initialize_agent_runtime(websocket, self.redis_client, api_keys)
+                agent_runtime = await initialize_agent_runtime(
+                    websocket=websocket,
+                    redis_client=self.redis_client,
+                    api_keys=api_keys,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize agent runtime: {str(e)}")
                 await websocket.close(code=4005, reason="Failed to initialize agent runtime")
@@ -153,10 +158,10 @@ class WebSocketConnectionManager:
                         if "name" not in metadata:
                             metadata["name"] = user_message_input["data"]
                             await asyncio.to_thread(self.redis_client.set, meta_key, json.dumps(metadata))
-                
+
                 # Create task for metadata update without waiting
                 asyncio.create_task(update_metadata())
-                
+
                 user_message = EndUserMessage(
                     source="User",
                     content=user_message_input["data"], 
@@ -205,9 +210,10 @@ class WebSocketConnectionManager:
                 except Exception as e:
                     logger.error(f"Error closing agent runtime: {str(e)}")
             self.remove_connection(user_id, conversation_id)
-            
-            # Only attempt to close if the connection is still open
-            if websocket.client_state != WebSocketState.DISCONNECTED:
+
+            # Only attempt to close if the connection hasn't been closed from either end
+            if (websocket.client_state != WebSocketState.DISCONNECTED and 
+                websocket.application_state != WebSocketState.DISCONNECTED):
                 try:
                     await websocket.close()
                 except Exception as e:
@@ -230,7 +236,7 @@ class WebSocketConnectionManager:
                         "conversation_id": conversation_id,
                         "timestamp": datetime.now().isoformat()
                     }
-                    
+
                     # Store think event in Redis
                     message_key = f"messages:{user_id}:{conversation_id}"
                     await asyncio.to_thread(
@@ -238,7 +244,7 @@ class WebSocketConnectionManager:
                         message_key,
                         json.dumps(message_data)
                     )
-                    
+
                     await websocket.send_json(message_data)
 
                 # Send periodic ping to keep connection alive (not stored in Redis)

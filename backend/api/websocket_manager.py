@@ -72,6 +72,7 @@ class WebSocketConnectionManager:
             conversation_id (str): The ID of the conversation.
         """
         agent_runtime = None
+        pubsub = None
         try:
             # Check if conversation exists
             meta_key = f"chat_metadata:{user_id}:{conversation_id}"
@@ -204,11 +205,14 @@ class WebSocketConnectionManager:
                 except Exception as e:
                     logger.error(f"Error closing agent runtime: {str(e)}")
             self.remove_connection(user_id, conversation_id)
-            try:
-                if websocket.client_state != WebSocketState.DISCONNECTED:
+            
+            # Only attempt to close if the connection is still open
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                try:
                     await websocket.close()
-            except WebSocketDisconnect:
-                logger.info(f"WebSocket already closed for conversation: {conversation_id}")
+                except Exception as e:
+                    # Log any closure errors but don't raise them
+                    logger.info(f"Error during WebSocket closure for conversation {conversation_id}: {str(e)}")
 
     async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
         """

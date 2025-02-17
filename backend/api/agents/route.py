@@ -12,7 +12,7 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
-from autogen_core.models import SystemMessage, UserMessage
+from autogen_core.models import SystemMessage, UserMessage, CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from fastapi import WebSocket
 import redis
@@ -228,10 +228,10 @@ class SemanticRouterAgent(RoutedAgent):
             user_id, conversation_id = ctx.topic_id.source.split(":")
 
             history = self._session_manager.get_history(ctx.topic_id.source)
-            planner_response = await self._reasoning_model_client.create(
+            planner_response = self._reasoning_model_client.create_stream(
                 [UserMessage(content=system_message, source="system")]
                 + list(history)
-                + [UserMessage(content=message.content, source="user")]
+                + [UserMessage(content=message.content, source="user")],
             )
 
             self._session_manager.add_to_history(
@@ -239,88 +239,110 @@ class SemanticRouterAgent(RoutedAgent):
                 UserMessage(content=message.content, source="user")
             )
 
-            # Send the chunk through WebSocket if connection exists
-            if self.websocket:
-                message_data = {
-                    "event": "reason",
-                    "data": json.dumps({"reasoning": planner_response.content}),
+            # Send the chunks through WebSocket if connection exists
+            if self.websocket is None:
+                logger.error(logger.format_message(
+                    ctx.topic_id.source,
+                    "No WebSocket connection found"
+                ))
+                raise ValueError("No WebSocket connection found")
+
+            planner_final_response = None
+            async for chunk in planner_response:
+                if isinstance(chunk, str):
+                    message_data = {
+                        "event": "planner_chunk",
+                        "data": json.dumps({"chunk": chunk}),
+                        "user_id": user_id,
+                        "conversation_id": conversation_id,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    await self.websocket.send_text(json.dumps(message_data))
+                elif isinstance(chunk, CreateResult):
+                    planner_final_response = chunk.content
+                
+            if planner_final_response:
+                # Store complete response in Redis
+                message_key = f"messages:{user_id}:{conversation_id}"
+                final_message_data = {
+                    "event": "planner",
+                    "data": json.dumps({"response": planner_final_response}),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
                     "timestamp": datetime.now().isoformat(),
                 }
+                self.redis_client.rpush(message_key, json.dumps(final_message_data))
 
-                # Store in Redis
-                message_key = f"messages:{user_id}:{conversation_id}"
-                self.redis_client.rpush(message_key, json.dumps(message_data))
-
-                # Send through WebSocket
-                await self.websocket.send_text(json.dumps(message_data))
-                await asyncio.sleep(0.25)
-
-            cleaned_response = re.sub(
-                r"<think>.*?</think>",
-                "",
-                (
-                    planner_response.content
-                    if isinstance(planner_response.content, str)
-                    else str(planner_response.content)
-                ),
-                flags=re.DOTALL,
-            ).strip()
-            feature_extractor_response = await self._structure_extraction_model.create(
-                [
-                    SystemMessage(
-                        content=agent_registry.get_strucuted_output_plan_prompt(
-                            cleaned_response
+                cleaned_response = re.sub(
+                    r"<think>.*?</think>",
+                    "",
+                    (
+                        planner_final_response
+                        if isinstance(planner_final_response, str)
+                        else str(planner_final_response)
+                    ),
+                    flags=re.DOTALL,
+                ).strip()
+                feature_extractor_response = await self._structure_extraction_model.create(
+                    [
+                        SystemMessage(
+                            content=agent_registry.get_strucuted_output_plan_prompt(
+                                cleaned_response
+                            )
                         )
-                    )
-                ]
-            )
+                    ]
+                )
 
-            # TODO: add agents working on a set of tasks
-            plan = json.loads(feature_extractor_response.content)
-            plan = plan if isinstance(plan, list) else [plan]
+                # TODO: add agents working on a set of tasks
+                plan = json.loads(feature_extractor_response.content)
+                plan = plan if isinstance(plan, list) else [plan]
 
-            for p in plan:
-                try:
-                    request_obj = self._create_request(
-                        p["agent_type"], p["parameters"], message
-                    )
-                except Exception as e:
-                    logger.error(
-                        logger.format_message(
-                            ctx.topic_id.source,
-                            f"SemanticRouterAgent failed to parse plan item {p}: {str(e)}"
+                for p in plan:
+                    try:
+                        request_obj = self._create_request(
+                            p["agent_type"], p["parameters"], message
                         )
-                    )
-                    continue
+                    except Exception as e:
+                        logger.error(
+                            logger.format_message(
+                                ctx.topic_id.source,
+                                f"SemanticRouterAgent failed to parse plan item {p}: {str(e)}"
+                            )
+                        )
+                        continue
 
-                logger.info(logger.format_message(
+                    logger.info(logger.format_message(
+                        ctx.topic_id.source,
+                        f"Publishing request to {request_obj.agent_type.value} with parameters: {request_obj.parameters}"
+                    ))
+
+                    if request_obj.agent_type == AgentEnum.UserProxy:
+                        response = AgentStructuredResponse(
+                            agent_type=request_obj.agent_type,
+                            data=request_obj.parameters,
+                            message=request_obj.parameters.model_dump_json(),
+                        )
+                        await self.publish_message(
+                            response,
+                            DefaultTopicId(
+                                type=request_obj.agent_type.value,
+                                source=ctx.topic_id.source,
+                            ),
+                        )
+                    else:
+                        await self.publish_message(
+                            request_obj,
+                            DefaultTopicId(
+                                type=request_obj.agent_type.value,
+                                source=ctx.topic_id.source,
+                            ),
+                        )
+            else:
+                logger.error(logger.format_message(
                     ctx.topic_id.source,
-                    f"Publishing request to {request_obj.agent_type.value} with parameters: {request_obj.parameters}"
+                    "No planner response found"
                 ))
-
-                if request_obj.agent_type == AgentEnum.UserProxy:
-                    response = AgentStructuredResponse(
-                        agent_type=request_obj.agent_type,
-                        data=request_obj.parameters,
-                        message=request_obj.parameters.model_dump_json(),
-                    )
-                    await self.publish_message(
-                        response,
-                        DefaultTopicId(
-                            type=request_obj.agent_type.value,
-                            source=ctx.topic_id.source,
-                        ),
-                    )
-                else:
-                    await self.publish_message(
-                        request_obj,
-                        DefaultTopicId(
-                            type=request_obj.agent_type.value,
-                            source=ctx.topic_id.source,
-                        ),
-                    )
+                raise ValueError("No planner response found")
 
         except Exception as e:
             logger.error(

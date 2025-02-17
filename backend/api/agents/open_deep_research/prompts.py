@@ -76,7 +76,7 @@ When generating {number_of_queries} search queries, ensure they:
 
 1. Cover multiple facets of the topic (e.g., deep technical details, historical context, cutting-edge research, real-world applications).
 2. Incorporate specific technical or domain-specific keywords to refine the search.
-3. Seek out current or recent information (e.g., including year markers such as "2024") where relevant.
+3. Seek out current or recent information (e.g., including year markers such as "2025") where relevant. Always seek out the most recent information and announcements.
 4. Encourage comparison with similar technologies or approaches to highlight differentiators and best practices.
 5. Explore both official documentation (standards, specs) and practical, real-world perspectives (forums, case studies, academic papers).
 

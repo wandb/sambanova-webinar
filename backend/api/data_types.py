@@ -127,9 +127,9 @@ class EducationalPlanResult(BaseModel):
 
 # NEW: A citation data structure
 class DeepCitation(BaseModel):
-    section_name: str
-    desc: str
-    url: str
+    title: str = Field(default="", description="The title of the citation")
+    url: str = Field(default="", description="The URL of the citation")
+    desc: Optional[str] = Field(default=None, description="Optional description of the citation")
 
 class DeepResearchSection(BaseModel):
     name: str

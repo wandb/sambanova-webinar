@@ -43,7 +43,7 @@ from api.data_types import (
     DeepCitation
 )
 
-os.environ["SAMBANOVA_API_KEY"] = "YOUR_API_KEY_HERE"
+os.environ["SAMBANOVA_API_KEY"] = "YOUR_API_KEY"
 
 # This is the writer model used throughout
 writer_model = ChatSambaNovaCloud(
@@ -54,116 +54,92 @@ writer_model = ChatSambaNovaCloud(
 # Helper function to parse references from "### Sources" or "## Sources" or "Sources:"
 # block lines and store them as {section:..., url:..., desc:...}.
 ###############################################################################
+def parse_reference_line(section_name: str, line: str) -> DeepCitation:
+    """
+    Given a reference line like "* Title: https://some_url"
+    or "- Something: https://..."
+    Parse into a DeepCitation object with title and url.
+    """
+    # remove leading bullet chars
+    line = line.lstrip("*-0123456789. ").strip()
+    
+    # find the last occurrence of 'http'
+    match = re.search(r'(https?://[^\s]+)', line)
+    if not match:
+        # no url found, treat entire line as title
+        return DeepCitation(title=line, url="")
+        
+    url = match.group(1)
+    # everything before the URL becomes the title
+    title = line[:line.find(url)].strip().rstrip(':').strip()
+    
+    # If title ends with ": (Section: )", remove that part
+    title = re.sub(r'\s*\(Section:\s*\)\s*$', '', title)
+    
+    return DeepCitation(title=title, url=url)
+
 def extract_sources_block(section_name: str, text: str) -> (str, List[DeepCitation]):
     """
-    1) Search for lines that match "### Sources", "## Sources", or "Sources:" (ignoring case).
-    2) Take subsequent lines until a blank line or end of text as references.
-       Typically they might look like: 
-         * Groq: The AI Chip Startup Revolutionizing the Industry: https://www.33rdsquare.com/groq-the-newbie...
-       or 
-         - Another Title : https://some/link
-    3) For each reference line, parse out "desc" vs "url".
-       We'll do a naive parse:
-         - If line has a final colon with something after it that looks like a URL, we store that in "url".
-         - Everything prior is "desc".
-    4) Return cleaned text (with those lines removed) and a list of DeepCitation objects with "section_name", "desc", "url".
+    Extract citations from the sources block and clean up the text.
+    Only extracts citations from a dedicated sources section.
     """
     lines = text.split("\n")
     cleaned_lines = []
     references: List[DeepCitation] = []
-
+    
     in_block = False
-
+    
     i = 0
     while i < len(lines):
-        line = lines[i]
-        line_stripped = line.strip().lower()
-        # detect the start of references block
+        line = lines[i].strip()
+        
+        # Only detect start of references if it's a dedicated sources section
         if not in_block and (
-            line_stripped.startswith("### sources") or 
-            line_stripped.startswith("## sources") or
-            line_stripped.startswith("sources:")
+            line.lower() == "### sources" or 
+            line.lower() == "## sources" or
+            line.lower() == "sources:"
         ):
-            # from next line onward, references
             in_block = True
             i += 1
             continue
-
+            
         if in_block:
-            # If we see a blank line => end references
-            if not line.strip():
+            if not line or line.startswith('#'):  # empty line or new section ends block
                 in_block = False
                 i += 1
                 continue
-            # This line is presumably a reference line, e.g. "* Title: https://..."
-            # We attempt to parse it
-            ref = parse_reference_line(section_name, line.strip())
-            if ref:
+                
+            ref = parse_reference_line(section_name, line)
+            if ref.url:  # only add if we found a URL
                 references.append(ref)
-            # skip adding it to cleaned lines
         else:
-            # normal line => keep
-            cleaned_lines.append(line)
+            # Keep non-reference lines
+            cleaned_lines.append(lines[i])
         i += 1
+    
+    return '\n'.join(cleaned_lines).strip(), references
 
-    cleaned_text = "\n".join(cleaned_lines).strip()
-    return cleaned_text, references
-
-def parse_reference_line(section_name: str, line: str) -> DeepCitation:
-    """
-    Given a reference line like "* Groq: Some Title: https://some_url"
-    or "- Something: https://..."
-    we find the final colon that has "http" after it, store that as url.
-    The desc is everything prior to that.
-    We store the 'section' as section_name.
-    If we can't parse => None
-    """
-    # remove leading bullet chars
-    # e.g. "* " or "- " or "1. "
-    line = line.lstrip("*-0123456789. ").strip()
-    # find the last occurrence of 'http'
-    # or we find a pattern r'(https?://\S+)' => get that as the url
-    match = re.search(r'(https?://[^\s]+)', line)
-    if not match:
-        # no url => store the entire line as desc
-        return DeepCitation(section_name=section_name, desc=line, url="")
-    url = match.group(1)
-    # everything prior is desc
-    idx = line.find(url)
-    desc = line[:idx].strip().rstrip(":").strip()
-    return DeepCitation(section_name=section_name, desc=desc, url=url)
-
-
-###############################################################################
-# Optional helper to remove raw embedded URLs from text
-# if you still want to remove them outside the sources block
-###############################################################################
 def remove_inline_urls(content: str) -> (str, List[DeepCitation]):
     """
-    If you want to remove additional raw URLs that appear in the text, you can parse them here.
-    We'll store them as citations with desc being the line minus the url.
-    But the user specifically asked for the references from sources block, so 
-    this is purely optional if you still want to strip random inline URLs.
+    Remove inline URLs, but only if they follow specific citation patterns.
     """
     citations: List[DeepCitation] = []
     lines = content.split("\n")
     new_lines = []
-    url_pattern = re.compile(r'(https?://[^\s]+)')
-
+    
     for line in lines:
-        matches = url_pattern.findall(line)
-        if not matches:
-            new_lines.append(line)
+        # Only match lines that are clearly citations with specific patterns
+        citation_pattern = r'^([^:]+):\s*(https?://[^\s]+)$'
+        match = re.match(citation_pattern, line.strip())
+        
+        if match:
+            title = match.group(1).strip()
+            url = match.group(2).strip()
+            citations.append(DeepCitation(title=title, url=url))
         else:
-            replaced_line = line
-            for u in matches:
-                replaced_line = replaced_line.replace(u, "").strip()
-                c = DeepCitation(section_name="", desc=replaced_line, url=u)
-                citations.append(c)
-            new_lines.append(replaced_line)
-    final_text = "\n".join(new_lines).strip()
-    return final_text, citations
-
+            new_lines.append(line)
+            
+    return '\n'.join(new_lines).strip(), citations
 
 ###############################################################################
 # The normal flow
@@ -391,7 +367,7 @@ def compile_final_report(state: ReportState):
     """
     1) For each final completed section, remove the "### Sources" block if any,
        parse lines for references with parse_reference_line approach,
-       storing them in final citations with "section=sec.name".
+       storing them in final citations.
     2) Remove or keep other inline raw URLs if desired.
     3) Build the final text, store in DeepResearchReport with separate 'citations' list.
     """
@@ -408,7 +384,6 @@ def compile_final_report(state: ReportState):
         cleaned_text, block_citations = extract_sources_block(sec.name, final_content)
 
         # Step 2) (OPTIONAL) also remove random inline URLs from cleaned_text
-        # If you want to skip this, comment out next lines
         final_cleaned, inline_citations = remove_inline_urls(cleaned_text)
 
         # Merge citations
@@ -431,25 +406,19 @@ def compile_final_report(state: ReportState):
 
     # If we want to append citations block at the end:
     if all_citations:
-        lines.append("## Citations\n")
+        lines.append("\n## Citations\n")
         for c in all_citations:
-            # we show something like: - [desc] (url) (Section: c.section_name)
-            desc = c.desc or "No description"
-            url = c.url
-            lines.append(f"- [{desc}]({url}) (Section: {c.section_name})")
+            # Just use title and URL, no section reference
+            if c.url:  # Only add if there's a URL
+                lines.append(f"- [{c.title}]({c.url})")
 
     final_report_text = "\n".join(lines).strip()
 
-    # Save file
-    with open("final_report.md", "w") as f:
-        f.write(final_report_text)
-
-    # Build a final DeepResearchReport with new 'citations' field
-    # We'll store them in the top-level object for convenience
+    # Build a final DeepResearchReport
     dr_report = DeepResearchReport(
         sections=deep_sections,
         final_report=final_report_text,
-        citations=all_citations  # new field
+        citations=all_citations
     )
 
     return {

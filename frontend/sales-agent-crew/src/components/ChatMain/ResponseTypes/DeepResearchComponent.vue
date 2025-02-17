@@ -1,230 +1,338 @@
 <template>
-    <div class="deep-research max-w-4xl mx-auto">
-  
-      <!-- Add debug info -->
-      <div v-if="!finalReport" class="text-gray-500 p-4 bg-gray-50 rounded-lg">
-        <p class="text-center">No research data available</p>
+    <div class="deep-research max-w-4xl mx-auto px-4 py-4">
+      <!-- If there's no finalReport, show a placeholder message -->
+      <div v-if="!finalReport">
+        <p class="text-center text-gray-500 italic">No research data available.</p>
       </div>
-  
       <template v-else>
-        <!-- Main content with improved styling -->
-        <div class="report-content prose prose-lg dark:prose-invert max-w-none">
-          <div v-html="renderMarkdown(finalReport)" class="space-y-4"></div>
+        <!-- Main Markdown-Rendered Content -->
+        <div class="report-content prose prose-lg dark:prose-invert max-w-none mb-8">
+          <div v-html="renderMarkdown(finalReport)"></div>
         </div>
   
-        <!-- Enhanced Citations Section -->
-        <div
-          v-if="parsedCitations.length > 0"
-          class="citations mt-12 bg-gray-50 dark:bg-neutral-900 rounded-xl p-6"
-        >
-          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-            Sources & Citations
+        <!-- Citations Section (only if we actually have a citations block) -->
+        <div v-if="citationsBlockFound" class="mt-6">
+          <!-- If we have no bullet lines (citations), show a small note -->
+          <div v-if="citations.length === 0" class="text-sm text-red-500">
+            Citations block found, but no bullet lines matched. Check your bullet format!
+          </div>
+        </div>
+  
+        <!-- If citations exist, show them in a card layout with pagination + search -->
+        <div v-if="citations.length > 0" class="citations-container space-y-4">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Sources & Citations ({{ totalCitationsCount }})
           </h2>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              v-for="citation in parsedCitations"
-              :key="citation.id"
-              class="citation-card bg-white dark:bg-neutral-800 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <div class="flex items-start space-x-4">
-                <!-- Website Icon -->
-                <div class="flex-shrink-0 w-6 h-6">
-                  <img 
-                    :src="`https://www.google.com/s2/favicons?domain=${new URL(citation.url).hostname}&sz=64`"
-                    :alt="citation.title"
-                    class="w-full h-full object-contain"
+  
+          <!-- Optional Search Input -->
+          <div class="flex gap-2 items-center mb-2">
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="Search citations..."
+              class="flex-1 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+  
+          <!-- Citation Cards + Pagination Controls -->
+          <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <!-- Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div
+                v-for="(cit, idx) in pagedCitations"
+                :key="cit.id"
+                class="citation-card flex flex-col bg-white dark:bg-gray-800 p-4 rounded-md shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow"
+              >
+                <div class="flex items-start gap-2 mb-2">
+                  <img
+                    :src="getFavicon(cit.url)"
+                    class="w-6 h-6 object-cover rounded"
+                    alt="favicon"
                   />
-                </div>
-                
-                <!-- Citation Content -->
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-medium text-gray-900 dark:text-white truncate">
-                    {{ citation.title }}
+                  <h3 class="font-semibold text-sm leading-snug text-gray-800 dark:text-gray-100 flex-1">
+                    {{ cit.title }}
                   </h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                    {{ citation.description }}
-                  </p>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-300 flex-1 mb-2 line-clamp-3">
+                  <!-- If there's a snippet, place it here. We only have title & url now. -->
+                </p>
+                <!-- Citation Link -->
+                <div class="mt-auto pt-2">
                   <a
-                    :href="citation.url"
+                    v-if="cit.url"
+                    :href="cit.url"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline text-xs break-all"
                   >
-                    Visit source
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    {{ getDomain(cit.url) }}
+                    <svg
+                      class="w-3 h-3 ml-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m4-4V6m0 0h-4m4 0l-8 8"
+                      />
                     </svg>
                   </a>
+                  <span v-else class="text-sm text-gray-400 dark:text-gray-500">
+                    No URL provided
+                  </span>
                 </div>
               </div>
+            </div>
+  
+            <!-- Pagination Controls -->
+            <div class="mt-4 flex items-center justify-center gap-2">
+              <button
+                @click="prevPage"
+                :disabled="currentPage === 1"
+                class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
+              >
+                Prev
+              </button>
+              <span class="text-sm">
+                Page {{ currentPage }} of {{ totalPages }}
+              </span>
+              <button
+                @click="nextPage"
+                :disabled="currentPage === totalPages"
+                class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           </div>
         </div>
       </template>
-  
     </div>
   </template>
   
   <script setup>
-  import { defineProps, computed } from 'vue'
+  import { defineProps, computed, ref, onMounted } from 'vue'
   import { marked } from 'marked'
   
+  // ---- PROPS ----
   const props = defineProps({
     parsed: {
       type: Object,
-      required: true
+      default: () => ({})
     }
   })
   
-  // Configure marked options for better markdown rendering
-  marked.setOptions({
-    gfm: true, // GitHub Flavored Markdown
-    breaks: true, // Convert line breaks to <br>
-    headerIds: true, // Add IDs to headers
-    mangle: false, // Don't escape HTML
-    smartLists: true, // Use smarter list behavior
-  })
-  
+  // ---- MARKED SETUP ----
   const renderer = new marked.Renderer()
-  
-  // Improve table rendering
-  renderer.table = (header, body) => {
-    return `
-      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 my-4">
-        <thead class="bg-gray-50 dark:bg-gray-800">
-          ${header}
-        </thead>
-        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-          ${body}
-        </tbody>
-      </table>
-    `
+  // open links in new tab
+  renderer.link = function (href, title, text) {
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
+  }
+  marked.setOptions({
+    renderer,
+    gfm: true,
+    breaks: false,
+    mangle: false
+  })
+  function renderMarkdown(text) {
+    return marked(text || '')
   }
   
-  // Improve cell rendering
-  renderer.tablecell = (content, flags) => {
-    const tag = flags.header ? 'th' : 'td'
-    const classes = flags.header 
-      ? 'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'
-      : 'px-6 py-4 whitespace-normal text-sm text-gray-900 dark:text-gray-100'
-    return `<${tag} class="${classes}">${content}</${tag}>`
-  }
-  
-  marked.setOptions({ renderer })
-  
+  // ---- GET final_report ----
   const finalReport = computed(() => {
-    if (!props.parsed?.data?.final_report) return ''
-    
-    // Process the content to handle objects
-    let content = props.parsed.data.final_report
-    
-    // Replace [object Object] with proper formatting
-    content = content.replace(/\[object Object\]/g, '')
-    
-    // Clean up multiple newlines
-    content = content.replace(/\n{3,}/g, '\n\n')
-    
-    // Ensure tables are properly formatted
-    content = content.replace(/(\|[^\n]+\|)\n(?!\|)/g, '$1\n\n')
-    
-    return content
+    // If your JSON is in a different shape, adjust here:
+    const raw = props.parsed?.data?.final_report
+    if (!raw) return ''
+  
+    // Remove the Citations section from the main body
+    const headingRegex = /(^|\n)##\s*Citations\s*(\n|$)/i
+    const idx = raw.search(headingRegex)
+    if (idx === -1) {
+      // no "## Citations" found, so just return entire text
+      return raw
+    }
+    // Return everything up to the "## Citations" heading
+    return raw.slice(0, idx).trim()
   })
   
-  const parsedCitations = computed(() => {
-    if (!props.parsed?.data?.citations) return []
-    return props.parsed.data.citations.map((citation, index) => {
-      try {
-        const url = new URL(citation.url)
-        return {
-          ...citation,
-          id: index,
-          title: citation.title || url.hostname,
-          description: citation.description || 'No description available'
-        }
-      } catch (e) {
-        return {
-          ...citation,
-          id: index,
-          title: citation.title || 'Unknown Source',
-          description: citation.description || 'No description available'
-        }
+  // ---- CITATIONS PARSER ----
+  // We'll see if we even find "## Citations" in the text:
+  const citationsBlockFound = ref(false)
+  
+  const citations = computed(() => {
+    const text = props.parsed?.data?.final_report
+    if (!text) {
+      console.log('[DeepResearch] No final_report text, citations = []')
+      return []
+    }
+  
+    // Find "## Citations"
+    const headingRegex = /(^|\n)##\s*Citations\s*(\n|$)/i
+    const startIndex = text.search(headingRegex)
+    if (startIndex === -1) {
+      console.log('[DeepResearch] "## Citations" not found at all.')
+      return []
+    }
+  
+    // Mark the block as found (for debugging in template)
+    citationsBlockFound.value = true
+  
+    // slice from "## Citations" to end OR next heading
+    let citationsBlock = text.slice(startIndex)
+    // find next heading after "## Citations"
+    // skipping the first line so we don't match the same heading again
+    const subsequentHeading = citationsBlock.slice(2).search(/\n#{1,6}\s+\w/)
+    if (subsequentHeading > -1) {
+      // cut off the block at that heading
+      citationsBlock = citationsBlock.slice(0, subsequentHeading + 2)
+    }
+  
+    // Now we have the citations block, which hopefully has bullet lines
+    // Convert to lines, skip the first line (which is "## Citations")
+    const lines = citationsBlock.split('\n').slice(1)
+    console.log('[DeepResearch] citationsBlock lines:', lines)
+  
+    // We'll filter lines starting with "* " or "- "
+    // If your bullets differ, adjust.
+    let bulletLines = lines.map(l => l.trim()).filter(l => {
+      return l.startsWith('*') || l.startsWith('-')
+    })
+    console.log('[DeepResearch] bulletLines after filter:', bulletLines)
+  
+    // Let's parse out the URL if present
+    // We'll produce an array of { id, title, url }
+    let idCounter = 1
+    const parsed = bulletLines.map(line => {
+      // remove leading "* " or "- "
+      line = line.replace(/^(\*|-)\s*/, '').trim()
+  
+      // naive approach: search for URL with regex
+      const urlMatch = line.match(/(https?:\/\/[^\s]+)/)
+      let url = ''
+      if (urlMatch) {
+        url = urlMatch[0]
       }
+  
+      // remove the URL from the line
+      let title = line.replace(url, '').trim()
+      // remove trailing colon if any
+      title = title.replace(/:\s*$/, '').trim()
+      if (!title) {
+        title = 'Untitled citation'
+      }
+  
+      return {
+        id: idCounter++,
+        title,
+        url
+      }
+    })
+  
+    console.log('[DeepResearch] Parsed citations:', parsed)
+    return parsed
+  })
+  
+  // ---- CITATION PAGINATION & SEARCH ----
+  const pageSize = 6
+  const currentPage = ref(1)
+  const searchQuery = ref('')
+  
+  const filteredCitations = computed(() => {
+    if (!searchQuery.value) return citations.value
+    const q = searchQuery.value.toLowerCase()
+    return citations.value.filter(cit => {
+      return cit.title.toLowerCase().includes(q) || cit.url.toLowerCase().includes(q)
     })
   })
   
-  const renderMarkdown = (text) => {
-    return marked(text || '')
+  const totalCitationsCount = computed(() => citations.value.length)
+  const totalPages = computed(() => {
+    const total = filteredCitations.value.length
+    return total > 0 ? Math.ceil(total / pageSize) : 1
+  })
+  
+  const pagedCitations = computed(() => {
+    if (currentPage.value > totalPages.value) currentPage.value = totalPages.value
+    const start = (currentPage.value - 1) * pageSize
+    const end = start + pageSize
+    return filteredCitations.value.slice(start, end)
+  })
+  
+  function nextPage() {
+    if (currentPage.value < totalPages.value) {
+      currentPage.value++
+    }
   }
+  function prevPage() {
+    if (currentPage.value > 1) {
+      currentPage.value--
+    }
+  }
+  
+  // ---- HELPERS: FAVICON & DOMAIN ----
+  function getFavicon(url) {
+    if (!url) return 'https://via.placeholder.com/64?text=No+URL'
+    try {
+      const domain = new URL(url).hostname
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+    } catch {
+      return 'https://via.placeholder.com/64?text=Err'
+    }
+  }
+  function getDomain(url) {
+    if (!url) return ''
+    try {
+      return new URL(url).hostname.replace(/^www\./, '')
+    } catch {
+      return url
+    }
+  }
+  
+  // ---- Optional onMounted debug ----
+  onMounted(() => {
+    console.log('[DeepResearch] finalReport text (after removing Citations):', finalReport.value)
+  })
   
   </script>
   
   <style scoped>
+  .deep-research {
+    /* Container styling, adjust as needed */
+  }
+  
+  /* Basic Markdown styling tweaks */
   .report-content :deep(h1) {
-    @apply text-2xl font-bold mb-4 mt-6;
+    @apply text-3xl font-bold mt-6 mb-4;
   }
-  
   .report-content :deep(h2) {
-    @apply text-xl font-bold mb-3 mt-5;
+    @apply text-2xl font-bold mt-6 mb-3;
   }
-  
   .report-content :deep(h3) {
-    @apply text-lg font-bold mb-2 mt-4;
+    @apply text-xl font-semibold mt-4 mb-2;
   }
-  
   .report-content :deep(p) {
-    @apply text-base mb-3 leading-relaxed text-gray-800 dark:text-gray-200;
+    @apply text-base leading-relaxed mb-3 text-gray-800 dark:text-gray-200;
   }
-  
-  .report-content :deep(ul), 
-  .report-content :deep(ol) {
-    @apply mb-3 pl-5 space-y-1.5 text-base;
-  }
-  
-  .report-content :deep(li) {
-    @apply leading-relaxed text-base;
-  }
-  
   .report-content :deep(a) {
-    @apply text-blue-600 hover:text-blue-800 underline;
+    @apply text-blue-600 dark:text-blue-400 underline;
   }
   
-  .report-content :deep(blockquote) {
-    @apply pl-4 border-l-4 border-gray-300 italic my-4 text-base;
+  /* Citation card styling */
+  .citation-card {
+    @apply relative;
   }
-  
-  .report-content :deep(code) {
-    @apply bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-sm;
+  .citation-card:hover {
+    @apply shadow-md;
   }
-  
-  .report-content :deep(pre) {
-    @apply bg-gray-100 dark:bg-gray-800 rounded p-4 overflow-x-auto my-4;
-  }
-  
-  .report-content :deep(table) {
-    @apply w-full border-collapse my-4;
-  }
-  
-  .report-content :deep(th),
-  .report-content :deep(td) {
-    @apply border border-gray-300 dark:border-gray-700 px-3 py-2 text-left text-sm;
-  }
-  
-  .report-content :deep(th) {
-    @apply bg-gray-100 dark:bg-gray-800 font-semibold;
-  }
-  
-  .report-content :deep(tr:nth-child(even)) {
-    @apply bg-gray-50 dark:bg-gray-900;
-  }
-  
-  /* Update citation card text sizes */
-  .citation-card h3 {
-    @apply text-base;
-  }
-  
-  .citation-card p {
-    @apply text-sm;
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   </style>
   

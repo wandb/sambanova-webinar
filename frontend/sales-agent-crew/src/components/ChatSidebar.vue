@@ -23,7 +23,7 @@
       <div 
         v-for="conv in conversations" 
         :key="conv.conversation_id"
-        :class="preselectedChat===conv.conversation_id?'bg-primary-brandDarkGray  border-primary-brandFrame':''"
+        :class="preselectedChat===conv.conversation_id?'bg-primary-brandDarkGray border border-primary-brandFrame':''"
         class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
       <div @click="selectConversation(conv)" class="w-full">
         <div class="font-medium capitalize text-gray-800 truncate">  
@@ -109,7 +109,7 @@ const missingKeys = computed(() => {
   if (!exaKey.value) missing.push('Exa')
   return missing
 })
-
+defineExpose({loadChats})
 
 async function loadChats() {
   try {
@@ -175,19 +175,21 @@ async function createNewChat() {
       }
     )
     const cid = resp.data.conversation_id
-    const assistantMsg = resp.data.assistant_message || "New Conversation"
-    const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
+    // const assistantMsg = resp.data.assistant_message || "New Conversation"
+    // const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
 
-    const convMeta = {
-      conversation_id: cid,
-      title: shortTitle,
-      created_at: Date.now()
-    }
-    // Prepend
-    conversations.value.unshift(convMeta)
-    saveConversations()
+    // const convMeta = {
+    //   conversation_id: cid,
+    //   title: shortTitle,
+    //   created_at: Date.now()
+    // }
+    // // Prepend
+    // conversations.value.unshift(convMeta)
+    // saveConversations()
 
-    selectConversation(convMeta)
+    // selectConversation(convMeta)
+
+    loadChats()
     router.push(`/${cid}`)
   } catch (err) {
     console.error('Error creating new chat:', err)

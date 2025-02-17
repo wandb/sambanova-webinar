@@ -19,37 +19,22 @@
       </p>
     </div>
     <!-- End Title -->
-<!-- 
-    <div v-for="msgItem in messagesData" 
-        :key="msgItem.conversation_id"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
-        <div class="font-medium text-gray-800 truncate">
-         Message  {{ msgItem.event	 }}
-        </div>
-        <div class="text-xs text-gray-500">
-          {{msgItem.data }}
-        </div>
-      </div> -->
+
     <ul class="mt-16 space-y-5">
       <!-- Chat Bubble -->
      
-         <!-- {{msgItem.event}}  {{msgItem.data}}        -->
         <ChatBubble v-for="msgItem in messagesData" 
         :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
-      
-      
-      <!-- End Chat Bubble -->
 
-     
       <!-- End Chat Bubble -->
     </ul>
   </div>
-<div class="sticky bottom-0 left-0 right-0 bg-white  p-2">
+<div class="sticky bottom-0 left-0 right-0 bg-transparent  p-2">
   <div class="sticky bottom-0 z-10   dark:bg-neutral-900 dark:border-neutral-700">
     <!-- Textarea -->
 
     <div class="max-w-4xl mx-auto  lg:px-0">
-      <div class="flex justify-between items-center mb-3">
+      <div class="flex justify-center items-center mb-3">
         <!-- <button type="button" class="inline-flex justify-center items-center gap-x-2 rounded-lg font-medium text-gray-800 hover:text-blue-600 focus:outline-none focus:text-blue-600 text-xs sm:text-sm dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:text-blue-500">
           <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           New chat

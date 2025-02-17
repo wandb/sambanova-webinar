@@ -5,10 +5,10 @@
       <!-- Collapse/Expand Button -->
       <button
       :class="collapsed?'w-100 h-[36px]  mx-auto':' ' "
-        class=" p-2  border-primary-brandFrame mb-2 flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
+        class=" p-2  border-primary-brandFrame mb-2 border flex items-center justify-between border w-full text-center bg-primary-brandGray border-primary-brandGray text-primary-bodyText rounded  text-sm"
         @click="collapsed = !collapsed"
       >
-      <span class="flex items-center">
+      <span :class="collapsed?'  mx-auto':' ' " class="flex  items-center">
         <span v-if="!collapsed">
           <!-- Expand icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,7 +20,7 @@
             />
           </svg>
         </span>
-        <span v-else>
+        <span :class="collapsed?'  mx-auto':' ' " v-else>
           <!-- Collapse icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path 
@@ -33,7 +33,7 @@
         </span>
         <span v-if="!collapsed" class="ml-2">Agent Reasoning</span>
       </span>
-      <span v-if="!collapsed">26 sources</span>
+      <span class="hidden" v-if="!collapsed">26 sources</span>
       </button>
       <div>
    

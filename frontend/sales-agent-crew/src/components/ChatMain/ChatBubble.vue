@@ -5,8 +5,8 @@
       class=" py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
         <div class="grow text-end space-y-3">
           <!-- Card -->
-          <div class="inline-block bg-blue-600 rounded-lg p-4 shadow-sm">
-            <p class="text-sm text-white">
+          <div class="inline-block bg-primary-bodyBg border-primary-brandFrame  border rounded-lg p-4 shadow-sm">
+            <p class="text-sm color-primary-brandGray">
                 {{ props.data }}
             </p>
           </div>
@@ -20,11 +20,11 @@
       </li>
      
       <li   v-else 
-      class=" py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4">
+      class="max-w-4xl py-2 px-4  flex gap-x-2 sm:gap-x-4">
       <!-- v-else for all other cases -->
       <div class="flex items-start space-x-3">
         <SILogo />
-        <div class="space-y-3">
+        <div class="bg-white border border-primary-brandFrame  rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
           <component :is="selectedComponent" :parsed="parsedData" />
         </div>
       </div>

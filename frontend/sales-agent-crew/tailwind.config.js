@@ -24,7 +24,6 @@ export default {
          bodyText:"#101828",
          brandTextSecondary:"#667085",
          brandTextPrimary:"#101828",
-         
          brandBorder:"#EE762480",
          brandColor:"#EE7624",
          bodyBg:"#f9fafb",

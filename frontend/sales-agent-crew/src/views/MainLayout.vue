@@ -22,6 +22,9 @@
       :is="chatMode ? chatSidebarComp : sideBarComp"
       @selectReport="handleSavedReportSelect"       
       @selectConversation="handleSelectConversation"
+      ref="chatSideBarRef"
+      
+
     />
     
 
@@ -111,7 +114,7 @@
             :keysUpdated="keysUpdateCounter"
             :isLoading="isLoading"
             :runId="currentRunId"
-          :sessionId="sessionId"
+            :sessionId="sessionId"
             @searchStart="handleSearchStart"
             @searchComplete="handleSearchComplete"
             @searchError="handleSearchError"
@@ -212,8 +215,13 @@ const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
 
 const agentData=ref([])
+const chatSideBarRef = ref(null)
 const agentThoughtsDataChanged=(agentThoughtsData)=>{
 agentData.value=agentThoughtsData
+
+if (chatSideBarRef.value && typeof chatSideBarRef.value.loadChats === 'function') {
+  chatSideBarRef.value.loadChats()
+  }
   
 }
 // The runId for SSE etc.

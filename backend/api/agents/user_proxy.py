@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import time
 from typing import Dict, List, Any, Optional
 import asyncio
 
@@ -36,6 +37,7 @@ class UserProxyAgent(RoutedAgent):
         self.session_manager = session_manager
         self.websocket = websocket
         self.redis_client = redis_client
+        self.message_timings = {}  # Store message processing times
 
     @message_handler
     async def handle_agent_response(
@@ -56,10 +58,22 @@ class UserProxyAgent(RoutedAgent):
         ))
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
+            # Calculate processing time
+            start_time = self.message_timings.get(ctx.topic_id.source, {})
+            if start_time:
+                processing_time = time.time() - start_time
+            else:
+                processing_time = None
+
+            message_data = message.model_dump()
+            message_data["metadata"] = {
+                "duration": processing_time
+            }
+
             if self.websocket:
                 message_data = {
                     "event": "completion",
-                    "data": message.model_dump_json(),
+                    "data": json.dumps(message_data),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
                     "timestamp": datetime.now().isoformat()
@@ -73,7 +87,7 @@ class UserProxyAgent(RoutedAgent):
                 )
                 logger.info(logger.format_message(
                     ctx.topic_id.source,
-                    "Stored message in Redis"
+                    f"Stored message in Redis. Processing time: {processing_time:.2f} seconds"
                 ))
                 
                 # Send through WebSocket
@@ -93,6 +107,11 @@ class UserProxyAgent(RoutedAgent):
                     ctx.topic_id.source,
                     "Updated conversation history"
                 ))
+
+                # Clear timing data after completion
+                if ctx.topic_id.source in self.message_timings:
+                    del self.message_timings[ctx.topic_id.source]
+
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
@@ -110,6 +129,9 @@ class UserProxyAgent(RoutedAgent):
             message (EndUserMessage): The user's message.
             ctx (MessageContext): The message context.
         """
+        
+        # Start timing for this conversation
+        self.message_timings[ctx.topic_id.source] = time.time()
 
         logger.info(logger.format_message(
             ctx.topic_id.source,

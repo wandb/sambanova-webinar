@@ -1,3 +1,4 @@
+########## NEW CODE ##########
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from .data_types import (
@@ -7,11 +8,12 @@ from .data_types import (
     FinancialAnalysis,
     SalesLeads,
     UserQuestion,
+    AgentEnum,  # import the extended enum with DeepResearch
+    DeepResearch,
 )
 from .otlp_tracing import logger
 from pydantic import BaseModel
 from typing import get_origin, get_args, get_type_hints
-
 
 def generate_type_string(model: BaseModel) -> str:
     """Generates a string representation of the type structure of a Pydantic model, recursively."""
@@ -43,7 +45,6 @@ def generate_type_string(model: BaseModel) -> str:
     )
     return "{ " + fields_string + " }"
 
-
 class AgentRegistry:
     def __init__(self):
         self.agents = {
@@ -64,8 +65,13 @@ class AgentRegistry:
             },
             "educational_content": {
                 "agent_type": "educational_content",
-                "description": "Handles educational content queries, including topics, audience level, and focus areas. This agent is used for queries that require a detailed explanation of a topic.",
-                "examples": "Explain the relationship between quantum entanglement and teleportation?",
+                "description": "Handles simpler or legacy educational queries. Possibly replaced by 'deep_research' for advanced multi-step analysis.",
+                "examples": "Explain classical Newtonian mechanics in short form, Summarize a simple topic quickly.",
+            },
+            "deep_research": {
+                "agent_type": "deep_research",
+                "description": "Handles advanced educational content queries with a multi-step research flow (LangGraph). For queries that require a more in-depth or structured approach.",
+                "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps.",
             },
             "user_proxy": {
                 "agent_type": "user_proxy",
@@ -102,6 +108,13 @@ class AgentRegistry:
         {{
             "agent_type": "sales_leads",
             "parameters": {generate_type_string(SalesLeads)}
+        }}
+    ]
+
+    [
+        {{
+            "agent_type": "deep_research",
+            "parameters": {generate_type_string(DeepResearch)}
         }}
     ]
 

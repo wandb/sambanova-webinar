@@ -107,20 +107,20 @@ class EduResearchCrew:
         os.environ["SERPER_API_KEY"] = self.serper_key
         tool = SerperDevTool()
 
-        researcher_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Researcher Agent",
-            workflow_name="Research",
-        )
-
-        return Agent(
+        researcher = Agent(
             config=self.agents_config["researcher"],
             llm=self.llm,
             verbose=self.verbose,
             tools=[tool],
-            step_callback=researcher_logger,
         )
+        researcher.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Researcher Agent",
+            workflow_name="Research",
+            llm_name=researcher.llm.model,
+        )
+        return researcher
 
     @agent
     def planner(self) -> Agent:
@@ -130,18 +130,19 @@ class EduResearchCrew:
         Returns:
             Agent: A configured planning agent
         """
-        planner_logger = RedisConversationLogger(
+        planner = Agent(
+            config=self.agents_config["planner"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        planner.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Planner Agent",
             workflow_name="Research",
+            llm_name=planner.llm.model,
         )
-        return Agent(
-            config=self.agents_config["planner"],
-            llm=self.llm,
-            verbose=self.verbose,
-            step_callback=planner_logger,
-        )
+        return planner
 
     @task
     def research_task(self) -> Task:

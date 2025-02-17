@@ -4,6 +4,7 @@ import json
 from collections import deque
 import re
 import os
+import time
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -55,13 +56,21 @@ class SemanticRouterAgent(RoutedAgent):
         websocket: WebSocket,
         redis_client: redis.Redis,
         api_keys: APIKeys,
+        llm_provider: str = "sambanova",
     ) -> None:
         super().__init__("SemanticRouterAgent")
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
+        self.llm_provider = llm_provider
+
+        if self.llm_provider == "sambanova":
+            base_url = "https://api.sambanova.ai/v1"
+        else:
+            raise Exception("Unknown LLM provider")
+
         self._reasoning_model_client = OpenAIChatCompletionClient(
             model="Meta-Llama-3.1-70B-Instruct",
-            base_url="https://api.sambanova.ai/v1",
+            base_url=base_url,
             api_key=api_keys.sambanova_key,
             model_info={
                 "json_output": False,
@@ -72,7 +81,7 @@ class SemanticRouterAgent(RoutedAgent):
         )
         self._structure_extraction_model = OpenAIChatCompletionClient(
             model="Meta-Llama-3.1-70B-Instruct",
-            base_url="https://api.sambanova.ai/v1",
+            base_url=base_url,
             api_key=api_keys.sambanova_key,
             model_info={
                 "json_output": False,
@@ -174,7 +183,7 @@ class SemanticRouterAgent(RoutedAgent):
                 f"Error processing request: {str(e)}"
             ), exc_info=True)
             return
-        
+
     def _reconcile_plans(self, plans: list) -> list:
         """
         Reconciles multiple plans into a single plan.
@@ -246,6 +255,8 @@ class SemanticRouterAgent(RoutedAgent):
         try:
             user_id, conversation_id = ctx.topic_id.source.split(":")
 
+            start_time = time.time()
+
             history = self._session_manager.get_history(ctx.topic_id.source)
             planner_response = self._reasoning_model_client.create_stream(
                 [UserMessage(content=system_message, source="system")]
@@ -266,6 +277,21 @@ class SemanticRouterAgent(RoutedAgent):
                 ))
                 raise ValueError("No WebSocket connection found")
 
+
+            planner_metadata = {
+                "llm_name": self._reasoning_model_client._resolved_model,
+                "llm_provider": self.llm_provider,
+            }   
+            planner_event = {
+                "event": "planner",
+                "data": json.dumps({"metadata": planner_metadata}),
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            await self.websocket.send_text(json.dumps(planner_event))
+
             planner_final_response = None
             async for chunk in planner_response:
                 if isinstance(chunk, str):
@@ -279,18 +305,23 @@ class SemanticRouterAgent(RoutedAgent):
                     await self.websocket.send_text(json.dumps(message_data))
                 elif isinstance(chunk, CreateResult):
                     planner_final_response = chunk.content
-                
+            
+            end_time = time.time()
+            processing_time = end_time - start_time
+            planner_metadata["duration"] = processing_time
+
             if planner_final_response:
                 # Store complete response in Redis
                 message_key = f"messages:{user_id}:{conversation_id}"
                 final_message_data = {
                     "event": "planner",
-                    "data": json.dumps({"response": planner_final_response}),
+                    "data": json.dumps({"response": planner_final_response, "metadata": planner_metadata}),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
                     "timestamp": datetime.now().isoformat(),
                 }
                 self.redis_client.rpush(message_key, json.dumps(final_message_data))
+                await self.websocket.send_text(json.dumps(final_message_data))
 
                 cleaned_response = re.sub(
                     r"<think>.*?</think>",

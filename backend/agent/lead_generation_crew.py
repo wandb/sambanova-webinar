@@ -137,37 +137,35 @@ class ResearchCrew:
             verbose=self.verbose
         )
 
-        # Create Redis loggers per agent
-        aggregator_redis_logger = RedisConversationLogger(
+        # Hook them in
+        self.aggregator_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Aggregator Search Agent",
-            workflow_name="Lead Generation"
+            workflow_name="Lead Generation",
+            llm_name=self.aggregator_agent.llm.model,
         )
-        data_extraction_redis_logger = RedisConversationLogger(
+        self.data_extraction_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Data Extraction Agent",
-            workflow_name="Lead Generation"
+            workflow_name="Lead Generation",
+            llm_name=self.data_extraction_agent.llm.model,
         )
-        market_trends_redis_logger = RedisConversationLogger(
+        self.market_trends_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Market Trends Analyst",
-            workflow_name="Lead Generation"
+            workflow_name="Lead Generation",
+            llm_name=self.market_trends_agent.llm.model,
         )
-        outreach_redis_logger = RedisConversationLogger(
+        self.outreach_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Outreach Specialist",
-            workflow_name="Lead Generation"
+            workflow_name="Lead Generation",
+            llm_name=self.outreach_agent.llm.model,
         )
-
-        # Hook them in
-        self.aggregator_agent.step_callback = aggregator_redis_logger
-        self.data_extraction_agent.step_callback = data_extraction_redis_logger
-        self.market_trends_agent.step_callback = market_trends_redis_logger
-        self.outreach_agent.step_callback = outreach_redis_logger
 
     def _initialize_tasks(self) -> None:
         """

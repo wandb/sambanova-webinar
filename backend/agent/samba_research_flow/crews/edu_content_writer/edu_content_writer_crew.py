@@ -86,18 +86,19 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in creating educational content.
         """
-        content_writer_logger = RedisConversationLogger(
+        content_writer = Agent(
+            config=self.agents_config["content_writer"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        content_writer.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Content Writer Agent",
             workflow_name="Research",
+            llm_name=content_writer.llm.model,
         )
-        return Agent(
-            config=self.agents_config["content_writer"],
-            llm=self.llm,
-            verbose=self.verbose,
-            step_callback=content_writer_logger,
-        )
+        return content_writer
 
     @agent
     def editor(self) -> Agent:
@@ -107,18 +108,19 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in editing and refining content.
         """
-        editor_logger = RedisConversationLogger(
+        editor = Agent(
+            config=self.agents_config["editor"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        editor.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Editor Agent",
             workflow_name="Research",
+            llm_name=editor.llm.model,
         )
-        return Agent(
-            config=self.agents_config["editor"],
-            llm=self.llm,
-            verbose=self.verbose,
-            step_callback=editor_logger,
-        )
+        return editor
 
     @agent
     def quality_reviewer(self) -> Agent:
@@ -128,18 +130,19 @@ class EduContentWriterCrew:
         Returns:
             Agent: An AI agent specialized in reviewing and ensuring content quality.
         """
-        quality_reviewer_logger = RedisConversationLogger(
+        quality_reviewer = Agent(
+            config=self.agents_config["quality_reviewer"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        quality_reviewer.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Quality Reviewer Agent",
             workflow_name="Research",
+            llm_name=quality_reviewer.llm.model,
         )
-        return Agent(
-            config=self.agents_config["quality_reviewer"],
-            llm=self.llm,
-            verbose=self.verbose,
-            step_callback=quality_reviewer_logger,
-        )
+        return quality_reviewer
 
     @task
     def writing_task(self) -> Task:

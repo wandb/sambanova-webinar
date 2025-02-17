@@ -69,19 +69,20 @@ class ConvoNewsletterCrew:
         Synthesizes a subject line and outline for the newsletter.
         """
         # Example logger usage
-        logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.conversation_id,
-            agent_name="Synthesizer Agent",
-            workflow_name="Newsletter"
-        )
-        return Agent(
+        synthesizer = Agent(
             config=self.agents_config.get("synthesizer", {}),
             verbose=True,
             llm=self.llm,
-            step_callback=logger,
-            tools=[SerperDevTool()]
+            tools=[SerperDevTool()],
         )
+        synthesizer.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.conversation_id,
+            agent_name="Synthesizer Agent",
+            workflow_name="Newsletter",
+            llm_name=synthesizer.llm.model,
+        )
+        return synthesizer
 
     @agent
     def newsletter_writer(self) -> Agent:
@@ -89,38 +90,42 @@ class ConvoNewsletterCrew:
         Writes the newsletter draft, includes a WordCounterTool and SerperDevTool.
         """
         # Attach a search tool (SerperDevTool) plus your WordCounterTool
-        logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.conversation_id,
-            agent_name="Newsletter Writer Agent",
-            workflow_name="Newsletter",
-        )
+
         serper_tool = SerperDevTool()
-        return Agent(
+        newsletter_writer = Agent(
             config=self.agents_config.get("newsletter_writer", {}),
             tools=[serper_tool],
             verbose=True,
             llm=self.llm,
-            step_callback=logger
         )
+        newsletter_writer.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.conversation_id,
+            agent_name="Newsletter Writer Agent",
+            workflow_name="Newsletter",
+            llm_name=newsletter_writer.llm.model,
+        )
+        return newsletter_writer
 
     @agent
     def newsletter_editor(self) -> Agent:
         """
         Edits and polishes the newsletter draft.
         """
-        logger = RedisConversationLogger(
+        newsletter_editor = Agent(
+            config=self.agents_config.get("newsletter_editor", {}),
+            verbose=True,
+            llm=self.llm,
+        )
+        newsletter_editor.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.conversation_id,
             agent_name="Newsletter Editor Agent",
             workflow_name="Newsletter",
+            llm_name=newsletter_editor.llm.model,
         )
-        return Agent(
-            config=self.agents_config.get("newsletter_editor", {}),
-            verbose=True,
-            llm=self.llm,
-            step_callback=logger
-        )
+
+        return newsletter_editor
 
     @task
     def generate_outline_task(self) -> Task:

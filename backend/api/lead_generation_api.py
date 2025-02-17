@@ -531,6 +531,53 @@ class LeadGenerationAPI:
                     content={"error": f"Failed to retrieve chats: {str(e)}"}
                 )
 
+        @self.app.delete("/chat/{user_id}/{conversation_id}")
+        async def delete_chat(user_id: str, conversation_id: str):
+            """
+            Delete a chat conversation and all its associated data.
+            
+            Args:
+                user_id (str): The ID of the user
+                conversation_id (str): The ID of the conversation to delete
+            """
+            try:
+                # Verify chat exists and belongs to user
+                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                if not self.app.state.redis_client.exists(meta_key):
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "Chat not found or access denied"}
+                    )
+
+                # Close any active WebSocket connections for this chat
+                connection = self.app.state.manager.get_connection(user_id, conversation_id)
+                if connection:
+                    await connection.close(code=4000, reason="Chat deleted")
+                    self.app.state.manager.remove_connection(user_id, conversation_id)
+
+                # Delete chat metadata
+                self.app.state.redis_client.delete(meta_key)
+
+                # Delete chat messages
+                message_key = f"messages:{user_id}:{conversation_id}"
+                self.app.state.redis_client.delete(message_key)
+
+                # Remove from user's chat list
+                user_chats_key = f"user_chats:{user_id}"
+                self.app.state.redis_client.zrem(user_chats_key, conversation_id)
+
+                return JSONResponse(
+                    status_code=200,
+                    content={"message": "Chat deleted successfully"}
+                )
+
+            except Exception as e:
+                print(f"[/chat/delete] Error deleting chat: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to delete chat: {str(e)}"}
+                )
+
         # ----------------------------------------------------------------
         # NEW ENDPOINT: /newsletter_chat/init
         # ----------------------------------------------------------------

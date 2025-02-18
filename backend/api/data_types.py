@@ -49,8 +49,8 @@ class HandoffMessage(BaseAgentMessage):
     content: str
 
 class APIKeys(BaseModel):
-    SAMBANOVA_API_KEY: str
-    FIREWORKS_API_KEY: str
+    sambanova_key: str = ""
+    fireworks_key: str = ""
     serper_key: str
     exa_key: str
 

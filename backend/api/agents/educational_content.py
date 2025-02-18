@@ -57,6 +57,21 @@ class EducationalContentAgent(RoutedAgent):
             edu_flow.input_variables = edu_inputs
             result = await asyncio.to_thread(edu_flow.kickoff, edu_inputs)
 
+            usage_stats = [edu_flow.research_usage] + edu_flow.content_usage + ([edu_flow.summariser_usage] if edu_flow.summariser_usage else [])
+
+            # Sum up usage statistics
+            total_usage = {
+                'total_tokens': 0,
+                'prompt_tokens': 0, 
+                'cached_prompt_tokens': 0,
+                'completion_tokens': 0,
+                'successful_requests': 0
+            }
+            
+            for usage in usage_stats:
+                for key in total_usage:
+                    total_usage[key] += usage.get(key, 0)
+
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Successfully generated educational content"
@@ -76,6 +91,7 @@ class EducationalContentAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=sections_with_content,
                 message=message.parameters.model_dump_json(),
+                metadata=total_usage
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,

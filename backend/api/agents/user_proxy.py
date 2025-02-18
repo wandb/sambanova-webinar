@@ -66,9 +66,10 @@ class UserProxyAgent(RoutedAgent):
                 processing_time = None
 
             message_data = message.model_dump()
-            message_data["metadata"] = {
-                "duration": processing_time
-            }
+            # Initialize metadata if None or add duration to existing metadata
+            if message_data.get("metadata") is None:
+                message_data["metadata"] = {}
+            message_data["metadata"]["duration"] = processing_time
 
             if self.websocket:
                 message_data = {

@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from typing_extensions import Annotated
 from dataclasses import dataclass
 
+
 DEFAULT_REPORT_STRUCTURE = """The report structure should focus on breaking-down the user-provided topic:
 
 1. Introduction (no research needed)

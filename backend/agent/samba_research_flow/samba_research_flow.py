@@ -70,6 +70,10 @@ class SambaResearchFlow(Flow):
             verbose=verbose
         ).crew()
         self.docs_included = docs_included
+        self.summariser_usage = None
+        self.research_usage = None
+        self.content_usage = None
+
 
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:
         """
@@ -81,7 +85,7 @@ class SambaResearchFlow(Flow):
         # Create tasks for parallel execution
         research_task = asyncio.create_task(
             asyncio.to_thread(
-                lambda: self.research_crew.kickoff(self.input_variables).pydantic
+                lambda: self.research_crew.kickoff(self.input_variables)
             )
         )
         
@@ -89,17 +93,22 @@ class SambaResearchFlow(Flow):
         if self.docs_included:
             summary_task = asyncio.create_task(
                 asyncio.to_thread(
-                    lambda: self.summariser.kickoff(self.input_variables).raw
+                    lambda: self.summariser.kickoff(self.input_variables)
                 )
             )
         
         # Wait for research task and optionally summary task
         research_result = await research_task
+        self.research_usage = dict(research_result.token_usage)
         summary_result = None
         if summary_task:
             summary_result = await summary_task
+            self.summariser_usage = dict(summary_result.token_usage)
+            summary_result = summary_result.raw
+        else:
+            self.summariser_usage = None
             
-        return research_result, summary_result
+        return research_result.pydantic, summary_result
 
     @start()
     async def generate_reseached_content(self) -> Tuple[EducationalPlan, Any]:
@@ -124,6 +133,7 @@ class SambaResearchFlow(Flow):
         """
         plan, summaries = results
         sections_with_content = []
+        self.content_usage = []
 
         for section in plan.sections:
             # Create section dict with all original fields
@@ -139,7 +149,10 @@ class SambaResearchFlow(Flow):
                 writer_inputs['docs'] = "None"
 
             # Add generated content to the section dict
-            section_dict['generated_content'] = self.content_crew.kickoff(writer_inputs).raw
+
+            content_result = self.content_crew.kickoff(writer_inputs)
+            self.content_usage.append(dict(content_result.token_usage))
+            section_dict['generated_content'] = content_result.raw
 
             sections_with_content.append(section_dict)
 

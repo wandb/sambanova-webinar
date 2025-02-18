@@ -1,7 +1,7 @@
-########## NEW CODE ##########
+########## data_types.py (FULL, UNCHANGED EXCEPT NEW FIELDS) ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
-from typing import List, Optional, Union, Dict
+from typing import Any, List, Optional, Union, Dict
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import Section
@@ -73,7 +73,6 @@ class EducationalContent(BaseModel):
     audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
     focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
 
-    # Convert list to string for backwards compatibility
     @model_validator(mode="before")
     def convert_focus_areas_list(cls, data):
         if isinstance(data, dict) and "focus_areas" in data:
@@ -119,14 +118,13 @@ class ExtendedSection(Section):
     generated_content: str
 
 class EducationalPlanResult(BaseModel):
-    """
-    Represents the complete educational content plan (the older approach).
-    """
     sections: List[ExtendedSection] = []
 
-#
-# NEW DEEP-RESEARCH STRUCTURES
-#
+# A single citation data structure
+class DeepCitation(BaseModel):
+    title: str = Field(default="", description="The descriptive title")
+    url: str = Field(default="", description="The link URL")
+
 class DeepResearchSection(BaseModel):
     name: str
     description: str
@@ -135,13 +133,13 @@ class DeepResearchSection(BaseModel):
 
 class DeepResearchReport(BaseModel):
     """
-    A structured object that collects the final multi-section
-    deep research report, plus the raw final text if needed.
+    A structured object that collects the final multi-section deep research report,
+    plus the raw final text if needed, plus a list of all citations.
     """
     sections: List[DeepResearchSection]
-    final_report: str  # The entire compiled text in one string
+    final_report: str
+    citations: List[DeepCitation] = Field(default_factory=list)
 
-# We now allow AgentStructuredResponse to return DeepResearchReport
 class AgentStructuredResponse(BaseModel):
     agent_type: AgentEnum
     data: Union[
@@ -151,6 +149,7 @@ class AgentStructuredResponse(BaseModel):
         Greeter,
         AssistantResponse,
         UserQuestion,
-        DeepResearchReport,  # ADDED
+        DeepResearchReport,
     ]
+    metadata: Optional[Dict[str, Any]] = None
     message: Optional[str] = None  # Additional message or notes from the agent

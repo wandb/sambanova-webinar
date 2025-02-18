@@ -39,7 +39,7 @@ class SalesLeadsAgent(RoutedAgent):
                 f"Starting lead research with parameters: {parameters_dict}"
             ))
 
-            raw_result = await asyncio.to_thread(crew.execute_research, parameters_dict)
+            raw_result, usage_stats = await asyncio.to_thread(crew.execute_research, parameters_dict)
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Successfully generated sales leads"
@@ -59,6 +59,7 @@ class SalesLeadsAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=outreach_list,
                 message=message.parameters.model_dump_json(),
+                metadata=usage_stats
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,

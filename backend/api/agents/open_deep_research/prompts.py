@@ -40,9 +40,10 @@ Generate a plan (outline) for the report, containing multiple sections that coll
 Ensure that:
 - The structure covers every facet of the topic, from foundational knowledge to advanced or emerging ideas.
 - Sections are logically organized so that the final report flows cohesively.
-- Introductory and concluding sections synthesize information from other parts of the report (they typically do not require direct research, but must be thorough and well-integrated).
+- Introductory and concluding sections synthesize information from other parts of the report (they typically do still require direct research, and must be thorough and well-integrated).
 
 Remember, each section will be at least 5–6 pages, so plan for enough distinct subsections to address all relevant aspects of the topic in depth.
+You should aim to have at least 7-8 sections. Your are building a comprehensive report, not a shallow one, at a PhD level.
 </Task>
 
 <Topic>

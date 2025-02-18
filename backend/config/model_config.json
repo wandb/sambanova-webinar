@@ -1,0 +1,20 @@
+{
+    "providers": {
+        "sambanova": {
+            "model_mapping": {
+                "llama-3.1-70b": "Meta-Llama-3.1-70B-Instruct",
+                "llama-3.3-70b": "Meta-Llama-3.3-70B-Instruct"
+            },
+            "api_key_env": "SAMBANOVA_API_KEY",
+            "url": "https://cloud.sambanova.ai/api/v1"
+        },
+        "fireworks": {
+            "model_mapping": {
+                "llama-3.1-70b": "accounts/fireworks/models/llama-v3p1-70b-instruct",
+                "llama-3.3-70b": "accounts/fireworks/models/llama-v3p3-70b-instruct"
+            },
+            "api_key_env": "FIREWORKS_API_KEY",
+            "url": "https://api.fireworks.ai/inference/v1/chat/completions"
+        }
+    }
+} 

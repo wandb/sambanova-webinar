@@ -12,6 +12,7 @@ from autogen_core import (
     type_subscription,
 )
 
+from fastapi import WebSocket
 from langgraph.types import Command
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -20,9 +21,7 @@ from api.data_types import (
     AgentStructuredResponse,
     APIKeys,
     AgentEnum,
-    EducationalContent,
     UserQuestion,
-    EndUserMessage,
     DeepResearchReport,
 )
 from utils.logging import logger
@@ -36,9 +35,10 @@ class DeepResearchAgent(RoutedAgent):
     Handles advanced multi-section research with user feedback (interrupt).
     """
 
-    def __init__(self, api_keys: APIKeys):
+    def __init__(self, api_keys: APIKeys, websocket: WebSocket):
         super().__init__("DeepResearchAgent")
         self.api_keys = api_keys
+        self.websocket = websocket
         logger.info(
             logger.format_message(
                 None, f"Initializing DeepResearchAgent with ID: {self.id}"

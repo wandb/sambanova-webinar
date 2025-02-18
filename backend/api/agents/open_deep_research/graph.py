@@ -37,11 +37,10 @@ import re
 
 from api.data_types import DeepResearchReport, DeepResearchSection
 
-os.environ["SAMBANOVA_API_KEY"] = "your_key_here"
+writer_model_func = lambda api_key: ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
 
-writer_model = ChatSambaNovaCloud(
-    model=Configuration.writer_model, temperature=0, max_tokens=8192
-)
+writer_model = writer_model_func("a8b6c87f-d356-4c4c-accc-ff7f8432b74c")
+
 
 ###############################################################################
 # 1) A new helper function to parse out raw URLs, remove them from text, and

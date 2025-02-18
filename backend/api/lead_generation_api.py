@@ -955,5 +955,14 @@ def create_app():
     return api.app
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--provider", type=str, choices=["sambanova", "fireworks"],
+                      help="LLM provider to use (sambanova or fireworks)")
+    args = parser.parse_args()
+    
+    if args.provider:
+        os.environ["LLM_PROVIDER"] = args.provider
+    
     app = create_app()
     uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -20,9 +20,11 @@ DEFAULT_REPORT_STRUCTURE = """The report structure should focus on breaking-down
     - Aim for 1 structural element (either a list or table) that distills the main body sections
     - Provide a concise summary of the report"""
 
+
 class SearchAPI(Enum):
     PERPLEXITY = "perplexity"
     TAVILY = "tavily"
+
 
 class PlannerProvider(Enum):
     OPENAI = "openai"

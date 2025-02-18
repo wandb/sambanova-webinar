@@ -69,7 +69,7 @@ class DeepResearch(BaseModel):
     topic: str = Field(default="", description="The topic of the research")
 
 class EducationalContent(BaseModel):
-    topic: str = Field(default="", description="The topic of the research")
+    topic: str = Field(default="", description="The topic of the research, use a single word")
     audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
     focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
 

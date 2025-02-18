@@ -103,7 +103,8 @@ class WebSocketConnectionManager:
                 return
 
             api_keys = APIKeys(
-                sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                SAMBANOVA_API_KEY=redis_api_keys.get("sambanova_key", ""),
+                FIREWORKS_API_KEY=redis_api_keys.get("fireworks_key", ""),
                 serper_key=redis_api_keys.get("serper_key", ""),
                 exa_key=redis_api_keys.get("exa_key", "")
             )

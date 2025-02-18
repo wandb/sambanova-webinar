@@ -12,6 +12,7 @@ from autogen_core import (
 
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
+from config.model_registry import model_registry
 
 from ..data_types import (
     AgentRequest,
@@ -38,7 +39,7 @@ class EducationalContentAgent(RoutedAgent):
             ))
             
             edu_flow = SambaResearchFlow(
-                    sambanova_key=self.api_keys.sambanova_key,
+                    llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
                     serper_key=self.api_keys.serper_key,
                     user_id=user_id,
                     run_id=conversation_id,

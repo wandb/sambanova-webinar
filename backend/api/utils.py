@@ -94,7 +94,7 @@ async def initialize_agent_runtime(
     await DeepResearchAgent.register(
         agent_runtime,
         "deep_research",
-        lambda: DeepResearchAgent(api_keys=api_keys),
+        lambda: DeepResearchAgent(api_keys=api_keys, websocket=websocket),
     )
 
     # Register the UserProxyAgent instance with the AgentRuntime

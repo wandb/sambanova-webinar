@@ -4,6 +4,7 @@ from autogen_core import DefaultTopicId, RoutedAgent, message_handler, type_subs
 from autogen_core import MessageContext
 from api.data_types import AgentRequest, AgentStructuredResponse, SalesLeads, APIKeys
 from agent.lead_generation_crew import OutreachList, ResearchCrew
+from config.model_registry import model_registry
 from services.user_prompt_extractor_service import UserPromptExtractor
 from utils.logging import logger
 
@@ -27,7 +28,7 @@ class SalesLeadsAgent(RoutedAgent):
             ))
             
             crew = ResearchCrew(
-                sambanova_key=self.api_keys.sambanova_key,
+                llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
                 exa_key=self.api_keys.exa_key,
                 user_id=user_id,
                 run_id=conversation_id,

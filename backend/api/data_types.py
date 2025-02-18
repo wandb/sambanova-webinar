@@ -49,7 +49,8 @@ class HandoffMessage(BaseAgentMessage):
     content: str
 
 class APIKeys(BaseModel):
-    sambanova_key: str
+    SAMBANOVA_API_KEY: str
+    FIREWORKS_API_KEY: str
     serper_key: str
     exa_key: str
 
@@ -69,7 +70,7 @@ class DeepResearch(BaseModel):
     topic: str = Field(default="", description="The topic of the research")
 
 class EducationalContent(BaseModel):
-    topic: str = Field(default="", description="The topic of the research")
+    topic: str = Field(default="", description="The topic of the research, use a single word")
     audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
     focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
 

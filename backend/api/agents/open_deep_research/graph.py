@@ -1,4 +1,5 @@
 ########## graph.py (UPDATED CODE) ##########
+import functools
 from typing import Literal, List
 import os
 import re
@@ -6,12 +7,14 @@ import re
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
 from langchain_sambanova import ChatSambaNovaCloud
+from langchain_fireworks import ChatFireworks
 
 from langgraph.constants import Send
 from langgraph.graph import START, END, StateGraph
 from langgraph.types import interrupt, Command
+
+from config.model_registry import model_registry
 
 from .state import (
     ReportStateInput,
@@ -41,11 +44,7 @@ from api.data_types import (
     DeepCitation
 )
 
-os.environ["SAMBANOVA_API_KEY"] = "YOUR_API_KEY"
 
-writer_model = ChatSambaNovaCloud(
-    model=Configuration.writer_model, temperature=0, max_tokens=8192
-)
 
 ###############################################################################
 # 1) Utility: parse a reference line from the sources block
@@ -145,7 +144,7 @@ def remove_inline_citation_lines(text: str) -> (str, List[DeepCitation]):
 # The normal nodes
 ###############################################################################
 
-async def generate_report_plan(state: ReportState, config: RunnableConfig):
+async def generate_report_plan(writer_model, planner_model, state: ReportState, config: RunnableConfig):
     topic = state["topic"]
     feedback = state.get("feedback_on_report_plan", None)
 
@@ -191,22 +190,7 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
         feedback=feedback
     )
 
-    if isinstance(configurable.planner_provider, str):
-        planner_provider = configurable.planner_provider
-    else:
-        planner_provider = configurable.planner_provider.value
-
-    if planner_provider == "openai":
-        planner_llm = ChatOpenAI(model=configurable.planner_model)
-    elif planner_provider == "groq":
-        # hypothetical
-        planner_llm = ChatOpenAI(model="gpt-3.5-turbo")
-    elif planner_provider == "sambanova":
-        planner_llm = ChatSambaNovaCloud(model=configurable.planner_model, temperature=0, max_tokens=8192)
-    else:
-        raise ValueError(f"Unsupported search API: {configurable.search_api}")
-
-    structured_llm = planner_llm.with_structured_output(Sections)
+    structured_llm = planner_model.with_structured_output(Sections)
     report_sections = structured_llm.invoke([
         SystemMessage(content=system_instructions_sections),
         HumanMessage(content="Generate the sections of the report. Your response must include a 'sections' field containing a list of sections. Each section must have: name, description, plan, research, and content fields.")
@@ -236,7 +220,7 @@ def human_feedback(state: ReportState, config: RunnableConfig):
     else:
         raise ValueError("interrupt unknown")
 
-def generate_queries(state: SectionState, config: RunnableConfig):
+def generate_queries(writer_model, state: SectionState, config: RunnableConfig):
     sec = state["section"]
     configurable = Configuration.from_runnable_config(config)
     structured_llm = writer_model.with_structured_output(Queries)
@@ -274,7 +258,7 @@ async def search_web(state: SectionState, config: RunnableConfig):
         "search_iterations": state["search_iterations"] + 1
     }
 
-def write_section(state: SectionState, config: RunnableConfig) -> Command[Literal[END,"search_web"]]:
+def write_section(writer_model, state: SectionState, config: RunnableConfig) -> Command[Literal[END,"search_web"]]:
     sec = state["section"]
     src = state["source_str"]
     sys_inst = section_writer_instructions.format(
@@ -308,7 +292,7 @@ def write_section(state: SectionState, config: RunnableConfig) -> Command[Litera
             goto="search_web"
         )
 
-def write_final_sections(state: SectionState):
+def write_final_sections(writer_model, state: SectionState):
     sec = state["section"]
     rep = state["report_sections_from_research"]
     sys_inst = final_section_writer_instructions.format(
@@ -389,29 +373,40 @@ def compile_final_report(state: ReportState):
     )
     return {"final_report": final_text, "deep_research_report": report}
 
-# Build subgraph
-section_builder = StateGraph(SectionState, output=SectionOutputState)
-section_builder.add_node("generate_queries", generate_queries)
-section_builder.add_node("search_web", search_web)
-section_builder.add_node("write_section", write_section)
 
-section_builder.add_edge(START, "generate_queries")
-section_builder.add_edge("generate_queries", "search_web")
-section_builder.add_edge("search_web", "write_section")
+def get_graph(api_key: str):
 
-builder = StateGraph(ReportState, input=ReportStateInput, output=ReportStateOutput, config_schema=Configuration)
-builder.add_node("generate_report_plan", generate_report_plan)
-builder.add_node("human_feedback", human_feedback)
-builder.add_node("build_section_with_web_research", section_builder.compile())
-builder.add_node("gather_completed_sections", gather_completed_sections)
-builder.add_node("write_final_sections", write_final_sections)
-builder.add_node("compile_final_report", compile_final_report)
+    if model_registry.get_current_provider() == "fireworks":    
+        writer_model = ChatFireworks(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
+        planner_model = ChatFireworks(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
+        
+    else:
+        writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
+        planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
 
-builder.add_edge(START, "generate_report_plan")
-builder.add_edge("generate_report_plan", "human_feedback")
-builder.add_edge("build_section_with_web_research", "gather_completed_sections")
-builder.add_conditional_edges("gather_completed_sections", initiate_final_section_writing, ["write_final_sections"])
-builder.add_edge("write_final_sections", "compile_final_report")
-builder.add_edge("compile_final_report", END)
+    # Build subgraph
+    section_builder = StateGraph(SectionState, output=SectionOutputState)
+    section_builder.add_node("generate_queries", functools.partial(generate_queries, writer_model))
+    section_builder.add_node("search_web", search_web)
+    section_builder.add_node("write_section", functools.partial(write_section, writer_model))
 
-graph = builder.compile(checkpointer=MemorySaver())
+    section_builder.add_edge(START, "generate_queries")
+    section_builder.add_edge("generate_queries", "search_web")
+    section_builder.add_edge("search_web", "write_section")
+
+    builder = StateGraph(ReportState, input=ReportStateInput, output=ReportStateOutput, config_schema=Configuration)
+    builder.add_node("generate_report_plan", functools.partial(generate_report_plan, writer_model, planner_model))
+    builder.add_node("human_feedback", human_feedback)
+    builder.add_node("build_section_with_web_research", section_builder.compile())
+    builder.add_node("gather_completed_sections", gather_completed_sections)
+    builder.add_node("write_final_sections", functools.partial(write_final_sections, writer_model))
+    builder.add_node("compile_final_report", compile_final_report)
+
+    builder.add_edge(START, "generate_report_plan")
+    builder.add_edge("generate_report_plan", "human_feedback")
+    builder.add_edge("build_section_with_web_research", "gather_completed_sections")
+    builder.add_conditional_edges("gather_completed_sections", initiate_final_section_writing, ["write_final_sections"])
+    builder.add_edge("write_final_sections", "compile_final_report")
+    builder.add_edge("compile_final_report", END)
+
+    return builder

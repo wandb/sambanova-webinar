@@ -6,6 +6,7 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
 from pydantic import BaseModel
+from config.model_registry import model_registry
 from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
@@ -26,14 +27,14 @@ class EduDocSummariserCrew:
     agents: List[Any]  # Type hint for the agents list
     tasks: List[Any]  # Type hint for the tasks list
     llm: LLM
-    sambanova_key: str
+    llm_api_key: str
     serper_key: str
     user_id: str
     run_id: str
 
     def __init__(
         self,
-        sambanova_key: str = None,
+        llm_api_key: str = None,
         user_id: str = None,
         run_id: str = None,
         verbose: bool = True,
@@ -44,12 +45,13 @@ class EduDocSummariserCrew:
         self.tasks_config = {}
         self.agents = []
         self.tasks = []
-        self.sambanova_key = sambanova_key
+        self.llm_api_key = llm_api_key
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.01,
             max_tokens=4096,
-            api_key=self.sambanova_key,
+            api_key=self.llm_api_key,
         )
         self.user_id = user_id
         self.run_id = run_id

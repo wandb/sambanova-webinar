@@ -260,7 +260,7 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Exa API key for sales leads"}
                         )
                     crew = ResearchCrew(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         exa_key=exa_key,
                         user_id=user_id,
                         run_id=run_id
@@ -277,7 +277,7 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Serper API key for educational content"}
                         )
                     edu_flow = SambaResearchFlow(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
@@ -308,7 +308,7 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Exa or Serper API keys for financial analysis"}
                         )
                     crew = FinancialAnalysisCrew(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         exa_key=exa_key,
                         serper_key=serper_key,
                         user_id=user_id,
@@ -913,7 +913,7 @@ class LeadGenerationAPI:
                 )
 
     async def execute_research(self, crew, parameters: Dict[str, Any]):
-        extractor = UserPromptExtractor(crew.sambanova_key)
+        extractor = UserPromptExtractor(crew.llm.api_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
             parameters.get("company_stage", ""),
@@ -929,7 +929,7 @@ class LeadGenerationAPI:
         return result
 
     async def execute_financial(self, crew, parameters: Dict[str,Any]):
-        fextractor = FinancialPromptExtractor(crew.sambanova_key)
+        fextractor = FinancialPromptExtractor(crew.llm.api_key)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 

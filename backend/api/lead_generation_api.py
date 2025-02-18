@@ -862,7 +862,8 @@ class LeadGenerationAPI:
                     mapping={
                         "sambanova_key": keys.sambanova_key,
                         "serper_key": keys.serper_key,
-                        "exa_key": keys.exa_key
+                        "exa_key": keys.exa_key,
+                        "fireworks_key": keys.fireworks_key
                     }
                 )
                 

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -39,7 +39,7 @@ class FinancialAnalysisAgent(RoutedAgent):
 
     async def execute_financial(
         self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any]
-    ):
+    ) -> Tuple[str, Dict[str,Any]]:
         logger.info(logger.format_message(None, f"Extracting financial information from query: '{parameters.get('query_text', '')[:100]}...'"))
         fextractor = FinancialPromptExtractor(self.api_keys.sambanova_key)
         query_text = parameters.get("query_text", "")
@@ -63,8 +63,8 @@ class FinancialAnalysisAgent(RoutedAgent):
             logger.info(logger.format_message(None, "Including additional document analysis in financial analysis"))
 
         # Run the synchronous function in a thread pool
-        raw_result = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
-        return raw_result
+        raw_result, usage_stats = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
+        return raw_result, usage_stats
 
     @message_handler
     async def handle_financial_analysis_request(self, message: AgentRequest, ctx: MessageContext) -> None:
@@ -87,7 +87,7 @@ class FinancialAnalysisAgent(RoutedAgent):
             )
 
             # Execute analysis
-            raw_result = await self.execute_financial(
+            raw_result, usage_stats = await self.execute_financial(
                 crew, message.parameters.model_dump()
             )
 
@@ -112,6 +112,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=financial_analysis_result,
                 message=message.parameters.model_dump_json(),
+                metadata=usage_stats
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,

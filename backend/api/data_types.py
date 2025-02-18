@@ -1,7 +1,7 @@
 ########## data_types.py (FULL, UNCHANGED EXCEPT NEW FIELDS) ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
-from typing import List, Optional, Union, Dict
+from typing import Any, List, Optional, Union, Dict
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
 from agent.samba_research_flow.crews.edu_research.edu_research_crew import Section
@@ -151,4 +151,5 @@ class AgentStructuredResponse(BaseModel):
         UserQuestion,
         DeepResearchReport,
     ]
+    metadata: Optional[Dict[str, Any]] = None
     message: Optional[str] = None  # Additional message or notes from the agent

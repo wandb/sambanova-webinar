@@ -19,7 +19,7 @@ langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool
 from tools.market_research_tool import MarketResearchTool
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel
 from utils.agent_thought import RedisConversationLogger
 
@@ -300,7 +300,7 @@ class ResearchCrew:
             output_pydantic=OutreachList
         )
 
-    def execute_research(self, inputs: dict) -> str:
+    def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
         """
@@ -323,7 +323,7 @@ class ResearchCrew:
             memory=False
         )
         results = crew.kickoff(inputs=inputs)
-        return results.pydantic.model_dump_json()
+        return results.pydantic.model_dump_json(), dict(results.token_usage)
 
 
 def main():
@@ -350,7 +350,7 @@ def main():
         "product": ""
     }
 
-    final_output = crew.execute_research(example_inputs)
+    final_output, _ = crew.execute_research(example_inputs)
     print("Crew Output:")
     print(final_output)
 

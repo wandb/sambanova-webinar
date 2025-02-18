@@ -69,7 +69,7 @@ class SemanticRouterAgent(RoutedAgent):
             raise Exception("Unknown LLM provider")
 
         self._reasoning_model_client = OpenAIChatCompletionClient(
-            model="Meta-Llama-3.1-70B-Instruct",
+            model="DeepSeek-R1-Distill-Llama-70B",
             base_url=base_url,
             api_key=api_keys.sambanova_key,
             model_info={

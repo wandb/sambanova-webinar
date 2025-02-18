@@ -1,7 +1,6 @@
 ########## graph.py (UPDATED CODE) ##########
 from typing import Literal, List
 import os
-import sys
 import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -39,114 +38,114 @@ from .utils import tavily_search_async, deduplicate_and_format_sources, format_s
 from api.data_types import (
     DeepResearchReport,
     DeepResearchSection,
-    # We add a new specialized class for references
     DeepCitation
 )
 
 os.environ["SAMBANOVA_API_KEY"] = "YOUR_API_KEY"
 
-# This is the writer model used throughout
 writer_model = ChatSambaNovaCloud(
     model=Configuration.writer_model, temperature=0, max_tokens=8192
 )
 
 ###############################################################################
-# Helper function to parse references from "### Sources" or "## Sources" or "Sources:"
-# block lines and store them as {section:..., url:..., desc:...}.
+# 1) Utility: parse a reference line from the sources block
 ###############################################################################
-def parse_reference_line(section_name: str, line: str) -> DeepCitation:
+def parse_reference_line(line: str) -> DeepCitation:
     """
-    Given a reference line like "* Title: https://some_url"
-    or "- Something: https://..."
-    Parse into a DeepCitation object with title and url.
+    If the line has an http/https link, store that as url, everything before is "title".
+    If no URL found, return a citation with empty url => skip it upstream.
     """
-    # remove leading bullet chars
+    # remove bullet chars
     line = line.lstrip("*-0123456789. ").strip()
-    
-    # find the last occurrence of 'http'
+    # find a link
     match = re.search(r'(https?://[^\s]+)', line)
     if not match:
-        # no url found, treat entire line as title
-        return DeepCitation(title=line, url="")
-        
+        # no link => skip
+        return DeepCitation(title="", url="")  # no URL
     url = match.group(1)
-    # everything before the URL becomes the title
-    title = line[:line.find(url)].strip().rstrip(':').strip()
-    
-    # If title ends with ": (Section: )", remove that part
-    title = re.sub(r'\s*\(Section:\s*\)\s*$', '', title)
-    
+    # everything prior to the url is the title
+    idx = line.find(url)
+    title = line[:idx].strip(" :")
     return DeepCitation(title=title, url=url)
 
-def extract_sources_block(section_name: str, text: str) -> (str, List[DeepCitation]):
+def extract_sources_block(section_text: str) -> (str, List[DeepCitation]):
     """
-    Extract citations from the sources block and clean up the text.
-    Only extracts citations from a dedicated sources section.
+    If there's a block after ### Sources or ## Sources or 'Sources:' 
+    parse them line by line. 
+    Remove that block from the text. Return cleaned text + references array.
     """
-    lines = text.split("\n")
+    lines = section_text.split("\n")
     cleaned_lines = []
-    references: List[DeepCitation] = []
-    
-    in_block = False
-    
+    citations: List[DeepCitation] = []
+
+    in_sources = False
+
     i = 0
     while i < len(lines):
-        line = lines[i].strip()
-        
-        # Only detect start of references if it's a dedicated sources section
-        if not in_block and (
-            line.lower() == "### sources" or 
-            line.lower() == "## sources" or
-            line.lower() == "sources:"
-        ):
-            in_block = True
+        line = lines[i].rstrip()
+        lower_line = line.lower().strip()
+        # detect the start
+        if not in_sources and (lower_line == "### sources" or lower_line == "## sources" or lower_line == "sources:"):
+            # from next line onward => references
+            in_sources = True
             i += 1
             continue
-            
-        if in_block:
-            if not line or line.startswith('#'):  # empty line or new section ends block
-                in_block = False
+
+        if in_sources:
+            # if blank or new heading => end
+            if not line.strip() or re.match(r'#+\s', line):
+                # end
+                in_sources = False
+                # do not add line to cleaned
                 i += 1
                 continue
-                
-            ref = parse_reference_line(section_name, line)
-            if ref.url:  # only add if we found a URL
-                references.append(ref)
+            # parse the line
+            ref = parse_reference_line(line)
+            # if no url => skip
+            if ref.url:
+                citations.append(ref)
         else:
-            # Keep non-reference lines
-            cleaned_lines.append(lines[i])
+            cleaned_lines.append(line)
         i += 1
-    
-    return '\n'.join(cleaned_lines).strip(), references
 
-def remove_inline_urls(content: str) -> (str, List[DeepCitation]):
-    """
-    Remove inline URLs, but only if they follow specific citation patterns.
-    """
-    citations: List[DeepCitation] = []
-    lines = content.split("\n")
-    new_lines = []
-    
-    for line in lines:
-        # Only match lines that are clearly citations with specific patterns
-        citation_pattern = r'^([^:]+):\s*(https?://[^\s]+)$'
-        match = re.match(citation_pattern, line.strip())
-        
-        if match:
-            title = match.group(1).strip()
-            url = match.group(2).strip()
-            citations.append(DeepCitation(title=title, url=url))
-        else:
-            new_lines.append(line)
-            
-    return '\n'.join(new_lines).strip(), citations
+    new_text = "\n".join(cleaned_lines).strip()
+    return new_text, citations
 
 ###############################################################################
-# The normal flow
+# 2) Optional remove inline references with a pattern
+###############################################################################
+def remove_inline_citation_lines(text: str) -> (str, List[DeepCitation]):
+    """
+    If you want to forcibly remove lines that look like a bullet with 'http' 
+    but are not in the sources block, you can parse them here.
+    We'll only remove lines that start with "* " or "- " or some bullet + a link.
+    """
+    lines = text.split("\n")
+    new_lines = []
+    found: List[DeepCitation] = []
+
+    for line in lines:
+        trimmed = line.strip()
+        # check if it starts with bullet
+        if re.match(r'^(\*|-)\s+', trimmed):
+            # check for a url
+            match = re.search(r'(https?://[^\s]+)', trimmed)
+            if match:
+                # parse
+                ref = parse_reference_line(trimmed)
+                if ref.url:  # store
+                    found.append(ref)
+                # skip line
+                continue
+        # else keep
+        new_lines.append(line)
+    return "\n".join(new_lines), found
+
+###############################################################################
+# The normal nodes
 ###############################################################################
 
 async def generate_report_plan(state: ReportState, config: RunnableConfig):
-    """Generate the report plan."""
     topic = state["topic"]
     feedback = state.get("feedback_on_report_plan", None)
 
@@ -178,7 +177,7 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
 
     if search_api == "tavily":
         search_results = await tavily_search_async(query_list)
-        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1000, include_raw_content=False)
+        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1500, include_raw_content=False)
     elif search_api == "perplexity":
         search_results = perplexity_search(query_list)
         source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1000, include_raw_content=False)
@@ -200,7 +199,8 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     if planner_provider == "openai":
         planner_llm = ChatOpenAI(model=configurable.planner_model)
     elif planner_provider == "groq":
-        planner_llm = ChatOpenAI(model="gpt-3.5-turbo")  # example
+        # hypothetical
+        planner_llm = ChatOpenAI(model="gpt-3.5-turbo")
     elif planner_provider == "sambanova":
         planner_llm = ChatSambaNovaCloud(model=configurable.planner_model, temperature=0, max_tokens=8192)
     else:
@@ -215,53 +215,45 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     sections = report_sections.sections
     return {"sections": sections}
 
-
-def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Literal["generate_report_plan","build_section_with_web_research"]]:
-    """ Get feedback on the report plan """
+def human_feedback(state: ReportState, config: RunnableConfig):
     sections = state["sections"]
-    sections_str = "\n\n".join(
-        f"Section: {section.name}\nDescription: {section.description}\nResearch needed: {'Yes' if section.research else 'No'}\n"
-        for section in sections
+    sec_str = "\n\n".join(
+        f"Section: {s.name}\nDescription: {s.description}\nResearch: {s.research}\n"
+        for s in sections
     )
-
-    feedback = interrupt(
-        f"Please provide feedback on the following report plan. \n\n{sections_str}\n\n"
-        "Does the report plan meet your needs? Pass 'true' to approve the report plan or provide feedback to regenerate the report plan:"
+    fb = interrupt(
+        f"Please provide feedback on the following plan:\n\n{sec_str}\n\n"
+        "type 'true' to accept, or text to revise."
     )
-
-    if isinstance(feedback, bool):
+    if isinstance(fb, bool):
         return Command(goto=[
             Send("build_section_with_web_research", {"section": s, "search_iterations": 0})
             for s in sections
             if s.research
         ])
-    elif isinstance(feedback, str):
-        return Command(goto="generate_report_plan", update={"feedback_on_report_plan": feedback})
+    elif isinstance(fb, str):
+        return Command(goto="generate_report_plan", update={"feedback_on_report_plan": fb})
     else:
-        raise TypeError(f"Interrupt value of type {type(feedback)} is not supported.")
-
+        raise ValueError("interrupt unknown")
 
 def generate_queries(state: SectionState, config: RunnableConfig):
-    section = state["section"]
+    sec = state["section"]
     configurable = Configuration.from_runnable_config(config)
-    number_of_queries = configurable.number_of_queries
-
     structured_llm = writer_model.with_structured_output(Queries)
-    system_instructions = query_writer_instructions.format(
-        section_topic=section.description,
-        number_of_queries=number_of_queries
+    sys_inst = query_writer_instructions.format(
+        section_topic=sec.description,
+        number_of_queries=configurable.number_of_queries
     )
     queries = structured_llm.invoke([
-        SystemMessage(content=system_instructions),
-        HumanMessage(content="Generate search queries on the provided topic.")
+        SystemMessage(content=sys_inst),
+        HumanMessage(content="Generate search queries.")
     ])
     return {"search_queries": queries.queries}
 
-
 async def search_web(state: SectionState, config: RunnableConfig):
-    search_queries = state["search_queries"]
+    sq = state["search_queries"]
     configurable = Configuration.from_runnable_config(config)
-    query_list = [q.search_query for q in search_queries]
+    query_list = [q.search_query for q in sq]
 
     if isinstance(configurable.search_api, str):
         search_api = configurable.search_api
@@ -269,163 +261,133 @@ async def search_web(state: SectionState, config: RunnableConfig):
         search_api = configurable.search_api.value
 
     if search_api == "tavily":
-        search_results = await tavily_search_async(query_list)
-        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=5000, include_raw_content=True)
+        sr = await tavily_search_async(query_list)
+        src_str = deduplicate_and_format_sources(sr, max_tokens_per_source=5000, include_raw_content=True)
     elif search_api == "perplexity":
-        search_results = perplexity_search(query_list)
-        source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=5000, include_raw_content=False)
+        sr = perplexity_search(query_list)
+        src_str = deduplicate_and_format_sources(sr, max_tokens_per_source=5000, include_raw_content=False)
     else:
-        raise ValueError(f"Unsupported search API: {configurable.search_api}")
+        src_str = "No search"
 
-    return {"source_str": source_str, "search_iterations": state["search_iterations"] + 1}
-
+    return {
+        "source_str": src_str,
+        "search_iterations": state["search_iterations"] + 1
+    }
 
 def write_section(state: SectionState, config: RunnableConfig) -> Command[Literal[END,"search_web"]]:
-    """ Write a section of the report with possible follow-up queries if failing. """
-    section = state["section"]
-    source_str = state["source_str"]
-    configurable = Configuration.from_runnable_config(config)
-
-    system_instructions = section_writer_instructions.format(
-        section_title=section.name,
-        section_topic=section.description,
-        context=source_str,
-        section_content=section.content
+    sec = state["section"]
+    src = state["source_str"]
+    sys_inst = section_writer_instructions.format(
+        section_title=sec.name,
+        section_topic=sec.description,
+        context=src,
+        section_content=sec.content
     )
-
-    section_content = writer_model.invoke([
-        SystemMessage(content=system_instructions),
-        HumanMessage(content="Generate a report section based on the provided sources.")
+    content = writer_model.invoke([
+        SystemMessage(content=sys_inst),
+        HumanMessage(content="Write the section.")
     ])
-    section.content = section_content.content
+    sec.content = content.content
 
-    # Grade
-    section_grader_instructions_formatted = section_grader_instructions.format(
-        section_topic=section.description,
-        section=section.content
+    # now we grade
+    grader_inst = section_grader_instructions.format(
+        section_topic=sec.description,
+        section=sec.content
     )
     structured_llm = writer_model.with_structured_output(Feedback)
-    feedback = structured_llm.invoke([
-        SystemMessage(content=section_grader_instructions_formatted),
-        HumanMessage(content="Grade the report and consider follow-up questions for missing information:")
+    fb = structured_llm.invoke([
+        SystemMessage(content=grader_inst),
+        HumanMessage(content="Grade it")
     ])
 
-    if feedback.grade == "pass" or state["search_iterations"] >= configurable.max_search_depth:
-        # Publish the section
-        return Command(update={"completed_sections": [section]}, goto=END)
+    if fb.grade == "pass" or state["search_iterations"] >= Configuration.from_runnable_config(config).max_search_depth:
+        return Command(update={"completed_sections": [sec]}, goto=END)
     else:
         return Command(
-            update={"search_queries": feedback.follow_up_queries, "section": section},
+            update={"search_queries": fb.follow_up_queries, "section": sec},
             goto="search_web"
         )
 
-
 def write_final_sections(state: SectionState):
-    """ Write final sections of the report with no research needed. """
-    section = state["section"]
-    completed_report_sections = state["report_sections_from_research"]
-
-    system_instructions = final_section_writer_instructions.format(
-        section_title=section.name,
-        section_topic=section.description,
-        context=completed_report_sections
+    sec = state["section"]
+    rep = state["report_sections_from_research"]
+    sys_inst = final_section_writer_instructions.format(
+        section_title=sec.name,
+        section_topic=sec.description,
+        context=rep
     )
-
-    section_content = writer_model.invoke([
-        SystemMessage(content=system_instructions),
-        HumanMessage(content="Generate a report section based on the provided sources.")
+    content = writer_model.invoke([
+        SystemMessage(content=sys_inst),
+        HumanMessage(content="Write final section.")
     ])
-
-    section.content = section_content.content
-
-    return {"completed_sections": [section]}
-
+    sec.content = content.content
+    return {"completed_sections": [sec]}
 
 def gather_completed_sections(state: ReportState):
-    """ Gather completed research sections. """
-    completed_sections = state["completed_sections"]
-    completed_report_sections = format_sections(completed_sections)
-    return {"report_sections_from_research": completed_report_sections}
-
+    comps = state["completed_sections"]
+    rep = format_sections(comps)
+    return {"report_sections_from_research": rep}
 
 def initiate_final_section_writing(state: ReportState):
-    """
-    Write any final sections using the Send API to parallelize the process
-    (for sections that do not require research).
-    """
     return [
-        Send("write_final_sections", {
-            "section": s,
-            "report_sections_from_research": state["report_sections_from_research"]
-        })
+        Send("write_final_sections", {"section": s, "report_sections_from_research": state["report_sections_from_research"]})
         for s in state["sections"]
         if not s.research
     ]
 
-
 def compile_final_report(state: ReportState):
-    """
-    1) For each final completed section, remove the "### Sources" block if any,
-       parse lines for references with parse_reference_line approach,
-       storing them in final citations.
-    2) Remove or keep other inline raw URLs if desired.
-    3) Build the final text, store in DeepResearchReport with separate 'citations' list.
-    """
     sections = state["sections"]
     completed_map = {s.name: s.content for s in state["completed_sections"]}
 
     deep_sections: List[DeepResearchSection] = []
-    all_citations: List[DeepCitation] = []  # store the references from all sections
+    all_citations: List[DeepCitation] = []
 
     for sec in sections:
-        final_content = completed_map.get(sec.name, sec.content or "")
+        content = completed_map.get(sec.name, sec.content or "")
 
-        # Step 1) Extract "### Sources" block
-        cleaned_text, block_citations = extract_sources_block(sec.name, final_content)
+        # 1) strip any sources block
+        cleaned, block_refs = extract_sources_block(content)
+        # 2) optionally remove bullet lines that contain URLs but are not in sources block
+        # if we want to keep inline links in the text, skip this step or tweak it
+        final_cleaned, inline_refs = remove_inline_citation_lines(cleaned)
 
-        # Step 2) (OPTIONAL) also remove random inline URLs from cleaned_text
-        final_cleaned, inline_citations = remove_inline_urls(cleaned_text)
+        # combine
+        # only keep references that have a valid url
+        block_refs = [r for r in block_refs if r.url.strip()]
+        inline_refs = [r for r in inline_refs if r.url.strip()]
+        all_citations.extend(block_refs)
+        all_citations.extend(inline_refs)
 
-        # Merge citations
-        all_citations.extend(block_citations)
-        all_citations.extend(inline_citations)
-
-        # build the DeepResearchSection
-        ds = DeepResearchSection(
-            name=sec.name,
-            description=sec.description,
-            content=final_cleaned.strip(),
-            citations=[]  # we keep it empty, or store inline_citations if you prefer
+        deep_sections.append(
+            DeepResearchSection(
+                name=sec.name,
+                description=sec.description,
+                content=final_cleaned.strip(),
+                citations=[]  # we skip local citations array
+            )
         )
-        deep_sections.append(ds)
 
-    # Now build final text
+    # build final text
     lines = []
     for ds in deep_sections:
         lines.append(f"# {ds.name}\n{ds.content}\n")
 
-    # If we want to append citations block at the end:
+    # final citations at end
     if all_citations:
-        lines.append("\n## Citations\n")
+        lines.append("## Citations\n")
         for c in all_citations:
-            # Just use title and URL, no section reference
-            if c.url:  # Only add if there's a URL
-                lines.append(f"- [{c.title}]({c.url})")
+            title = c.title.strip() or "Untitled"
+            url = c.url.strip()
+            lines.append(f"- [{title}]({url})")
 
-    final_report_text = "\n".join(lines).strip()
+    final_text = "\n".join(lines).strip()
 
-    # Build a final DeepResearchReport
-    dr_report = DeepResearchReport(
+    report = DeepResearchReport(
         sections=deep_sections,
-        final_report=final_report_text,
+        final_report=final_text,
         citations=all_citations
     )
-
-    return {
-        "final_report": final_report_text,
-        "deep_research_report": dr_report
-    }
-
+    return {"final_report": final_text, "deep_research_report": report}
 
 # Build subgraph
 section_builder = StateGraph(SectionState, output=SectionOutputState)
@@ -437,7 +399,6 @@ section_builder.add_edge(START, "generate_queries")
 section_builder.add_edge("generate_queries", "search_web")
 section_builder.add_edge("search_web", "write_section")
 
-# Main graph
 builder = StateGraph(ReportState, input=ReportStateInput, output=ReportStateOutput, config_schema=Configuration)
 builder.add_node("generate_report_plan", generate_report_plan)
 builder.add_node("human_feedback", human_feedback)

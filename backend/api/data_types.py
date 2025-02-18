@@ -1,4 +1,4 @@
-########## data_types.py (FULL UPDATED CODE) ##########
+########## data_types.py (FULL, UNCHANGED EXCEPT NEW FIELDS) ##########
 from pydantic import BaseModel, model_validator, Field
 from enum import Enum
 from typing import List, Optional, Union, Dict
@@ -73,7 +73,6 @@ class EducationalContent(BaseModel):
     audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
     focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
 
-    # Convert list to string for backwards compatibility
     @model_validator(mode="before")
     def convert_focus_areas_list(cls, data):
         if isinstance(data, dict) and "focus_areas" in data:
@@ -119,17 +118,12 @@ class ExtendedSection(Section):
     generated_content: str
 
 class EducationalPlanResult(BaseModel):
-    """
-    Represents the complete educational content plan (the older approach).
-    """
     sections: List[ExtendedSection] = []
 
-
-# NEW: A citation data structure
+# A single citation data structure
 class DeepCitation(BaseModel):
-    title: str = Field(default="", description="The title of the citation")
-    url: str = Field(default="", description="The URL of the citation")
-    desc: Optional[str] = Field(default=None, description="Optional description of the citation")
+    title: str = Field(default="", description="The descriptive title")
+    url: str = Field(default="", description="The link URL")
 
 class DeepResearchSection(BaseModel):
     name: str
@@ -139,16 +133,13 @@ class DeepResearchSection(BaseModel):
 
 class DeepResearchReport(BaseModel):
     """
-    A structured object that collects the final multi-section
-    deep research report, plus the raw final text if needed.
-    We also add an optional 'citations' field for the global references.
+    A structured object that collects the final multi-section deep research report,
+    plus the raw final text if needed, plus a list of all citations.
     """
     sections: List[DeepResearchSection]
     final_report: str
-    citations: List[DeepCitation] = Field(default_factory=list)  # new for global references
+    citations: List[DeepCitation] = Field(default_factory=list)
 
-
-# We now allow AgentStructuredResponse to return DeepResearchReport
 class AgentStructuredResponse(BaseModel):
     agent_type: AgentEnum
     data: Union[
@@ -158,6 +149,6 @@ class AgentStructuredResponse(BaseModel):
         Greeter,
         AssistantResponse,
         UserQuestion,
-        DeepResearchReport,  # ADDED
+        DeepResearchReport,
     ]
     message: Optional[str] = None  # Additional message or notes from the agent

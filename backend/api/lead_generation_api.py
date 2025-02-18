@@ -2,8 +2,6 @@ from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
-import sys
-import os
 import re
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +19,9 @@ from api.websocket_manager import WebSocketConnectionManager
 from api.utils import initialize_agent_runtime
 from utils.logging import logger
 from autogen_core import MessageContext
+from config.model_registry import model_registry
+import os
+import sys
 
 import redis
 import uuid
@@ -396,6 +397,7 @@ class LeadGenerationAPI:
                 chat_name (Optional[str]): Optional name for the chat. If not provided, a default will be used.
             """
             sambanova_key = request.headers.get("x-sambanova-key", "")
+            fireworks_key = request.headers.get("x-fireworks-key", "")
             serper_key = request.headers.get("x-serper-key", "")
             exa_key = request.headers.get("x-exa-key", "")
             user_id = request.headers.get("x-user-id", "anonymous")
@@ -428,6 +430,7 @@ class LeadGenerationAPI:
                     key_prefix,
                     mapping={
                         "sambanova_key": sambanova_key,
+                        "fireworks_key": fireworks_key,
                         "serper_key": serper_key,
                         "exa_key": exa_key
                     }
@@ -955,14 +958,5 @@ def create_app():
     return api.app
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--provider", type=str, choices=["sambanova", "fireworks"],
-                      help="LLM provider to use (sambanova or fireworks)")
-    args = parser.parse_args()
-    
-    if args.provider:
-        os.environ["LLM_PROVIDER"] = args.provider
-    
     app = create_app()
     uvicorn.run(app, host="127.0.0.1", port=8000)

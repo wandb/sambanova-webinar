@@ -16,12 +16,12 @@ from agent.financial_analysis.financial_analysis_crew import (
     FinancialAnalysisCrew,
     FinancialAnalysisResult,
 )
+from config.model_registry import model_registry
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
     AgentRequest,
     AgentStructuredResponse,
-    FinancialAnalysis,
     APIKeys,
 )
 from utils.logging import logger
@@ -41,7 +41,7 @@ class FinancialAnalysisAgent(RoutedAgent):
         self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any]
     ) -> Tuple[str, Dict[str,Any]]:
         logger.info(logger.format_message(None, f"Extracting financial information from query: '{parameters.get('query_text', '')[:100]}...'"))
-        fextractor = FinancialPromptExtractor(self.api_keys.sambanova_key)
+        fextractor = FinancialPromptExtractor(getattr(self.api_keys, model_registry.get_api_key_env()))
         query_text = parameters.get("query_text", "")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
@@ -77,7 +77,7 @@ class FinancialAnalysisAgent(RoutedAgent):
 
             # Initialize crew
             crew = FinancialAnalysisCrew(
-                sambanova_key=self.api_keys.sambanova_key,
+                llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
                 exa_key=self.api_keys.exa_key,
                 serper_key=self.api_keys.serper_key,
                 user_id=user_id,

@@ -6,7 +6,10 @@ class ModelRegistry:
     def __init__(self, config_path: str = "config/model_config.json"):
         self.config_path = config_path
         self._config = self._load_config()
-        self._current_provider = "sambanova"  # Default to sambanova if not specified
+        # Use LLM_PROVIDER from environment, default to "sambanova"
+        self._current_provider = os.getenv("LLM_PROVIDER", "sambanova")
+        if self._current_provider not in self._config["providers"]:
+            raise ValueError(f"Provider {self._current_provider} not configured")
 
     def _load_config(self) -> Dict[str, Any]:
         """Load the configuration from JSON file."""
@@ -30,8 +33,8 @@ class ModelRegistry:
             raise ValueError(f"Provider {provider} not found in configuration")
 
         if not model_key:
-            # If no model key provided, use the first available model
-            model_key = next(iter(provider_config["model_mapping"].keys()))
+            # If no model key provided, raise an error since model_key is required
+            raise ValueError("model_key parameter is required")
 
         model_mapping = provider_config["model_mapping"]
         model_name = model_mapping.get(model_key)
@@ -39,7 +42,7 @@ class ModelRegistry:
         if not model_name:
             raise ValueError(f"No model found for key {model_key} with provider {provider}")
 
-        return model_name, provider_config["url"]
+        return model_name
 
     def get_api_key_env(self, provider: Optional[str] = None) -> str:
         """Get the environment variable name for the API key of the specified provider."""
@@ -50,16 +53,6 @@ class ModelRegistry:
             raise ValueError(f"Provider {provider} not found in configuration")
 
         return provider_config["api_key_env"]
-
-    def get_api_url(self, provider: Optional[str] = None) -> str:
-        """Get the API URL for the specified provider."""
-        provider = provider or self._current_provider
-        provider_config = self._config["providers"].get(provider)
-        
-        if not provider_config:
-            raise ValueError(f"Provider {provider} not found in configuration")
-
-        return provider_config["url"]
 
     def set_provider(self, provider: str):
         """Set the current LLM provider."""

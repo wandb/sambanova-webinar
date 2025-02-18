@@ -28,6 +28,7 @@ from tools.competitor_analysis_tool import competitor_analysis_tool
 from tools.fundamental_analysis_tool import fundamental_analysis_tool
 from tools.technical_analysis_tool import yf_tech_analysis
 from tools.risk_assessment_tool import risk_assessment_tool
+from config.model_registry import model_registry
 
 
 ###################### NEWS MODELS & (SERPER) WRAPPER ######################
@@ -167,7 +168,7 @@ class FinancialAnalysisCrew:
 
     def __init__(
         self,
-        sambanova_key: str,
+        llm_api_key: str,
         exa_key: str,
         serper_key: str,
         user_id: str = "",
@@ -175,19 +176,20 @@ class FinancialAnalysisCrew:
         docs_included: bool = False,
         verbose: bool = True
     ):
+        model_info = model_registry.get_model_info(model_key="llama-3.1-8b")
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-8B-Instruct",
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.0,
             max_tokens=4096,
-            api_key=sambanova_key
+            api_key=llm_api_key,
         )
+        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
         self.aggregator_llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model=aggregator_model_info["crewai_prefix"] + "/" + aggregator_model_info["model"],
             temperature=0.0,
             max_tokens=8192,
-            api_key=sambanova_key
+            api_key=llm_api_key,
         )
-        self.sambanova_key = sambanova_key
         self.exa_key = exa_key
         self.serper_key = serper_key
         self.user_id = user_id

@@ -22,6 +22,7 @@ from tools.market_research_tool import MarketResearchTool
 from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel
 from utils.agent_thought import RedisConversationLogger
+from config.model_registry import model_registry
 
 class Outreach(BaseModel):
     company_name: str
@@ -67,8 +68,6 @@ class ExtractedMarketTrend(BaseModel):
 class ExtractedMarketTrendList(BaseModel):
     market_trends: List[ExtractedMarketTrend]
 
-
-
 class ResearchCrew:
     def __init__(self,
                  sambanova_key: str,
@@ -77,11 +76,15 @@ class ResearchCrew:
                  run_id: str = "",
                  verbose: bool = True
                  ):
+        
+
+        model_name, base_url = model_registry.get_model_info(model_key="llama-3.1-70b")
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model=model_name,
             temperature=0.01,
             max_tokens=8192,
-            api_key=sambanova_key
+            api_key=sambanova_key,
+            base_url=base_url
         )
         self.exa_key = exa_key
         self.sambanova_key = sambanova_key

@@ -18,6 +18,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from fastapi import WebSocket
 import redis
 
+from config.model_registry import model_registry
 from services.query_router_service import QueryRouterService, QueryType
 
 from api.data_types import (
@@ -56,22 +57,16 @@ class SemanticRouterAgent(RoutedAgent):
         websocket: WebSocket,
         redis_client: redis.Redis,
         api_keys: APIKeys,
-        llm_provider: str = "sambanova",
     ) -> None:
         super().__init__("SemanticRouterAgent")
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
-        self.llm_provider = llm_provider
 
-        if self.llm_provider == "sambanova":
-            base_url = "https://api.sambanova.ai/v1"
-        else:
-            raise Exception("Unknown LLM provider")
-
+        reasoning_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
         self._reasoning_model_client = OpenAIChatCompletionClient(
-            model="DeepSeek-R1-Distill-Llama-70B",
-            base_url=base_url,
-            api_key=api_keys.sambanova_key,
+            model=reasoning_model_metadata["model"],
+            base_url=reasoning_model_metadata["url"],
+            api_key=getattr(api_keys, model_registry.get_api_key_env()),
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -79,10 +74,12 @@ class SemanticRouterAgent(RoutedAgent):
                 "vision": False,
             },
         )
+
+        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
         self._structure_extraction_model = OpenAIChatCompletionClient(
-            model="Meta-Llama-3.1-70B-Instruct",
-            base_url=base_url,
-            api_key=api_keys.sambanova_key,
+            model=structure_extraction_model_metadata["model"],
+            base_url=structure_extraction_model_metadata["url"],
+            api_key=getattr(api_keys, model_registry.get_api_key_env()),
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -280,7 +277,7 @@ class SemanticRouterAgent(RoutedAgent):
 
             planner_metadata = {
                 "llm_name": self._reasoning_model_client._resolved_model,
-                "llm_provider": self.llm_provider,
+                "llm_provider": model_registry.get_current_provider(),
             }   
             planner_event = {
                 "event": "planner",

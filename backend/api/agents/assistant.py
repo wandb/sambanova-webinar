@@ -24,6 +24,7 @@ from api.data_types import (
 )
 from exa_py import Exa
 
+from config.model_registry import model_registry
 from utils.logging import logger
 
 import asyncio
@@ -128,7 +129,6 @@ class AssistantAgentWrapper(RoutedAgent):
         websocket: WebSocket,
         api_keys: APIKeys,
         redis_client: redis.Redis,
-        provider: str = "sambanova",
     ) -> None:
         super().__init__("assistant")
         logger.info(
@@ -140,18 +140,14 @@ class AssistantAgentWrapper(RoutedAgent):
         self.api_keys = api_keys
         self.websocket = websocket
         self.redis_client = redis_client
-        self.provider = provider
-        if self.provider == "sambanova":
-            base_url = "https://api.sambanova.ai/v1"
-        else:
-            raise ValueError("Invalid provider")
 
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
         self._assistant = AssistantAgent(
             name="assistant",
             model_client=OpenAIChatCompletionClient(
-                model="Meta-Llama-3.1-70B-Instruct",
-                base_url=base_url,
-                api_key=self.api_keys.sambanova_key,
+                model=model_info["model"],
+                base_url=model_info["url"],
+                api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
                 model_info={
                     "json_output": False,
                     "function_calling": True,
@@ -212,7 +208,7 @@ class AssistantAgentWrapper(RoutedAgent):
             assistant_metadata = {
                 "duration": processing_time,
                 "model": self._assistant._model_client._resolved_model,
-                "provider": self.provider,
+                "provider": model_registry.get_current_provider(),
                 "workflow": "General Assistant",
                 "agent_name": "General Assistant",
             }

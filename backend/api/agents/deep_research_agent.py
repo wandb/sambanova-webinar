@@ -24,10 +24,9 @@ from api.data_types import (
     UserQuestion,
     DeepResearchReport,
 )
+from config.model_registry import model_registry
 from utils.logging import logger
-from api.session_state import SessionStateManager
-
-from .open_deep_research.graph import builder
+from api.agents.open_deep_research.graph import get_graph
 
 @type_subscription(topic_type="deep_research")
 class DeepResearchAgent(RoutedAgent):
@@ -56,12 +55,14 @@ class DeepResearchAgent(RoutedAgent):
     def _get_or_create_thread_config(self, session_id: str) -> dict:
         if session_id not in self._session_threads:
             thread_id = str(uuid.uuid4())
+            planner_model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
+            writer_model_info = model_registry.get_model_info(model_key="llama-3.3-70b")
             self._session_threads[session_id] = {
                 "configurable": {
                     "thread_id": thread_id,
                     # You can also include other config keys here if needed
-                    "planner_model": "Meta-Llama-3.3-70B-Instruct",
-                    "writer_model": "Meta-Llama-3.1-70B-Instruct",
+                    "planner_model": planner_model_info["model"],
+                    "writer_model": writer_model_info["model"],
                     "search_api": "tavily",
                 }
             }
@@ -85,6 +86,8 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.topic}
 
         memory = self._get_or_create_memory(session_id)
+
+        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
         graph = builder.compile(checkpointer=memory)
         thread_config = self._get_or_create_thread_config(session_id)
 

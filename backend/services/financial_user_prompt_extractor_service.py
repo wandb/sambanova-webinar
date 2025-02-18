@@ -24,7 +24,7 @@ class FinancialPromptExtractor:
         # Example model name 
         model_info = model_registry.get_model_info(model_key="llama-3.1-8b")
         self.model_name = model_info["model"]
-        self.url = model_info["url"]
+        self.url = model_info["long_url"]
 
     def extract_info(self, prompt: str):
         """

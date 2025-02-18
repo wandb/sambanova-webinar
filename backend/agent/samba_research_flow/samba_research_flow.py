@@ -41,7 +41,7 @@ class SambaResearchFlow(Flow):
 
     def __init__(
         self,
-        sambanova_key: str = None,
+        llm_api_key: str = None,
         serper_key: str = None,
         user_id: str = None,
         run_id: str = None,
@@ -51,20 +51,20 @@ class SambaResearchFlow(Flow):
         """Initialize the educational flow with research and content creation crews."""
         super().__init__()
         self.summariser = EduDocSummariserCrew(
-            sambanova_key=sambanova_key,
+            llm_api_key=llm_api_key,
             user_id=user_id,
             run_id=run_id,
             verbose=verbose
         ).crew()
         self.research_crew = EduResearchCrew(
-            sambanova_key=sambanova_key,
+            llm_api_key=llm_api_key,
             serper_key=serper_key,
             user_id=user_id,
             run_id=run_id,
             verbose=verbose
         ).crew()
         self.content_crew = EduContentWriterCrew(
-            sambanova_key=sambanova_key,
+            llm_api_key=llm_api_key,
             user_id=user_id,
             run_id=run_id,
             verbose=verbose

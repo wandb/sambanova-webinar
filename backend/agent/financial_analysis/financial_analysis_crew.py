@@ -2,7 +2,7 @@ import os
 import sys
 import uuid
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import yfinance as yf
 
@@ -422,7 +422,7 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult
         )
 
-    def execute_financial_analysis(self, inputs: Dict[str,Any]) -> str:
+    def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential
         2) Fundamentals + Technical + Risk + News => parallel
@@ -458,7 +458,7 @@ class FinancialAnalysisCrew:
             verbose=self.verbose,
         )
         final = crew.kickoff(inputs=inputs)
-        return final.pydantic.model_dump_json()
+        return final.pydantic.model_dump_json(), dict(final.token_usage)
 
 ########## EXAMPLE MAIN ##############
 def main():

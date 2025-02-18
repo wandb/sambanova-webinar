@@ -38,6 +38,7 @@
           <!-- ChatView for conversation -->
           <ChatView
             :conversationId="selectedConversationId"
+            @metadataChanged="metadataChanged"
             :userId="clerkUserId"
             class="flex-1"
             @agentThoughtsDataChanged="agentThoughtsDataChanged"
@@ -136,6 +137,8 @@
       :userId="clerkUserId"
       :runId="currentRunId"
       :agentData="agentData"
+       :metadata="metadata"
+
     />
 
     </div>
@@ -216,6 +219,16 @@ const clerkUserId = computed(() => user.value?.id || 'anonymous_user')
 
 const agentData=ref([])
 const chatSideBarRef = ref(null)
+
+
+const metadata=ref(null)
+
+const metadataChanged=(metaData)=>{
+    
+  metadata.value=metaData
+  
+}
+
 const agentThoughtsDataChanged=(agentThoughtsData)=>{
 agentData.value=agentThoughtsData
 

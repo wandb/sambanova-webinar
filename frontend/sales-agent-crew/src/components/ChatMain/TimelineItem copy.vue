@@ -2,7 +2,51 @@
   
   <div 
     class="group relative flex p-2">
-
+    <!-- Icon Container (always visible; timeline line is part of this container) -->
+    <div v-for="(value, key) in parsedResponse" :key="key" class="mb-6">
+      <h3 class="text-xl font-bold mb-2">{{ key }}</h3>
+      <RecursiveDisplay :value="value"   />
+    </div>
+    <div class="p-4">
+    <!-- Loop over each key in the parsedResponse object -->
+    <div v-for="(value, key) in parsedResponse" :key="key" class="mb-6">
+      <h3 class="text-xl font-bold mb-2">{{ key }}</h3>
+      <!-- If value is an object (and not an array), render a table -->
+      <div v-if="isObject(value) && !Array.isArray(value)">
+        <table class="min-w-full border divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Key</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="(val, k) in value" :key="k">
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ k }}</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                <!-- If nested object, display JSON stringified -->
+                <span v-if="isObject(val)">{{ JSON.stringify(val, null, 2) }}</span>
+                <span v-else>{{ val }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- If value is an array, render as bullet list -->
+      <div v-else-if="Array.isArray(value)">
+        <ul class="list-disc ml-6 space-y-1">
+          <li v-for="(item, index) in value" :key="index">
+            <span v-if="isObject(item)">{{ JSON.stringify(item, null, 2) }}</span>
+            <span v-else>{{ item }}</span>
+          </li>
+        </ul>
+      </div>
+      <!-- Otherwise, render as simple text -->
+      <div v-else>
+        <p class="text-sm">{{ value }}</p>
+      </div>
+    </div>
+  </div>
     
     <div  class="grow pb-2 group-last:pb-0 min-w-0">
       <!-- Always show period -->
@@ -13,49 +57,10 @@
     <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
       </h3>
       <!-- Only show the rest if not collapsed -->
-      <div class="ml-2 my-2"  v-for="(value, key) in parsedResponse"  v-if="!collapsed">
-
-        
-        <TimelineCollapsibleContent 
-       :value="value" 
-         :heading="key"
-        :data="value" 
-        />
-        
+      <div class="ml-2 my-1"    v-for="(section, index) in sections" :key="index" v-if="!collapsed">
+        <TimelineCollapsibleContent :data="section" />
+      
       </div>
-      
-      
-      <div class="p-1 text text-right rounded text-xs">
-    <button @click="toggleExpanded" class="mb-2 text-primary-brandTextPrimary focus:outline-none">
-      {{ isExpanded ? '..hide' : 'more...' }}
-    </button>
-    <transition name="slide">
-      <table v-if="isExpanded" class="w-full border bg-primary-brandGray2 text-left">
-        <tbody>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Workflow:</td>
-            <td class="px-1 py-0">{{ data.metadata.workflow_name }}</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Agent:</td>
-            <td class="px-1 py-0">{{ data.metadata.agent_name }}</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Duration:</td>
-            <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">LLM:</td>
-            <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Provider:</td>
-            <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </transition>
-  </div>
    
     </div>
     <!-- End Right Content -->
@@ -82,13 +87,6 @@ import RecursiveDisplay from './RecursiveDisplay.vue'
 import { marked } from 'marked'
 
 
-
-   const formattedDuration=(duration) =>{
-      // Format duration to 2 decimal places
-      return duration.toFixed(2);
-    }
-  
-
 // State for accordion toggle (single toggle used for all sections in this example)
 const isOpen = ref(false);
 
@@ -113,13 +111,12 @@ const props = defineProps({
 // -------------------------------------------------------------------
 const iconContainerClasses = computed(() => {
   let base =
-    "relative after:content-[''] after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
+    "relative after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
   if (props.isLast) {
     base += " after:hidden"
   }
   return base
 })
-
 
 function isObject(val) {
   return val !== null && typeof val === 'object';
@@ -297,12 +294,6 @@ function parseResponseText(text) {
 
 const parsedResponse = computed(() => parseResponseText(props.data.text));
 
-const isExpanded = ref(false);
-
-function toggleExpanded() {
-  isExpanded.value = !isExpanded.value;
-}
-
 
 </script>
 
@@ -313,17 +304,5 @@ function toggleExpanded() {
 }
 
 
-.slide-enter-active, .slide-leave-active {
-  transition: max-height 0.3s ease, opacity 0.3s ease;
-  overflow: hidden;
-}
-.slide-enter-from, .slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-.slide-enter-to, .slide-leave-from {
-  max-height: 500px; /* adjust max-height as needed */
-  opacity: 1;
-}
 
 </style>

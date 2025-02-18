@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-container">
+  <div class="flex justify-start    items-start">
     <h1 class="capitalize box-progress" :data-text="text">{{ text }}</h1>
     <!-- <span class="box-text">{{ number }}%</span> -->
   </div>

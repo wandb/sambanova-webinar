@@ -40,6 +40,9 @@
   </div>
  
      <div>
+
+
+
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
       :data="thought"
@@ -57,9 +60,165 @@
       subtitle: 'Produce professional, reliable streams using Mailchimp.',
     }"
     />
-</div>    
+
+
+
+    <template v-if="metadata">
+  <div class="max-w-sm p-2 bg-gray-50 border border-gray-200 rounded shadow-sm">
+    <!-- Heading -->
+    <h2 class="text-sm font-semibold text-gray-700 mb-3">
+      Response Metadata
+    </h2>
+
+    <!-- Metadata list -->
+    <ul class="space-y-2 text-gray-700">
+      <!-- Total tokens -->
+      <li class="flex items-center space-x-2">
+        <svg 
+          class="w-5 h-5 text-gray-600" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2"
+            d="M12 4v16m8-8H4"
+          />
+        </svg>
+        <span>
+          Total tokens: <strong>{{ metadata.total_tokens }}</strong>
+        </span>
+      </li>
+
+      <!-- Prompt tokens -->
+      <li class="flex items-center space-x-2">
+        <svg 
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2"
+            d="M7 4h10M7 8h5m-5 4h8m-8 4h2"
+          />
+        </svg>
+        <span>
+          Prompt tokens: <strong>{{ metadata.prompt_tokens }}</strong>
+        </span>
+      </li>
+
+      <!-- Cached prompt tokens -->
+      <li class="flex items-center space-x-2">
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4h16v16H4z"
+          />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 9h6v6H9z"
+          />
+        </svg>
+        <span>
+          Cached prompt tokens: 
+          <strong>{{ metadata.cached_prompt_tokens }}</strong>
+        </span>
+      </li>
+
+      <!-- Completion tokens -->
+      <li class="flex items-center space-x-2">
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M16 5H8m8 4H8m8 4H8m8 4H8"
+          />
+        </svg>
+        <span>
+          Completion tokens: 
+          <strong>{{ metadata.completion_tokens }}</strong>
+        </span>
+      </li>
+
+      <!-- Successful requests -->
+      <li class="flex items-center space-x-2">
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        <span>
+          Successful requests: 
+          <strong>{{ metadata.successful_requests }}</strong>
+        </span>
+      </li>
+
+      <!-- Duration -->
+      <li class="flex items-center space-x-2">
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2"
+            d="M12 6v6l4 2"
+          />
+        </svg>
+        <span>
+          Duration: <strong>{{ metadata.duration }}s</strong>
+        </span>
+      </li>
+    </ul>
   </div>
-  
+</template>
+
+</div>   
+
+
+  </div>
+  <!-- <div v-if="metadata">
+  <pre>{{ metadata }}</pre>
+</div> -->
 </template>
 
 <script setup>
@@ -203,10 +362,39 @@ const props = defineProps({
   agentData: {
     type: Array,
     default: () => []
+  },
+  metadata: {
+    type: Object, // or Array, depending on your data
+    default: () => ({}) // or [] if you expect an array
   }
 })
 const agentThoughtsData = ref([])
+const metadata = ref(null)
 
+
+watch(
+  () => props.metadata,
+  (newMetadata, oldMetadata) => {
+    // console.log('Child saw array change from', newAgentData, 'to', oldAgentData)
+    console.log(
+      'Child sawold Metadata array change from',
+      ((oldMetadata)),
+      'to',
+      (((newMetadata)))
+    );
+    console.log(typeof newMetadata)
+    
+    metadata.value = ((newMetadata)) || null
+    
+    alert("meta data recied ")
+     console.log("called meta data chaned",newMetadata)
+
+      console.error('Received metadata:', newMetadata);
+    
+
+  },
+  { deep: true } // If you want to detect nested mutations
+)
 watch(
   () => props.agentData,
   (newAgentData, oldAgentData) => {
@@ -220,7 +408,6 @@ watch(
     console.log(typeof newAgentData)
     
 
-    
       agentThoughtsData.value = ((newAgentData)) || []
     
   
@@ -230,7 +417,6 @@ watch(
   },
   { deep: true } // If you want to detect nested mutations
 )
-
 const collapsed = ref(false)
 
 // SSE

@@ -1,18 +1,14 @@
 <template>
   
-          <div class="mt-2"  @click="isOpen = !isOpen"  >
+          <div class="mt-2 "  @click="isOpen = !isOpen"  >
           <div class="flex justify-between items-center cursor-pointer "
           >
             <div class="flex items-start flex-1 no-wrap">
               <CorrectIcon class="mr-1 flex-shrink-0" />
               <span class=" text-primary-brandTextSecondary font-semibold text-sm">
                 <!-- {{ title }} -->
-                <template v-if="isPrimaryHeading(data.title)">
-              <h4 class="font-semibold text-sm break-words">{{ data.title }}
-                <template v-if="data.title==='Thought'"><br/>
-                <span class=" text-brandTextSecondary font-normal  text-sm">{{data.content }}</span></template></h4> 
+                {{ formatKey(heading) }}
               
-            </template>
               </span>
             </div>
             <!-- Arrow icon toggles direction based on accordion state -->
@@ -41,8 +37,42 @@
               </svg>
             </div>
           </div>
-          <div v-if="data.title!=='Thought'" v-show="isOpen">
-              <div class="mt-1 p-2 border border-primary-brandFrame bg-primary-bodyBg text-sm" v-html="formatContent(data.content || '')"></div>
+          <div class="m-1 p-1 border rounded-md bg-primary-brandGray"  v-show="isOpen">
+            <div v-if="isObject(value) && !Array.isArray(value)">
+        <table class="w-90 border  divide-y divide-gray-200">
+          <!-- <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Key</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+            </tr>
+          </thead> -->
+          <tbody class=" divide-y divide-gray-200">
+            <tr v-for="(val, key) in value" :key="key">
+              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">{{ formatKey(key) }}</td>
+              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">
+
+                <!-- {{val}} -->
+                <!-- Recursively display each nested value -->
+                <RecursiveDisplay :value="val" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  
+      <!-- If value is an array, render as a bullet list -->
+      <div v-else-if="Array.isArray(value)">
+        <ul class="list-disc ml-6 space-y-1">
+          <li v-for="(item, index) in value" :key="index">
+            <RecursiveDisplay :value="item" />
+          </li>
+        </ul>
+      </div>
+  
+      <!-- Otherwise, render as plain text -->
+      <div v-else>
+        <p class="text-sm">{{ value }}</p>
+      </div>
           </div>
         </div>
         
@@ -51,7 +81,7 @@
   <script setup>
   import { computed, ref, h, defineComponent, watch } from 'vue'
   import CorrectIcon from '@/components/icons/CorrectIcon.vue'
-  
+  import RecursiveDisplay from './RecursiveDisplay.vue'
   // State for accordion toggle (single toggle used for all sections in this example)
   const isOpen = ref(false);
   
@@ -61,6 +91,15 @@
       type: Object,
       required: true
     },
+    heading: {
+      type: String,
+      required: true
+    },
+    value: {
+      type: null,
+      required: true
+    },
+   
    
   })
   
@@ -122,6 +161,18 @@
     }
     return parsed
   })
+
+
+  function isObject(val) {
+    return val !== null && typeof val === 'object'
+  }
+
+  function formatKey(key) {
+  return key
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
   </script>
   
   <style scoped>

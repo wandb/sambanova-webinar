@@ -21,15 +21,22 @@
     <!-- End Title -->
 
     <ul class="mt-16 space-y-5">
-      <!-- Chat Bubble -->
-     
-        <ChatBubble v-for="msgItem in messagesData" :plannerText="plannerText" 
+      <!-- Chat Bubble -->     
+        <ChatBubble
+         :workflowData="workflowData"
+        v-for="msgItem in messagesData" :plannerText="plannerText" 
         :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
-
-        <ChatLoaderBubble v-if="isLoading" :statusText="'Planning...'"  :plannerText="plannerText"    />
+        <ChatLoaderBubble 
+        :workflowData="workflowData"
+        
+        v-if="isLoading" :statusText="'Planning...'"  :plannerText="plannerText"    />
       <!-- End Chat Bubble -->
     </ul>
   </div>
+
+  <!-- {{ completionMetaData?.metadata }} -->
+
+
 <div class="sticky bottom-0 left-0 right-0 bg-transparent  p-2">
   <div class="sticky bottom-0 z-10   dark:bg-neutral-900 dark:border-neutral-700">
     <!-- Textarea -->
@@ -228,7 +235,7 @@ function AutoScrollToBottom() {
   });
 
 }
-const emit = defineEmits(['searchStart', 'searchComplete', 'searchError', 'openSettings',"agentThoughtsDataChanged"])
+const emit = defineEmits(['searchStart', "metadataChanged",'searchComplete', 'searchError', 'openSettings',"agentThoughtsDataChanged"])
 const props = defineProps({
   conversationId: {
     type: String,
@@ -353,6 +360,8 @@ const currentId = ref(route.params.id || '')
 
 
 const messagesData = ref([])
+const workflowData = ref([])
+const completionMetaData = ref(null)
 const agentThoughtsData = ref([])
 
  const filterChat=async (msgData)=>{
@@ -874,12 +883,14 @@ onBeforeUnmount(() => {
 
 const addMessage=()=>{
    isLoading.value=true
+   completionMetaData.value=null
    plannerText.value=''
    statusText.value='Loading...'
    AutoScrollToBottom()
    agentThoughtsData.value=[]
+   workflowData.value=[]
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
-
+        emit('metadataChanged', completionMetaData.value)
   try{  
   if (!searchQuery.value.trim()) return
 
@@ -926,11 +937,19 @@ function connectWebSocket() {
       // Add new message to messages array
       
       if(receivedData.event=="user_message"||receivedData.event=="completion"){
-        // if(receivedData.event=="completion"){
-        //   receivedData.planner_chunk=plannerText.value
-        // }
+
+        try {
+          if(receivedData.event=="completion"){
+          completionMetaData.value=JSON.parse(receivedData.data)
+          console.log("completionMetaData.value=receivedData.data.metadata",completionMetaData.value)
+          emit('metadataChanged', completionMetaData.value?.metadata)
+        }
+        } catch (error) {
+          console.log("completionMetaData.value",error)
+        }
        
-        messagesData.value.push(receivedData)
+       
+        messagesData.value=[receivedData]
         isLoading.value=false
       }
      else if(receivedData.event==="think"){
@@ -940,6 +959,15 @@ function connectWebSocket() {
         console.log("Socket on message:think ", dataParsed.agent_name)
         statusText.value=dataParsed.agent_name
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
+        try{
+          console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
+          workflowData.value.push(JSON.parse(receivedData.data).metadata)
+
+        }catch(e){
+          
+        }
+
+
 
       }
       else if(receivedData.event==="planner_chunk"){
@@ -948,8 +976,19 @@ function connectWebSocket() {
       
         plannerText.value=`${plannerText.value} ${dataParsed.chunk}`
         
-
       }
+      else if(receivedData.event==="planner"){
+      
+      let dataParsed=JSON.parse(receivedData.data)
+      
+      workflowData.value.push(dataParsed.metadata)
+
+      console.log("workflowData:",workflowData)
+        
+      }
+
+
+      
       else{
         console.log("ping event fired: ", receivedData.event)
       }

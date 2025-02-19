@@ -21,7 +21,7 @@ from api.data_types import (
     AgentStructuredResponse,
     APIKeys,
     AgentEnum,
-    UserQuestion,
+    DeepResearchUserQuestion,
     DeepResearchReport,
 )
 from config.model_registry import model_registry
@@ -74,12 +74,12 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = Command(resume=True)
         elif user_text.lower() == "false":
             graph_input = Command(resume=False)
-        elif user_text and (not message.parameters.topic):
+        elif user_text and (not message.parameters.deep_research_topic):
             # user typed some text, treat it as feedback
             graph_input = Command(resume=user_text)
         else:
             # brand-new request with the entire user query in topic
-            graph_input = {"topic": message.parameters.topic}
+            graph_input = {"topic": message.parameters.deep_research_topic}
 
         memory = self._get_or_create_memory(session_id)
         builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)), provider=message.provider)
@@ -102,7 +102,7 @@ class DeepResearchAgent(RoutedAgent):
                         )
                         response = AgentStructuredResponse(
                             agent_type=AgentEnum.UserProxy,
-                            data=UserQuestion(user_question=user_question_str),
+                            data=DeepResearchUserQuestion(deep_research_user_question=user_question_str),
                             message=user_question_str
                         )
                         await self.publish_message(

@@ -26,6 +26,7 @@ from api.data_types import (
     AgentRequest,
     AgentStructuredResponse,
     AssistantMessage,
+    DeepResearch,
     EndUserMessage,
     HandoffMessage,
     AgentEnum,
@@ -244,6 +245,30 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
         """
 
+        # TODO: remove this when fixed route
+        user_id, conversation_id = ctx.topic_id.source.split(":")
+        history = self._session_manager.get_history(conversation_id)
+
+        if len(history) > 0:
+            try:
+                last_content = json.loads(history[-1].content)
+            except json.JSONDecodeError:
+                last_content = {}
+                
+        if "deep_research_user_question" in last_content:
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                "Deep research feedback received, routing to deep research"
+            ))
+            deep_research_request = AgentRequest(
+                agent_type=AgentEnum.DeepResearch,
+                parameters=DeepResearch(deep_research_topic=""),
+                query=message.content,
+            )
+            await self.publish_message(
+                deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
+            return
+
         logger.info(logger.format_message(
             ctx.topic_id.source,
             f"Determining agents to route message: '{message.content[:100]}...'"
@@ -251,11 +276,8 @@ class SemanticRouterAgent(RoutedAgent):
         system_message = agent_registry.get_planner_prompt()
 
         try:
-            user_id, conversation_id = ctx.topic_id.source.split(":")
-
             start_time = time.time()
 
-            history = self._session_manager.get_history(conversation_id)
             planner_response = self._reasoning_model(message.provider).create_stream(
                 [SystemMessage(content=system_message, source="system")]
                 + list(history)

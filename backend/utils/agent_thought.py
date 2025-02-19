@@ -68,6 +68,8 @@ class RedisConversationLogger:
             if hasattr(output, 'text'):
                 if isinstance(output, AgentAction):
                     task = output.tool
+                else:
+                    task = ""
 
                 message = {
                     "user_id": self.user_id,

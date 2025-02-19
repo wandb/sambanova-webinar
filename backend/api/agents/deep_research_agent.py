@@ -87,17 +87,9 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.topic}
 
         memory = self._get_or_create_memory(session_id)
-
-        logger.info(logger.format_message(session_id, f"DeepResearchAgent memory: {memory}"))
-
         builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
-
-        logger.info(logger.format_message(session_id, f"DeepResearchAgent builder: {builder}"))
-
         graph = builder.compile(checkpointer=memory)
         thread_config = self._get_or_create_thread_config(session_id)
-
-        logger.info(logger.format_message(session_id, f"DeepResearchAgent thread_config: {thread_config}"))
 
         try:
             async for event in graph.astream(graph_input, thread_config, stream_mode="updates"):

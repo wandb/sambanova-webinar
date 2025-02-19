@@ -381,8 +381,8 @@ def get_graph(api_key: str):
         planner_model = ChatFireworks(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
         
     else:
-        writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
-        planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
+        writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
 
     # Build subgraph
     section_builder = StateGraph(SectionState, output=SectionOutputState)

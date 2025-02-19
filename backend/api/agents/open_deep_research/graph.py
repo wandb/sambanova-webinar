@@ -374,15 +374,16 @@ def compile_final_report(state: ReportState):
     return {"final_report": final_text, "deep_research_report": report}
 
 
-def get_graph(api_key: str):
+def get_graph(api_key: str, provider: str):
 
-    if model_registry.get_current_provider() == "fireworks":    
+    if provider == "fireworks":    
         writer_model = ChatFireworks(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
         planner_model = ChatFireworks(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
-        
-    else:
+    elif provider == "sambanova":
         writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
         planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
 
     # Build subgraph
     section_builder = StateGraph(SectionState, output=SectionOutputState)

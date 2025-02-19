@@ -87,7 +87,7 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.topic}
 
         memory = self._get_or_create_memory(session_id)
-        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
+        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)), provider=message.provider)
 
         graph = builder.compile(checkpointer=memory)
         thread_config = self._get_or_create_thread_config(session_id)

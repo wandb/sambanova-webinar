@@ -169,6 +169,7 @@ class FinancialAnalysisCrew:
     def __init__(
         self,
         llm_api_key: str,
+        provider: str,
         exa_key: str,
         serper_key: str,
         user_id: str = "",
@@ -176,14 +177,14 @@ class FinancialAnalysisCrew:
         docs_included: bool = False,
         verbose: bool = True
     ):
-        model_info = model_registry.get_model_info(model_key="llama-3.1-8b")
+        model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
         self.llm = LLM(
             model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.0,
             max_tokens=4096,
             api_key=llm_api_key,
         )
-        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
+        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.aggregator_llm = LLM(
             model=aggregator_model_info["crewai_prefix"] + "/" + aggregator_model_info["model"],
             temperature=0.0,

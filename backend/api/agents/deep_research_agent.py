@@ -87,7 +87,15 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.topic}
 
         memory = self._get_or_create_memory(session_id)
-        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
+        try:
+            builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
+        except AttributeError as e:
+            logger.error(f"Failed to get API key from model registry: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting graph builder: {str(e)}")
+            raise
+        
         graph = builder.compile(checkpointer=memory)
         thread_config = self._get_or_create_thread_config(session_id)
 

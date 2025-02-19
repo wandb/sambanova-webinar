@@ -55,14 +55,9 @@ class DeepResearchAgent(RoutedAgent):
     def _get_or_create_thread_config(self, session_id: str) -> dict:
         if session_id not in self._session_threads:
             thread_id = str(uuid.uuid4())
-            planner_model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
-            writer_model_info = model_registry.get_model_info(model_key="llama-3.3-70b")
             self._session_threads[session_id] = {
                 "configurable": {
                     "thread_id": thread_id,
-                    # You can also include other config keys here if needed
-                    "planner_model": planner_model_info["model"],
-                    "writer_model": writer_model_info["model"],
                     "search_api": "tavily",
                 }
             }

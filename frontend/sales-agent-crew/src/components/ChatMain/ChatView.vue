@@ -897,7 +897,8 @@ const addMessage=()=>{
 const messagePayload = {
   event: "user_message",
   data: searchQuery.value,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
+  provider: "sambanova"
 }
 
 // Add message to local state so the user sees it immediately

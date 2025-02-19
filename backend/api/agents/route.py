@@ -63,7 +63,6 @@ class SemanticRouterAgent(RoutedAgent):
         self._name = name
 
         self._reasoning_model_name = "deepseek-r1-distill-llama-70b"
-        self._reasoning_model_name = "llama-3.1-70b"
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["url"],
@@ -259,8 +258,7 @@ class SemanticRouterAgent(RoutedAgent):
             history = self._session_manager.get_history(conversation_id)
             planner_response = self._reasoning_model(message.provider).create_stream(
                 [SystemMessage(content=system_message, source="system")]
-                #TODO: add history back in
-                # + list(history)
+                + list(history)
                 + [UserMessage(content=message.content, source="user")],
             )
 

@@ -38,10 +38,11 @@ class FinancialAnalysisAgent(RoutedAgent):
         self.api_keys = api_keys
 
     async def execute_financial(
-        self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any]
+        self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any], provider: str
     ) -> Tuple[str, Dict[str,Any]]:
         logger.info(logger.format_message(None, f"Extracting financial information from query: '{parameters.get('query_text', '')[:100]}...'"))
-        fextractor = FinancialPromptExtractor(getattr(self.api_keys, model_registry.get_api_key_env()))
+        api_key = getattr(self.api_keys, model_registry.get_api_key_env(provider=provider))
+        fextractor = FinancialPromptExtractor(api_key, provider)
         query_text = parameters.get("query_text", "")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
@@ -89,7 +90,7 @@ class FinancialAnalysisAgent(RoutedAgent):
 
             # Execute analysis
             raw_result, usage_stats = await self.execute_financial(
-                crew, message.parameters.model_dump()
+                crew, message.parameters.model_dump(), message.provider
             )
 
             financial_analysis_result = FinancialAnalysisResult.model_validate(

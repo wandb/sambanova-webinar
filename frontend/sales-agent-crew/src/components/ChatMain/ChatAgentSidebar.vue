@@ -382,15 +382,11 @@ watch(
       'to',
       (((newMetadata)))
     );
-    console.log(typeof newMetadata)
+    // console.log(typeof newMetadata)
     
     metadata.value = ((newMetadata)) || null
     
-    alert("meta data recied ")
-     console.log("called meta data chaned",newMetadata)
-
-      console.error('Received metadata:', newMetadata);
-    
+  
 
   },
   { deep: true } // If you want to detect nested mutations
@@ -408,11 +404,7 @@ watch(
     console.log(typeof newAgentData)
     
 
-      agentThoughtsData.value = ((newAgentData)) || []
-    
-  
-      console.error('Received agentData is not an array:', newAgentData);
-    
+      agentThoughtsData.value = ((newAgentData)) || []    
 
   },
   { deep: true } // If you want to detect nested mutations

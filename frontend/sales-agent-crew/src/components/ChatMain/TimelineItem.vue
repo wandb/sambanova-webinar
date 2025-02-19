@@ -25,14 +25,14 @@
       </div>
       
       
-      <div class="p-1 text text-right rounded text-xs">
-    <button @click="toggleExpanded" class="mb-2 text-primary-brandTextPrimary focus:outline-none">
+      <div  v-if="!collapsed" class="p-1 text text-right rounded text-xs">
+    <button @click="toggleExpanded" class="mb-0 text-primary-brandTextPrimary focus:outline-none">
       {{ isExpanded ? '..hide' : 'more...' }}
     </button>
-    <transition name="slide">
-      <table v-if="isExpanded" class="w-full border bg-primary-brandGray2 text-left">
+    <div v-if="isExpanded" class=" bg-primary-brandGray p-2" name="slide">
+      <table  class="w-full  text-left">
         <tbody>
-          <tr>
+          <tr >
             <td class="px-1 py-0 font-semibold">Workflow:</td>
             <td class="px-1 py-0">{{ data.metadata.workflow_name }}</td>
           </tr>
@@ -54,7 +54,7 @@
           </tr>
         </tbody>
       </table>
-    </transition>
+    </div>
   </div>
    
     </div>
@@ -77,6 +77,9 @@ import TrendsIcon from '@/components/icons/TrendsIcon.vue'
 import DefaultIcon from '@/components/icons/DefaultIcon.vue'
 import FundamentalIcon from '@/components/icons/FundamentalIcon.vue'
 import FinanceIcon from '@/components/icons/FinanceIcon.vue'
+import AggregatorIcon from '@/components/icons/AggregatorIcon.vue'
+import EnhancedCompetitorIcon from '@/components/icons/EnhancedCompetitorIcon.vue'
+
 import RecursiveDisplay from './RecursiveDisplay.vue'
 
 import { marked } from 'marked'
@@ -131,10 +134,14 @@ function getAgentIcon(agentName) {
   console.log("getAgentIcon called for agentName:", agentName)
   const agentIcons = {
     'Competitor Analysis Agent': CompetitorIcon,
-   
     'Financial Analysis Agent': FinanceIcon,
-    ' Enhanced Competitor Finder Agent': SearchIcon,
-    'Aggregator Search Agent': SearchIcon,
+    'Enhanced Competitor Finder Agent': EnhancedCompetitorIcon,
+// ' Enhanced Competitor Finder Agent': EnhancedCompetitorIcon,
+    
+    // 'Aggregator Search Agent': SearchIcon,
+        'Aggregator Agent': AggregatorIcon,
+
+'Aggregator Search Agent': AggregatorIcon,
     'Fundamental Agent': FundamentalIcon,
     'News Agent': NewsIcon,
     'Technical Agent': TechIcon,

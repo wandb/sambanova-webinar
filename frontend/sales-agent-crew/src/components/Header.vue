@@ -28,12 +28,20 @@
         <div class="flex items-center space-x-2">
           <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
           <input
+            
             id="modeToggle"
             type="checkbox"
             v-model="chatMode"
             class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
           />
         </div>
+
+        <!-- <ToggleSwitch 
+           id="modeToggle"
+            type="checkbox"
+            v-model="chatMode"  
+            :chatMode="chatMode"
+            /> -->
 <!-- 
         <div class="hidden sm:block lg:hidden text-sm text-right text-gray-600">
           {{ shortCurrentDateTime }}
@@ -73,16 +81,21 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch ,onMounted} from 'vue'
 import { SignedIn, UserButton } from '@clerk/vue'
 import SettingsModal from './SettingsModal.vue'
-
-const chatMode = ref(false)
+import ToggleSwitch from '@/components/Common/UIComponents/ToggleSwitch.vue'
+const chatMode = ref(true)
 // We'll emit 'modeToggled' to the parent
 const emit = defineEmits(['keysUpdated','modeToggled'])
 
 watch(chatMode, (val) => {
   emit('modeToggled', val)
+})
+
+onMounted(async () => {
+  emit('modeToggled', true)
+  
 })
 
 const settingsModalRef = ref(null)

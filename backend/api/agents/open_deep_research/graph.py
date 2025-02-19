@@ -316,7 +316,7 @@ def initiate_final_section_writing(state: ReportState):
     return [
         Send("write_final_sections", {"section": s, "report_sections_from_research": state["report_sections_from_research"]})
         for s in state["sections"]
-        #if not s.research
+        if not s.research
     ]
 
 def compile_final_report(state: ReportState):

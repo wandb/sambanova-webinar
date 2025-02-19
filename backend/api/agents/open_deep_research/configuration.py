@@ -9,7 +9,6 @@ from typing_extensions import Annotated
 from dataclasses import dataclass
 
 from config.model_registry import model_registry
-from .prompts import improved_report_structure
 
 
 DEFAULT_REPORT_STRUCTURE = """The report structure should focus on breaking-down the user-provided topic:

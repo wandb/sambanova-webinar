@@ -1,8 +1,7 @@
-########## prompts.py (FURTHER UPDATED FILE) ##########
-
+########## prompts.py (NEW FILE) ##########
 # Prompt to generate search queries to help with planning the report
 
-report_planner_query_writer_instructions = """You are an expert technical writer and researcher, responsible for orchestrating a comprehensive, in-depth report. Each section of this report will span 5–6 pages or more, encompassing exhaustive technical detail and real-world insights. Your job now is to generate search queries that lay the groundwork for deep research across multiple sections of the report.
+report_planner_query_writer_instructions = """You are an expert technical writer, helping to plan a report.
 
 <Report topic>
 {topic}
@@ -13,37 +12,30 @@ report_planner_query_writer_instructions = """You are an expert technical writer
 </Report organization>
 
 <Task>
-Your goal is to produce {number_of_queries} carefully formulated search queries. These queries should be designed to uncover a vast and diverse range of information sources that will support very detailed coverage throughout the report.
+Your goal is to generate {number_of_queries} search queries that will help gather comprehensive information for planning the report sections.
 
-Requirements:
-1. Reflect the scope and complexity implied by the topic and the multi-section structure.
-2. Emphasize technical depth, real-world applications, theoretical foundations, controversies or debates, future perspectives, and comparisons with related ideas.
-3. Each query should be specific enough to locate valuable, high-quality references—including peer-reviewed papers, detailed official documentation, in-depth analyses, and case studies—while broad enough to gather multiple perspectives relevant to each planned section.
-4. Aim to leverage current information (e.g., adding recent years as needed), seeking up-to-date data, frameworks, standards, or discussions.
+The queries should:
 
-Think of these queries as the starting point for a multi-layered exploration of the subject. They should help ensure that each section in the report is both substantial and diverse in its coverage.
+1. Be related to the topic of the report
+2. Help satisfy the requirements specified in the report organization
+
+Make the queries specific enough to find high-quality, relevant sources while covering the breadth needed for the report structure.
 </Task>"""
 
-
 # Prompt to generate the report plan
-
-report_planner_instructions = """You are an expert technical writer tasked with creating an outline for a deeply researched, multi-section report. Each section is expected to be at least 5–6 pages of content, synthesizing a wealth of technical detail, best practices, historical context, and real-world examples.
+report_planner_instructions = """I want a plan for a report.
 
 <Task>
-Generate a plan (outline) for the report, containing multiple sections that collectively cover the topic comprehensively. The plan should include:
+Generate a list of sections for the report.
 
-1. The name of each section.
-2. A concise yet informative description of what the section will discuss.
-3. An indication of whether web research is needed for that section (True/False).
-4. A placeholder for Content (leave blank for now).
+Each section should have the fields:
 
-Ensure that:
-- The structure covers every facet of the topic, from foundational knowledge to advanced or emerging ideas.
-- Sections are logically organized so that the final report flows cohesively.
-- Introductory and concluding sections synthesize information from other parts of the report (they typically do still require direct research, and must be thorough and well-integrated).
+- Name - Name for this section of the report.
+- Description - Brief overview of the main topics covered in this section.
+- Research - Whether to perform web research for this section of the report.
+- Content - The content of the section, which you will leave blank for now.
 
-Remember, each section will be at least 5–6 pages, so plan for enough distinct subsections to address all relevant aspects of the topic in depth.
-You should aim to have at least 7-8 sections. Your are building a comprehensive report, not a shallow one, at a PhD level.
+For example, introduction and conclusion will not require research because they will distill information from other parts of the report.
 </Task>
 
 <Topic>
@@ -52,73 +44,47 @@ The topic of the report is:
 </Topic>
 
 <Report organization>
-Use this high-level guide to shape your report:
+The report should follow this organization:
 {report_organization}
 </Report organization>
 
 <Context>
-Below is additional context for planning:
+Here is context to use to plan the sections of the report:
 {context}
 </Context>
 
 <Feedback>
-Incorporate or respond to this feedback (if any):
+Here is feedback on the report structure from review (if any):
 {feedback}
 </Feedback>
 """
 
-
-# Default "report_organization" (the improved structure suggestion for reference):
-improved_report_structure = """
-The report structure should break down the user-provided topic into multiple comprehensive sections that collectively present a thorough, in-depth understanding. These sections should be:
-
-1. Introduction (research needed)
-    - Provide a broad overview of the topic
-    - Summarize what the report will cover and why it is important
-2. Background and Foundations (research needed)
-    - Include historical context, relevant theories, frameworks, or timelines
-    - Define critical concepts to ensure clarity
-3. Main Body Sections (research needed)
-    - Divide into multiple sub-topics if needed
-    - Deeply explore each sub-topic with theory, examples, comparative analysis
-    - Incorporate real-world case studies or data
-4. Challenges and Controversies (research needed)
-    - Present any ongoing debates, pitfalls, or issues in practice
-    - Offer insights into how they might be addressed or resolved
-5. Future Outlook or Emerging Trends (research needed)
-    - Highlight anticipated developments, recent innovations, or cutting-edge research
-    - Forecast implications for the field or industry
-6. Conclusion (research needed)
-    - Provide a cohesive summary of the report’s key findings
-    - Include exactly one structural element (table or list) that distills main points
-    - Offer final recommendations or next steps
-"""
-
-
 # Query writer instructions
-
-query_writer_instructions = """You are an expert technical writer creating specific and targeted web search queries to collect information for a highly detailed section of a technical report. Each section is expected to be at least 5–6 pages, encompassing deep technical discussions, real-world applications, and comprehensive background.
+query_writer_instructions = """You are an expert technical writer crafting targeted web search queries that will gather comprehensive information for writing a technical report section.
 
 <Section topic>
 {section_topic}
 </Section topic>
 
 <Task>
-Generate {number_of_queries} search queries for this section. Each query must:
+When generating {number_of_queries} search queries, ensure they:
 
-1. Address a different angle or subtopic, ensuring diverse coverage: historical evolution, cutting-edge research, controversies, best practices, etc.
-2. Employ precise technical or domain-specific terms to narrow results to high-quality academic, industry, or official sources.
-3. Consider recent developments (e.g., "2025," "latest standards") to ensure timely information.
-4. Encourage comparative analysis with alternative approaches or competing methodologies.
-5. Target both theoretical depth (e.g., academic journals, white papers) and practical insights (e.g., implementation guides, case studies).
+1. Cover different aspects of the topic (e.g., core features, real-world applications, technical architecture)
+2. Include specific technical terms related to the topic
+3. Target recent information by including year markers where relevant (e.g., "2024")
+4. Look for comparisons or differentiators from similar technologies/approaches
+5. Search for both official documentation and practical implementation examples
 
-Your goal is to capture every crucial piece of evidence or perspective that will support a rich, multi-page exploration of the topic. Keep queries refined yet comprehensive.
+Your queries should be:
+
+- Specific enough to avoid generic results
+- Technical enough to capture detailed implementation information
+- Diverse enough to cover all aspects of the section plan
+- Focused on authoritative sources (documentation, technical blogs, academic papers)
 </Task>"""
 
-
 # Section writer instructions
-
-section_writer_instructions = """You are an expert technical writer responsible for drafting one section of a thoroughly researched, multi-page technical report. Each section must encompass at least 5–6 pages of dense, informative content (1,500+ words) to ensure depth and breadth.
+section_writer_instructions = """You are an expert technical writer crafting one section of a technical report.
 
 <Section topic>
 {section_topic}
@@ -133,42 +99,44 @@ section_writer_instructions = """You are an expert technical writer responsible 
 </Source material>
 
 <Guidelines for writing>
-1. If the existing section content is empty, develop a completely new and comprehensive section, covering:
-   - Key concepts or fundamentals
-   - Relevant historical or theoretical background
-   - Detailed current practices, implementations, or methodologies
-   - Real-world examples or case studies
-   - Comparisons to related or alternative concepts
-   - Challenges, limitations, and potential future directions
-2. If existing content is provided, integrate the new research findings to significantly expand and enrich the section.
-3. The emphasis is on deep research. Provide in-text clarity but avoid filler. Organize logically, ensuring each subsection flows naturally into the next.
+
+1. If the existing section content is not populated, write a new section from scratch.
+2. If the existing section content is populated, write a new section that synthesizes the existing section content with the new information.
 </Guidelines for writing>
 
 <Length and style>
-- Strive for 5–6 pages (1,500+ words) of focused, technical writing.
-- Adopt a formal, clear, and analytical tone—no marketing hype.
-- Keep paragraphs short (2–3 sentences) but ensure each paragraph carries substantive detail.
-- Start with your most vital insight in **bold** to immediately capture attention.
-- Use "##" for the section title in Markdown.
-- Incorporate exactly ONE structural element (table OR list) only if it markedly improves clarity (e.g., comparing data points or summarizing key takeaways).
-- Provide one concrete example or case study to illustrate the discussion.
-- Conclude with "### Sources", listing references in the format: `Title : URL` (one per line).
-</Length and style>
+
+- Strict 900-1100 word limit
+- No marketing language
+- Technical focus
+- Write in simple, clear language
+- Start with your most important insight in **bold**
+- Use short paragraphs (2-3 sentences max)
+- Use ## for section title (Markdown format)
+- Only use ONE structural element IF it helps clarify your point:
+    - Either a focused table comparing 2-3 key items (using Markdown table syntax)
+    - Or a short list (3-5 items) using proper Markdown list syntax:
+        - Use `-` or `*` for unordered lists
+        - Use `1.` for ordered lists
+        - Ensure proper indentation and spacing
+- End with ### Sources that references the below source material formatted as:
+    - List each source with title, date, and URL
+    - Format: `Title : URL`
+    </Length and style>
 
 <Quality checks>
-- Provide sufficiently advanced and nuanced information to fill 5–6 pages meaningfully.
-- Begin with **bold** text capturing the main insight.
-- Only ONE structural element (table or list) at most.
-- Exactly one detailed example or case study.
-- End with a properly formatted "### Sources" section referencing each source from the 'Source material'.
-- Do not include extraneous commentary or disclaimers prior to the section.
+
+- Exactly 900-1100 words (excluding title and sources)
+- Careful use of only ONE structural element (table or list) and only if it helps clarify your point
+- One specific example / case study
+- Starts with bold insight
+- No preamble prior to creating the section content
+- Sources cited at end
 </Quality checks>
 """
 
-
 # Instructions for section grading
-
-section_grader_instructions = """You are reviewing a drafted section of a technical report. The section must satisfy high standards of depth, technical accuracy, and coverage, typically spanning at least 5–6 pages (1,500+ words).
+section_grader_instructions = """Review a report section relative to the specified topic:
 
 <section topic>
 {section_topic}
@@ -179,25 +147,22 @@ section_grader_instructions = """You are reviewing a drafted section of a techni
 </section content>
 
 <task>
-1. Assess the section’s thoroughness, technical rigor, and accuracy relative to the topic.
-2. Determine if it meets the multi-page requirement (at least 5–6 pages of substantive content).
-3. If the section is lacking—in depth, correctness, or completeness—produce follow-up queries to guide additional research and improvements.
+Evaluate whether the section adequately covers the topic by checking technical accuracy and depth.
+
+If the section fails any criteria, generate specific follow-up search queries to gather missing information.
 </task>
 
 <format>
 grade: Literal["pass","fail"] = Field(
-description="Indicates if the section meets detailed coverage and technical standards."
+description="Evaluation result indicating whether the response meets requirements ('pass') or needs revision ('fail')."
 )
 follow_up_queries: List[SearchQuery] = Field(
-description="If grade is 'fail', specify further queries to gather missing insights."
+description="List of follow-up search queries.",
 )
 </format>
 """
 
-
-# Instructions for final sections (Introduction, Conclusion, etc.)
-
-final_section_writer_instructions = """You are writing an essential concluding or introductory section for a deeply researched report, where each section (including intro and conclusion) must also reach 5–6 pages (1,500+ words) for thorough coverage.
+final_section_writer_instructions = """You are an expert technical writer crafting a section that synthesizes information from the rest of the report.
 
 <Section topic>
 {section_topic}
@@ -209,38 +174,45 @@ final_section_writer_instructions = """You are writing an essential concluding o
 
 <Task>
 
-1. Section-Specific Guidance:
+1. Section-Specific Approach:
 
-For an Introduction:
-- Use # for the report title (Markdown).
-- Provide 5–6 pages (1,500+ words) introducing the topic’s relevance, context, and scope.
-- Avoid tables, lists, or other structural elements here, maintaining a cohesive narrative flow.
-- No sources section is needed.
+For Introduction:
 
-For a Conclusion:
-- Use ## for the section title (Markdown).
-- Provide 5–6 pages (1,500+ words) synthesizing the insights from the entire report.
-- If the topic has a comparative element, include exactly ONE table comparing the major points or findings.
-- If non-comparative, you may include exactly ONE structural element (table OR short list) to distill the major takeaways.
-- End with clear next steps or recommendations.
-- No sources section is required in the conclusion.
+- Use # for report title (Markdown format)
+- 200-300 word limit
+- Write in simple and clear language
+- Focus on the core motivation for the report in 1-2 paragraphs
+- Use a clear narrative arc to introduce the report
+- Include NO structural elements (no lists or tables)
+- No sources section needed
 
-2. Writing Approach:
-- Maintain strong coherence with the body sections; reference and integrate their key findings or debates.
-- Offer depth and narrative continuity, avoiding redundancy.
-- Write formally and analytically, ensuring clarity and substance.
+For Conclusion/Summary:
 
+- Use ## for section title (Markdown format)
+- 200-300 word limit
+- For comparative reports:
+    - Must include a focused comparison table using Markdown table syntax
+    - Table should distill insights from the report
+    - Keep table entries clear and concise
+- For non-comparative reports:
+    - Only use ONE structural element IF it helps distill the points made in the report:
+    - Either a focused table comparing items present in the report (using Markdown table syntax)
+    - Or a short list using proper Markdown list syntax:
+        - Use `-` or `*` for unordered lists
+        - Use `1.` for ordered lists
+        - Ensure proper indentation and spacing
+- End with specific next steps or implications
+- No sources section needed
+1. Writing Approach:
+- Use concrete details over general statements
+- Make every word count
+- Focus on your single most important point
 </Task>
 
 <Quality Checks>
-- Each introduction or conclusion must meet the 5–6 page (1,500+ word) requirement.
-- Introduction:
-  - # for title
-  - No structural elements
-  - No sources
-- Conclusion:
-  - ## for title
-  - Only ONE structural element (table or list)
-  - No sources
-- Keep Markdown formatting consistent, no word count statements or extra commentary.
+
+- For introduction: 200-300 word limit, # for report title, no structural elements, no sources section
+- For conclusion: 200-300 word limit, ## for section title, only ONE structural element at most, no sources section
+- Markdown format
+- Do not include word count or any preamble in your response
 </Quality Checks>"""

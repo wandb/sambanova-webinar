@@ -856,7 +856,7 @@ function toggleDocumentSelection(docId) {
 async function authRequest() {
   
   // const baseUrl = import.meta.env.VITE_API_URL || ''
-  const url = `http://localhost:8000/set_api_keys/${props.userId}` // Replace with your API URL
+  const url = `${import.meta.env.VITE_API_URL}/set_api_keys/${props.userId}` // Replace with your API URL
   const postParams = {
     "sambanova_key": "8f462f72-0a98-42cc-a5ca-e784470cb85f",
   "serper_key": "fa053a785d306bc110c0dd657d220b1825338f67",

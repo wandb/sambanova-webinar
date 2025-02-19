@@ -913,7 +913,7 @@ class LeadGenerationAPI:
                     content={"error": f"Failed to retrieve API keys: {str(e)}"}
                 )
 
-    async def execute_research(self, crew, parameters: Dict[str, Any]):
+    async def execute_research(self, crew: ResearchCrew, parameters: Dict[str, Any]):
         extractor = UserPromptExtractor(crew.llm.api_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
@@ -924,12 +924,10 @@ class LeadGenerationAPI:
         ]).strip()
         extracted_info = extractor.extract_lead_info(combined_text)
 
-        loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_research, extracted_info)
-        result = await loop.run_in_executor(None, future.result)
-        return result
+        raw_result, _ = await asyncio.to_thread(crew.execute_research, extracted_info)
+        return raw_result
 
-    async def execute_financial(self, crew, parameters: Dict[str,Any]):
+    async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any]):
         fextractor = FinancialPromptExtractor(crew.llm.api_key)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
@@ -949,9 +947,7 @@ class LeadGenerationAPI:
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]
 
-        loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_financial_analysis, inputs)
-        raw_result = await loop.run_in_executor(None, future.result)
+        raw_result, _ = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
         return raw_result
 
 def create_app():

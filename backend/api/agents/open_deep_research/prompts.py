@@ -108,7 +108,7 @@ Generate {number_of_queries} search queries for this section. Each query must:
 
 1. Address a different angle or subtopic, ensuring diverse coverage: historical evolution, cutting-edge research, controversies, best practices, etc.
 2. Employ precise technical or domain-specific terms to narrow results to high-quality academic, industry, or official sources.
-3. Consider recent developments (e.g., "2024," "latest standards") to ensure timely information.
+3. Consider recent developments (e.g., "2025," "latest standards") to ensure timely information.
 4. Encourage comparative analysis with alternative approaches or competing methodologies.
 5. Target both theoretical depth (e.g., academic journals, white papers) and practical insights (e.g., implementation guides, case studies).
 

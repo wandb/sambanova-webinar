@@ -67,7 +67,7 @@ class SalesLeads(BaseModel):
     product: Optional[str] = Field(default=None, description="The product for the sales leads")
 
 class DeepResearch(BaseModel):
-    topic: str = Field(default="", description="The topic of the research")
+    deep_research_topic: str = Field(default="", description="The topic of the research")
 
 class EducationalContent(BaseModel):
     topic: str = Field(default="", description="The topic of the research, use a single word")
@@ -89,7 +89,7 @@ class EndUserMessage(BaseAgentMessage):
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
     parameters: Union[
-        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion
+        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion, DeepResearch
     ]
     query: str
     document_ids: Optional[List[str]] = None
@@ -102,7 +102,7 @@ class AgentRequest(BaseModel):
             AgentEnum.EducationalContent: EducationalContent,
             AgentEnum.Assistant: AssistantMessage,
             AgentEnum.UserProxy: UserQuestion,
-            AgentEnum.DeepResearch: EducationalContent,  # same as before
+            AgentEnum.DeepResearch: DeepResearch,
         }[self.agent_type]
 
         if isinstance(self.parameters, expected_type):

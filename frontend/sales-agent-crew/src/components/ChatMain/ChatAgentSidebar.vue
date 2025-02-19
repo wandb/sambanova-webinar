@@ -248,10 +248,11 @@ let socket = null
 // Function to establish the WebSocket connection.
 function connectWebSocket() {
 
-  
-  const WEBSOCKET_URL = 'ws://localhost:8000/chat'  // Replace with your actual URL
+  // Get WebSocket URL from environment variable with fallback
+  const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
+
   // Construct the full URL using query parameters.
-  const fullUrl = `${WEBSOCKET_URL}?user_id=${props.userId}&conversation_id=${props.runId}`
+  const fullUrl = `${WEBSOCKET_URL}/chat`
   console.log('Connecting to:', fullUrl)
   // alert("connectng ",fullUrl)
   socket = new WebSocket(fullUrl)

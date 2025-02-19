@@ -921,7 +921,7 @@ searchQuery.value = ''
 function connectWebSocket() {
 
 
-  const WEBSOCKET_URL = 'ws://localhost:8000/chat'
+  const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
   const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
 
   socket.value = new WebSocket(fullUrl)

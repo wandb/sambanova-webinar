@@ -949,9 +949,7 @@ class LeadGenerationAPI:
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]
 
-        loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_financial_analysis, inputs)
-        raw_result = await loop.run_in_executor(None, future.result)
+        raw_result, _ = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
         return raw_result
 
 def create_app():

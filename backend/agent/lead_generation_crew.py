@@ -79,7 +79,7 @@ class ResearchCrew:
         model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.llm = LLM(
             model=model_info["crewai_prefix"] + "/" + model_info["model"],
-            temperature=0.01,
+            temperature=0.00,
             max_tokens=8192,
             api_key=llm_api_key,
             base_url=model_info["url"]

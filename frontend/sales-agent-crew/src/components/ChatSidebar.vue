@@ -20,25 +20,20 @@
 
     <!-- Conversation list -->
     <div class="flex-1 overflow-y-auto">
-      <div 
-        v-for="conv in conversations" 
-        :key="conv.conversation_id"
-        :class="preselectedChat===conv.conversation_id?'bg-primary-brandDarkGray border border-primary-brandFrame':''"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
-      <div @click="selectConversation(conv)" class="w-full">
-        <div class="font-medium capitalize text-gray-800 truncate">  
-          {{ conv.name?conv.name:"New Chat"	 }}
-          
-        </div>
-        <div class="text-xs text-gray-500">
-          {{ conv.conversation_id }}
-        </div>
-        <div class="text-xs text-gray-500">
-          {{ formatDateTime(conv.created_at) }}
-        </div>
+     
+      <ChatItem
+      v-for="conv in conversations"
+      :key="conv.conversation_id"
+      :conversation="conv"
+      :preselectedChat="preselectedChat"
+      @select-conversation="selectConversation"
+      @delete-chat="deleteChat"
+      @share-chat="shareChat"
+      @download-chat="downloadChat"
+    />
+    
       </div>
-      </div>
-    </div>
+     
   </div>
 </template>
 
@@ -49,6 +44,8 @@ import { useAuth } from '@clerk/vue'
 import { decryptKey } from '@/utils/encryption'   // adapt path if needed
 import { useRoute, useRouter } from 'vue-router'
 import SILogo from '@/components/icons/SILogo.vue'  
+
+import ChatItem from '@/components/ChatMain/ChatItem.vue'
 
 
 import axios from 'axios'
@@ -84,6 +81,25 @@ let cId=route.params.id
 })
 
 
+async function deleteChat( conversationId) {
+  const url = `${import.meta.env.VITE_API_URL}/chat/${userId.value}/${conversationId}`;
+  try {
+    const response = await axios.delete(url, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    // console.log('Chat deleted successfully:', response.data);
+
+    loadChats()
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+
+
+    throw error;
+  }
+}
 
 let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
 let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
@@ -175,20 +191,9 @@ async function createNewChat() {
       }
     )
     const cid = resp.data.conversation_id
-    // const assistantMsg = resp.data.assistant_message || "New Conversation"
-    // const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
 
-    // const convMeta = {
-    //   conversation_id: cid,
-    //   title: shortTitle,
-    //   created_at: Date.now()
-    // }
-    // // Prepend
-    // conversations.value.unshift(convMeta)
-    // saveConversations()
-
-    // selectConversation(convMeta)
-
+    preselectedChat.value=cid
+   
     loadChats()
     router.push(`/${cid}`)
   } catch (err) {

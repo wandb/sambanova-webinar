@@ -253,7 +253,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
             await self.publish_message(
                 deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
-
+            return
 
         logger.info(logger.format_message(
             ctx.topic_id.source,

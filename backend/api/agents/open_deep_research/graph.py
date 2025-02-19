@@ -376,12 +376,21 @@ def compile_final_report(state: ReportState):
 
 def get_graph(api_key: str, provider: str):
 
+    model_name = "llama-3.3-70b"
+    planner_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
+        "model"
+    ] 
+    model_name = "llama-3.1-70b"
+    writer_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
+        "model"
+    ] 
+
     if provider == "fireworks":    
-        writer_model = ChatFireworks(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
-        planner_model = ChatFireworks(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
+        writer_model = ChatFireworks(model=writer_model, temperature=0, max_tokens=8192, api_key=api_key)
+        planner_model = ChatFireworks(model=planner_model, temperature=0, max_tokens=8192, api_key=api_key)
     elif provider == "sambanova":
-        writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
-        planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        writer_model = ChatSambaNovaCloud(model=writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        planner_model = ChatSambaNovaCloud(model=planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

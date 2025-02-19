@@ -3,6 +3,7 @@ import json
 import time
 from typing import Any
 import os
+from crewai.agents.parser import AgentFinish, AgentAction
 
 class RedisConversationLogger:
     """
@@ -65,6 +66,11 @@ class RedisConversationLogger:
     def __call__(self, output: Any):
         try:
             if hasattr(output, 'text'):
+                if isinstance(output, AgentAction):
+                    task = output.tool
+                else:
+                    task = ""
+
                 message = {
                     "user_id": self.user_id,
                     "run_id": self.run_id,
@@ -77,6 +83,7 @@ class RedisConversationLogger:
                         "duration": time.time() - self.init_timestamp,
                         "llm_name": self.llm_name,
                         "llm_provider": self.llm_provider,
+                        "task": task,
                     },
                 }
                 self.init_timestamp = time.time()

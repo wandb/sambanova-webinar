@@ -245,7 +245,20 @@ class SemanticRouterAgent(RoutedAgent):
         """
 
         # TODO: remove this when fixed route
-        if message.content == "true":
+        user_id, conversation_id = ctx.topic_id.source.split(":")
+        history = self._session_manager.get_history(conversation_id)
+
+        if len(history) > 0:
+            try:
+                last_content = json.loads(history[-1].content)
+            except json.JSONDecodeError:
+                last_content = {}
+                
+        if "deep_research_user_question" in last_content:
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                "Deep research feedback received, routing to deep research"
+            ))
             deep_research_request = AgentRequest(
                 agent_type=AgentEnum.DeepResearch,
                 parameters=DeepResearch(deep_research_topic=""),
@@ -262,11 +275,8 @@ class SemanticRouterAgent(RoutedAgent):
         system_message = agent_registry.get_planner_prompt()
 
         try:
-            user_id, conversation_id = ctx.topic_id.source.split(":")
-
             start_time = time.time()
 
-            history = self._session_manager.get_history(conversation_id)
             planner_response = self._reasoning_model_client.create_stream(
                 [SystemMessage(content=system_message, source="system")]
                 + list(history)

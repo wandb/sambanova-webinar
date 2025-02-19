@@ -20,6 +20,9 @@ class AgentEnum(str, Enum):
 class Greeter(BaseModel):
     greeting: str
 
+class DeepResearchUserQuestion(BaseModel):
+    deep_research_user_question: str
+
 class UserQuestion(BaseModel):
     user_question: str
 
@@ -150,6 +153,7 @@ class AgentStructuredResponse(BaseModel):
         Greeter,
         AssistantResponse,
         UserQuestion,
+        DeepResearchUserQuestion,
         DeepResearchReport,
     ]
     metadata: Optional[Dict[str, Any]] = None

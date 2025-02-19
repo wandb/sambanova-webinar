@@ -21,7 +21,7 @@ from api.data_types import (
     AgentStructuredResponse,
     APIKeys,
     AgentEnum,
-    UserQuestion,
+    DeepResearchUserQuestion,
     DeepResearchReport,
 )
 from config.model_registry import model_registry
@@ -107,7 +107,7 @@ class DeepResearchAgent(RoutedAgent):
                         )
                         response = AgentStructuredResponse(
                             agent_type=AgentEnum.UserProxy,
-                            data=UserQuestion(user_question=user_question_str),
+                            data=DeepResearchUserQuestion(deep_research_user_question=user_question_str),
                             message=user_question_str
                         )
                         await self.publish_message(

@@ -977,6 +977,8 @@ onBeforeUnmount(() => {
 })
 
 const addMessage=()=>{
+
+
    isLoading.value=true
    completionMetaData.value=null
    plannerText.value=''
@@ -1011,6 +1013,28 @@ searchQuery.value = ''
 }
 
 
+
+function addOrUpdateModel(newData) {
+  // Try to find an existing model with the same llm_name
+  const existingModel = workflowData.value.find(item => item.llm_name === newData.llm_name);
+  
+  if (existingModel) {
+    // If found, update its properties.
+    // Here we're updating llm_provider and task; adjust as needed.
+    // existingModel.llm_provider = newData.llm_provider;
+    // existingModel.task = newData.task;
+    
+    Object.assign(existingModel, newData);
+    // Increase the count. If it doesn't exist, initialize it to 1 then add 1.
+    existingModel.count = (existingModel.count || 1) + 1;
+  } else {
+    // If not found, add a new object with count set to 1.
+    workflowData.value.push({
+      ...newData,
+      count: 1
+    });
+  }
+}
 
 // Function to establish the WebSocket connection.
 function connectWebSocket() {
@@ -1056,7 +1080,9 @@ function connectWebSocket() {
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
         try{
           console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
-          workflowData.value.push(JSON.parse(receivedData.data).metadata)
+          // workflowData.value.push(JSON.parse(receivedData.data).metadata)
+
+          addOrUpdateModel(JSON.parse(receivedData.data).metadata)
 
         }catch(e){
           
@@ -1076,7 +1102,9 @@ function connectWebSocket() {
       
       let dataParsed=JSON.parse(receivedData.data)
       
-      workflowData.value.push(dataParsed.metadata)
+      // workflowData.value.push(dataParsed.metadata)
+
+      addOrUpdateModel(dataParsed.metadata)
 
       console.log("workflowData:",workflowData)
         

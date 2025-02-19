@@ -129,7 +129,7 @@
   .chat-list {
     max-height: 80vh; /* Adjust as needed */
     overflow-y: auto;
-    padding: 0 1rem;
+    /* padding: 0 1rem; */
   }
   
   .chat-group {

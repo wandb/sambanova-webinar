@@ -9,11 +9,12 @@ from typing_extensions import Annotated
 from dataclasses import dataclass
 
 from config.model_registry import model_registry
+from .prompts import improved_report_structure
 
 
 DEFAULT_REPORT_STRUCTURE = """The report structure should focus on breaking-down the user-provided topic:
 
-1. Introduction (no research needed)
+1. Introduction (research needed)
     - Brief overview of the topic area
 2. Main Body Sections:
     - Each section should focus on a sub-topic of the user-provided topic
@@ -34,7 +35,7 @@ class Configuration:
     """The configurable fields for the chatbot."""
 
     report_structure: str = (
-        DEFAULT_REPORT_STRUCTURE  # Defaults to the default report structure
+        improved_report_structure  # Defaults to the default report structure
     )
     number_of_queries: int = 1  # Number of search queries to generate per iteration
     max_search_depth: int = 1 # Maximum number of reflection + search iterations

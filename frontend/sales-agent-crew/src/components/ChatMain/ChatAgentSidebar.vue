@@ -249,7 +249,11 @@ let socket = null
 function connectWebSocket() {
 
   
-  const WEBSOCKET_URL = 'ws://localhost:8000/chat'  // Replace with your actual URL
+  // Construct the base WebSocket URL with /chat endpoint
+  let WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'
+  WEBSOCKET_URL = `${WEBSOCKET_URL}/chat`
+
+ 
   // Construct the full URL using query parameters.
   const fullUrl = `${WEBSOCKET_URL}?user_id=${props.userId}&conversation_id=${props.runId}`
   console.log('Connecting to:', fullUrl)
@@ -382,15 +386,11 @@ watch(
       'to',
       (((newMetadata)))
     );
-    console.log(typeof newMetadata)
+    // console.log(typeof newMetadata)
     
     metadata.value = ((newMetadata)) || null
     
-    alert("meta data recied ")
-     console.log("called meta data chaned",newMetadata)
-
-      console.error('Received metadata:', newMetadata);
-    
+  
 
   },
   { deep: true } // If you want to detect nested mutations
@@ -408,11 +408,7 @@ watch(
     console.log(typeof newAgentData)
     
 
-      agentThoughtsData.value = ((newAgentData)) || []
-    
-  
-      console.error('Received agentData is not an array:', newAgentData);
-    
+      agentThoughtsData.value = ((newAgentData)) || []    
 
   },
   { deep: true } // If you want to detect nested mutations

@@ -76,7 +76,7 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
+        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.3-70b")
         self._structure_extraction_model = OpenAIChatCompletionClient(
             model=structure_extraction_model_metadata["model"],
             base_url=structure_extraction_model_metadata["url"],

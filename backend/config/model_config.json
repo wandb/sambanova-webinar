@@ -6,25 +6,25 @@
                     "model": "Meta-Llama-3.1-70B-Instruct",
                     "crewai_prefix": "sambanova",
                     "url": "https://api.sambanova.ai/v1",
-                    "long_url": "https://api.sambanova.ai/v1"
+                    "long_url": "https://api.sambanova.ai/v1/chat/completions"
                 },
                 "llama-3.3-70b": {
                     "model": "Meta-Llama-3.3-70B-Instruct",
                     "crewai_prefix": "sambanova",
                     "url": "https://api.sambanova.ai/v1",
-                    "long_url": "https://api.sambanova.ai/v1"
+                    "long_url": "https://api.sambanova.ai/v1/chat/completions"
                 },
                 "llama-3.1-8b": {
                     "model": "Meta-Llama-3.1-8B-Instruct",
                     "crewai_prefix": "sambanova",
                     "url": "https://api.sambanova.ai/v1",
-                    "long_url": "https://api.sambanova.ai/v1"
+                    "long_url": "https://api.sambanova.ai/v1/chat/completions"
                 },
                 "deepseek-r1-distill-llama-70b": {
                     "model": "DeepSeek-R1-Distill-Llama-70B",
                     "crewai_prefix": "sambanova",
                     "url": "https://api.sambanova.ai/v1",
-                    "long_url": "https://api.sambanova.ai/v1"
+                    "long_url": "https://api.sambanova.ai/v1/chat/completions"
                 }
             },
             "api_key_env": "sambanova_key"

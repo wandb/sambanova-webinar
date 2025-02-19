@@ -211,6 +211,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 "provider": model_registry.get_current_provider(),
                 "workflow": "General Assistant",
                 "agent_name": "General Assistant",
+                "task": "assistant",
             }
             assistant_event = {
                 "event": "think",

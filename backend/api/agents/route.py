@@ -278,6 +278,7 @@ class SemanticRouterAgent(RoutedAgent):
             planner_metadata = {
                 "llm_name": self._reasoning_model_client._resolved_model,
                 "llm_provider": model_registry.get_current_provider(),
+                "task": "planning",
             }   
             planner_event = {
                 "event": "planner",

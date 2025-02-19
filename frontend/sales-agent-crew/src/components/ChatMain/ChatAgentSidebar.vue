@@ -63,154 +63,31 @@
 
 
 
-    <template v-if="metadata">
-  <div class="max-w-sm p-2 bg-gray-50 border border-gray-200 rounded shadow-sm">
-    <!-- Heading -->
-    <h2 class="text-sm font-semibold text-gray-700 mb-3">
-      Response Metadata
-    </h2>
+    <template v-if="metadata&&!collapsed">
+  <div class="max-w-sm p-4 m-2 bg-[#F9FAFB] border border-gray-200 rounded-lg shadow-sm">
+    <!-- Optional Heading -->
+    
 
-    <!-- Metadata list -->
-    <ul class="space-y-2 text-gray-700">
-      <!-- Total tokens -->
-      <li class="flex items-center space-x-2">
-        <svg 
-          class="w-5 h-5 text-gray-600" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path 
-            stroke-linecap="round" 
-            stroke-linejoin="round" 
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span>
-          Total tokens: <strong>{{ metadata.total_tokens }}</strong>
-        </span>
-      </li>
+    <!-- Inline metadata items with rocket icon -->
+    <div class="flex items-center flex-wrap text-sm text-gray-700">
+      <!-- Green Rocket Icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" fill="#26A69A" viewBox="0 0 24 24" class="w-6 h-6">
+  <path d="M12 2l3 7h7l-5.5 4 2 7-6-4-6 4 2-7L2 9h7z" />
+</svg>
 
-      <!-- Prompt tokens -->
-      <li class="flex items-center space-x-2">
-        <svg 
-          class="w-5 h-5 text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path 
-            stroke-linecap="round" 
-            stroke-linejoin="round" 
-            stroke-width="2"
-            d="M7 4h10M7 8h5m-5 4h8m-8 4h2"
-          />
-        </svg>
+      <!-- Render only available metadata fields -->
+      <template  v-for="(item, index) in presentMetadata" :key="item.key">
+        <!-- Add separator dot for every item except the first -->
+        <span v-if="index !== 0" class="mx-2 w-2 h-2 bg-gray-400 rounded-full"></span>
         <span>
-          Prompt tokens: <strong>{{ metadata.prompt_tokens }}</strong>
+          {{ item.label }} <strong>{{ item.value }}</strong>
         </span>
-      </li>
-
-      <!-- Cached prompt tokens -->
-      <li class="flex items-center space-x-2">
-        <svg
-          class="w-5 h-5 text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4h16v16H4z"
-          />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 9h6v6H9z"
-          />
-        </svg>
-        <span>
-          Cached prompt tokens: 
-          <strong>{{ metadata.cached_prompt_tokens }}</strong>
-        </span>
-      </li>
-
-      <!-- Completion tokens -->
-      <li class="flex items-center space-x-2">
-        <svg
-          class="w-5 h-5 text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M16 5H8m8 4H8m8 4H8m8 4H8"
-          />
-        </svg>
-        <span>
-          Completion tokens: 
-          <strong>{{ metadata.completion_tokens }}</strong>
-        </span>
-      </li>
-
-      <!-- Successful requests -->
-      <li class="flex items-center space-x-2">
-        <svg
-          class="w-5 h-5 text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-        <span>
-          Successful requests: 
-          <strong>{{ metadata.successful_requests }}</strong>
-        </span>
-      </li>
-
-      <!-- Duration -->
-      <li class="flex items-center space-x-2">
-        <svg
-          class="w-5 h-5 text-gray-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="9"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path 
-            stroke-linecap="round" 
-            stroke-linejoin="round" 
-            stroke-width="2"
-            d="M12 6v6l4 2"
-          />
-        </svg>
-        <span>
-          Duration: <strong>{{ metadata.duration }}s</strong>
-        </span>
-      </li>
-    </ul>
+      </template>
+    </div>
   </div>
 </template>
+
+
 
 </div>   
 
@@ -565,6 +442,54 @@ function parsedData(str) {
   }
 }
 
+
+const presentMetadata = computed(() => {
+  const data = [];
+
+  if (props.metadata.total_tokens != null) {
+    data.push({
+      key: 'total_tokens',
+      label: 'Total tokens:',
+      value: props.metadata.total_tokens
+    });
+  }
+  if (props.metadata.prompt_tokens != null) {
+    data.push({
+      key: 'prompt_tokens',
+      label: 'Prompt tokens:',
+      value: props.metadata.prompt_tokens
+    });
+  }
+  if (props.metadata.cached_prompt_tokens != null) {
+    data.push({
+      key: 'cached_prompt_tokens',
+      label: 'Cached prompt tokens:',
+      value: props.metadata.cached_prompt_tokens
+    });
+  }
+  if (props.metadata.completion_tokens != null) {
+    data.push({
+      key: 'completion_tokens',
+      label: 'Completion tokens:',
+      value: props.metadata.completion_tokens
+    });
+  }
+  if (props.metadata.successful_requests != null) {
+    data.push({
+      key: 'successful_requests',
+      label: 'Successful requests:',
+      value: props.metadata.successful_requests
+    });
+  }
+  if (props.metadata.duration != null) {
+    data.push({
+      key: 'duration',
+      label: 'Duration:',
+      value: `${props.metadata.duration}s`
+    });
+  }
+  return data;
+});
 </script>
 
 <style scoped>

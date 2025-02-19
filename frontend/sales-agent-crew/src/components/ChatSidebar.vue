@@ -21,15 +21,13 @@
     <!-- Conversation list -->
     <div class="flex-1 overflow-y-auto">
      
-      <ChatItem
-      v-for="conv in conversations"
-      :key="conv.conversation_id"
-      :conversation="conv"
+    <ChatList
+      :conversations="conversations"
       :preselectedChat="preselectedChat"
-      @select-conversation="selectConversation"
-      @delete-chat="deleteChat"
-      @share-chat="shareChat"
-      @download-chat="downloadChat"
+      @select-conversation="onSelectConversation"
+      @delete-chat="onDeleteChat"
+      @share-chat="onShareChat"
+      @download-chat="onDownloadChat"
     />
     
       </div>
@@ -45,7 +43,7 @@ import { decryptKey } from '@/utils/encryption'   // adapt path if needed
 import { useRoute, useRouter } from 'vue-router'
 import SILogo from '@/components/icons/SILogo.vue'  
 
-import ChatItem from '@/components/ChatMain/ChatItem.vue'
+import ChatList from '@/components/ChatMain/ChatList.vue'
 
 
 import axios from 'axios'
@@ -65,6 +63,13 @@ const serperKey = ref(null)
 const exaKey = ref(null)
 
 const conversations = ref([])
+
+// Event handler functions for events emitted from ChatList/ChatItem.
+function onSelectConversation(conversation) {
+  console.log('Parent: Selected conversation', conversation)
+  preselectedChat.value = conversation.conversation_id
+  router.push(`/${conversation.conversation_id}`)
+}
 
 /** 
  * On mounted => load local conversation list + decrypt keys 
@@ -231,9 +236,6 @@ function selectConversation(conv) {
   preselectedChat.value=conv.conversation_id
   // alert(conv.conversation_id)
   router.push(`/${conv.conversation_id}`)
-
-  
-
 }
 
 function formatDateTime(ts) {
@@ -241,7 +243,23 @@ function formatDateTime(ts) {
   const d = new Date(ts)
   return d.toLocaleString()
 }
+// Updated delete handler calls deleteChat().
+async function onDeleteChat(conversationId) {
+  console.log('Parent: Delete conversation', conversationId)
+  try {
+    await deleteChat(conversationId)
+  } catch (error) {
+    console.error('Delete action failed:', error)
+  }
+}
 
+function onShareChat(conversationId) {
+  console.log('Parent: Share conversation', conversationId)
+}
+
+function onDownloadChat(conversationId) {
+  console.log('Parent: Download conversation', conversationId)
+}
 
 
 </script>

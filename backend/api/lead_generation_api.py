@@ -929,7 +929,7 @@ class LeadGenerationAPI:
         result = await loop.run_in_executor(None, future.result)
         return result
 
-    async def execute_financial(self, crew, parameters: Dict[str,Any]):
+    async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any]):
         fextractor = FinancialPromptExtractor(crew.llm.api_key)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
@@ -950,7 +950,7 @@ class LeadGenerationAPI:
             inputs["docs"] = parameters["docs"]
 
         loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_financial_analysis, inputs)
+        future, _ = self.executor.submit(crew.execute_financial_analysis, inputs)
         raw_result = await loop.run_in_executor(None, future.result)
         return raw_result
 

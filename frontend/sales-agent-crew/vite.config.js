@@ -17,7 +17,7 @@ export default defineConfig({
     // add your HMR config here
     hmr: {
       host: 'localhost',
-      protocol: 'ws'
+      protocol: 'wss'
     },
     proxy: {
       '/api': {

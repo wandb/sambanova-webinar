@@ -1,8 +1,8 @@
 <template>
     <div
-      class="p-3   m-1 relative cursor-pointer  group"
+      class="p-3 m-1  relative cursor-pointer group"
       @click="onSelectConversation"
-      :class="{ 'bg-primary-brandDarkGray rounded-md border border border-primary-brandFrame': isActive }"
+      :class="{ 'bg-primary-brandDarkGray rounded-md border border-primary-brandFrame': isActive }"
     >
       <!-- Menu button: visible on hover -->
       <button
@@ -18,7 +18,7 @@
           <circle cx="12" cy="19" r="1" />
         </svg>
       </button>
-  
+    
       <!-- Popover menu -->
       <div
         v-if="activeMenu"
@@ -61,68 +61,70 @@
           Download
         </button>
       </div>
-  
+    
       <!-- Conversation details -->
       <div class="w-full relative h-full">
-        <div
-          class="font-medium capitalize text-gray-800 truncate"
-          
-        >
+        <div class="text-md capitalize color-primary-brandGray  truncate">
           {{ conversation.name ? conversation.name : "New Chat" }}
         </div>
       </div>
     </div>
   </template>
   
-  <script>
-  export default {
-    name: 'ChatItem',
-    props: {
-      conversation: {
-        type: Object,
-        required: true,
-      },
-      preselectedChat: {
-        type: [String, Number],
-        default: null,
-      },
+  <script setup>
+  import { ref, computed } from 'vue';
+  
+  // Props from parent
+  const props = defineProps({
+    conversation: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        activeMenu: false,
-      };
+    preselectedChat: {
+      type: [String, Number],
+      default: null,
     },
-    computed: {
-      isActive() {
-        return this.preselectedChat === this.conversation.conversation_id;
-      },
-    },
-    methods: {
-      onSelectConversation() {
-        this.$emit('select-conversation', this.conversation);
-        // Optionally, close the menu when the conversation is selected.
-        this.activeMenu = false;
-      },
-      toggleMenu() {
-        this.activeMenu = !this.activeMenu;
-      },
-      onDelete() {
-        this.$emit('delete-chat', this.conversation.conversation_id);
-        this.activeMenu = false;
-      },
-      onShare() {
-        this.$emit('share-chat', this.conversation.conversation_id);
-        this.activeMenu = false;
-      },
-      onDownload() {
-        this.$emit('download-chat', this.conversation.conversation_id);
-        this.activeMenu = false;
-      },
-    },
-  };
+  });
+  
+  // Emit events for selection and menu actions.
+  const emit = defineEmits(['select-conversation', 'delete-chat', 'share-chat', 'download-chat']);
+  
+  const activeMenu = ref(false);
+  
+  // Computed property for setting active background.
+  const isActive = computed(() => props.preselectedChat === props.conversation.conversation_id);
+  
+  // Function to handle chat selection.
+  function onSelectConversation() {
+    emit('select-conversation', props.conversation);
+    activeMenu.value = false;
+  }
+  
+  // Toggle menu visibility.
+  function toggleMenu() {
+    activeMenu.value = !activeMenu.value;
+  }
+  
+  // Emit delete event.
+  function onDelete() {
+    emit('delete-chat', props.conversation.conversation_id);
+    activeMenu.value = false;
+  }
+  
+  // Emit share event.
+  function onShare() {
+    emit('share-chat', props.conversation.conversation_id);
+    activeMenu.value = false;
+  }
+  
+  // Emit download event.
+  function onDownload() {
+    emit('download-chat', props.conversation.conversation_id);
+    activeMenu.value = false;
+  }
   </script>
   
   <style scoped>
-  /* Additional styles (if needed) */
+  /* Add any additional ChatItem styles as needed */
   </style>
   

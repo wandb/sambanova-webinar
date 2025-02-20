@@ -141,7 +141,7 @@ class AssistantAgentWrapper(RoutedAgent):
         self.websocket = websocket
         self.redis_client = redis_client
 
-        model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
+        model_info = model_registry.get_model_info(model_key="llama-3.3-70b")
         self._assistant = AssistantAgent(
             name="assistant",
             model_client=OpenAIChatCompletionClient(

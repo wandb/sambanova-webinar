@@ -42,7 +42,7 @@
     <!-- Textarea -->
 
     <div class="max-w-4xl mx-auto  lg:px-0">
-      <div class="flex justify-center items-center mb-3">
+      <div class="flex items-start  mb-3">
         <!-- <button type="button" class="inline-flex justify-center items-center gap-x-2 rounded-lg font-medium text-gray-800 hover:text-blue-600 focus:outline-none focus:text-blue-600 text-xs sm:text-sm dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:text-blue-500">
           <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           New chat
@@ -56,6 +56,75 @@
         </button> -->
       </div>
 
+
+
+      <div v-if="uploadedDocuments.length > 0" class="mt-4">
+    <!-- Collapsible header -->
+    <button
+      @click="toggleExpand"
+      class="flex items-center justify-between focus:outline-none"
+    >
+      <h3 class="text-sm font-medium text-gray-700 mb-2">
+        Uploaded Documents ({{ uploadedDocuments.length }})
+      </h3>
+      <svg
+        :class="{ 'transform rotate-180': isExpanded }"
+        class="w-5 h-5 text-gray-500 transition-transform duration-200"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    </button>
+
+    <!-- Collapsible content -->
+    <div v-if="isExpanded">
+      <!-- Reusable HorizontalScroll component -->
+      <HorizontalScroll>
+        <div class="flex space-x-4">
+          <div
+            v-for="doc in uploadedDocuments"
+            :key="doc.id"
+            class="w-48 flex-shrink-0 p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 relative group"
+          >
+            <div class="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                :checked="selectedDocuments.includes(doc.id)"
+                @change="toggleDocumentSelection(doc.id)"
+                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <div class="w-48 overflow-hidden">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  {{ doc.filename }}
+                </p>
+                <p class="text-xs text-gray-500 truncate">
+                  Uploaded {{ new Date(doc.upload_timestamp * 1000).toLocaleString() }} •
+                  {{ doc.num_chunks }} chunks
+                </p>
+              </div>
+            </div>
+            <button
+              @click="removeDocument(doc.id)"
+              class="absolute top-1 right-1 bg-orange-300 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
+              title="Remove document"
+            >
+              <!-- Replace with your icon component or inline SVG -->
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </HorizontalScroll>
+     
+    </div>
+  </div>
+ 
       <!-- Input -->
       <div class="relative">
         <textarea 
@@ -110,7 +179,15 @@
               type="button"
               class="inline-flex shrink-0 justify-center items-center size-8 rounded-lg text-gray-500 hover:bg-gray-100 focus:z-1 focus:outline-none focus:bg-gray-100"
             >
-              <svg
+             
+            <input
+          type="file"
+          ref="fileInput"
+          @change="handleFileUpload"
+          class="hidden"
+          accept=".pdf,.doc,.docx,.csv,.xlsx,.xls"
+        />
+        <svg
                 class="shrink-0 size-4"
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -215,15 +292,33 @@ import { uploadDocument } from '../../services/api'
 import Popover from '@/components/Common/UIComponents/CustomPopover.vue'
 import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
 const newMessage = ref('') // User input field
 const socket = ref(null) // WebSocket reference
 const container = ref(null)
+const isExpanded = ref(false);
+
+// Toggle the collapsible panel
+function toggleExpand() {
+  isExpanded.value = !isExpanded.value;
+}
 
 function handleKeyDown(e) {
   // When Enter is pressed without Shift, prevent newline and submit
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     addMessage()
+  }
+}
+
+function handleKeydownScroll(event) {
+  const container = scrollContainer.value;
+  if (!container) return;
+  const scrollAmount = 100; // Adjust the scroll distance as needed
+  if (event.key === 'ArrowRight') {
+    container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  } else if (event.key === 'ArrowLeft') {
+    container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
   }
 }
 function AutoScrollToBottom() {
@@ -882,6 +977,8 @@ onBeforeUnmount(() => {
 })
 
 const addMessage=()=>{
+
+
    isLoading.value=true
    completionMetaData.value=null
    plannerText.value=''
@@ -916,6 +1013,28 @@ searchQuery.value = ''
 }
 
 
+
+function addOrUpdateModel(newData) {
+  // Try to find an existing model with the same llm_name
+  const existingModel = workflowData.value.find(item => item.llm_name === newData.llm_name);
+  
+  if (existingModel) {
+    // If found, update its properties.
+    // Here we're updating llm_provider and task; adjust as needed.
+    // existingModel.llm_provider = newData.llm_provider;
+    // existingModel.task = newData.task;
+    
+    Object.assign(existingModel, newData);
+    // Increase the count. If it doesn't exist, initialize it to 1 then add 1.
+    existingModel.count = (existingModel.count || 1) + 1;
+  } else {
+    // If not found, add a new object with count set to 1.
+    workflowData.value.push({
+      ...newData,
+      count: 1
+    });
+  }
+}
 
 // Function to establish the WebSocket connection.
 function connectWebSocket() {
@@ -961,7 +1080,9 @@ function connectWebSocket() {
         emit('agentThoughtsDataChanged', agentThoughtsData.value)
         try{
           console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
-          workflowData.value.push(JSON.parse(receivedData.data).metadata)
+          // workflowData.value.push(JSON.parse(receivedData.data).metadata)
+
+          addOrUpdateModel(JSON.parse(receivedData.data).metadata)
 
         }catch(e){
           
@@ -981,7 +1102,9 @@ function connectWebSocket() {
       
       let dataParsed=JSON.parse(receivedData.data)
       
-      workflowData.value.push(dataParsed.metadata)
+      // workflowData.value.push(dataParsed.metadata)
+
+      addOrUpdateModel(dataParsed.metadata)
 
       console.log("workflowData:",workflowData)
         

@@ -88,6 +88,7 @@ class EndUserMessage(BaseAgentMessage):
     content: str
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
+    provider: str
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
@@ -96,6 +97,7 @@ class AgentRequest(BaseModel):
     ]
     query: str
     document_ids: Optional[List[str]] = None
+    provider: str
 
     @model_validator(mode="after")
     def validate_parameters_type(self) -> "AgentRequest":

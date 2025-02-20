@@ -50,7 +50,7 @@
                     "long_url": "https://api.fireworks.ai/inference/v1/chat/completions"
                 },
                 "deepseek-r1-distill-llama-70b": {
-                    "model": "accounts/kwasi-ankomah-5f17ac/deployedModels/deepseek-r1-distill-llama-70b-d1fd6c08",
+                    "model": "accounts/fireworks/models/deepseek-r1-distill-llama-70b",
                     "crewai_prefix": "fireworks_ai",
                     "url": "https://api.fireworks.ai/inference/v1/",
                     "long_url": "https://api.fireworks.ai/inference/v1/chat/completions"

@@ -36,14 +36,8 @@ class Configuration:
     report_structure: str = (
         DEFAULT_REPORT_STRUCTURE  # Defaults to the default report structure
     )
-    number_of_queries: int = 2  # Number of search queries to generate per iteration
-    max_search_depth: int = 2 # Maximum number of reflection + search iterations
-    planner_model: str = model_registry.get_model_info(model_key="llama-3.3-70b")[
-        "model"
-    ]  # Defaults to OpenAI o3-mini as planner model
-    writer_model: str = model_registry.get_model_info(model_key="llama-3.1-70b")[
-        "model"
-    ]  # Defaults to Anthropic as provider
+    number_of_queries: int = 1  # Number of search queries to generate per iteration
+    max_search_depth: int = 1 # Maximum number of reflection + search iterations
     search_api: SearchAPI = SearchAPI.TAVILY  # Default to TAVILY
 
     @classmethod

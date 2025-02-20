@@ -63,11 +63,11 @@ class SemanticRouterAgent(RoutedAgent):
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
 
-        reasoning_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
-        self._reasoning_model_client = OpenAIChatCompletionClient(
-            model=reasoning_model_metadata["model"],
-            base_url=reasoning_model_metadata["url"],
-            api_key=getattr(api_keys, model_registry.get_api_key_env()),
+        self._reasoning_model_name = "llama-3.1-70b"
+        self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
+            model=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["model"],
+            base_url=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["url"],
+            api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -76,11 +76,11 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
-        self._structure_extraction_model = OpenAIChatCompletionClient(
-            model=structure_extraction_model_metadata["model"],
-            base_url=structure_extraction_model_metadata["url"],
-            api_key=getattr(api_keys, model_registry.get_api_key_env()),
+        self._structure_extraction_model_name = "llama-3.1-70b"
+        self._structure_extraction_model = lambda provider: OpenAIChatCompletionClient(
+            model=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["model"],
+            base_url=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["url"],
+            api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -133,6 +133,7 @@ class SemanticRouterAgent(RoutedAgent):
                 "parameters": parameters,
                 "document_ids": message.document_ids,
                 "query": message.content,
+                "provider": message.provider,
             }
         )
 
@@ -188,18 +189,23 @@ class SemanticRouterAgent(RoutedAgent):
         """
         user_proxy_plans = []
         assistant_plans = []
+        deep_research_plans = []
         for plan in plans:
             if plan["agent_type"] == AgentEnum.UserProxy:
                 user_proxy_plans.append(plan)
             elif plan["agent_type"] == AgentEnum.Assistant:
                 assistant_plans.append(plan)
+            elif plan["agent_type"] == AgentEnum.DeepResearch:
+                deep_research_plans.append(plan)
 
         if len(user_proxy_plans) > 0:
             return [user_proxy_plans[0]]
         elif len(assistant_plans) > 0:
             return [assistant_plans[0]]
+        elif len(deep_research_plans) > 0:
+            return [deep_research_plans[0]]
         else:
-            return plans
+            return plans[0]
 
     @message_handler
     async def handle_handoff(
@@ -277,7 +283,7 @@ class SemanticRouterAgent(RoutedAgent):
         try:
             start_time = time.time()
 
-            planner_response = self._reasoning_model_client.create_stream(
+            planner_response = self._reasoning_model(message.provider).create_stream(
                 [SystemMessage(content=system_message, source="system")]
                 + list(history)
                 + [UserMessage(content=message.content, source="user")],
@@ -298,8 +304,8 @@ class SemanticRouterAgent(RoutedAgent):
 
 
             planner_metadata = {
-                "llm_name": self._reasoning_model_client._resolved_model,
-                "llm_provider": model_registry.get_current_provider(),
+                "llm_name": self._reasoning_model(message.provider)._resolved_model,
+                "llm_provider": message.provider,
                 "task": "planning",
             }   
             planner_event = {
@@ -353,7 +359,7 @@ class SemanticRouterAgent(RoutedAgent):
                     ),
                     flags=re.DOTALL,
                 ).strip()
-                feature_extractor_response = await self._structure_extraction_model.create(
+                feature_extractor_response = await self._structure_extraction_model(message.provider).create(
                     [
                         SystemMessage(
                             content=agent_registry.get_strucuted_output_plan_prompt(
@@ -426,6 +432,7 @@ class SemanticRouterAgent(RoutedAgent):
             )
             logger.info(logger.format_message(ctx.topic_id.source, "SemanticRouterAgent defaulting to assistant agent"))
             request_obj = AgentRequest(
+                provider=message.provider,
                 agent_type=AgentEnum.Assistant,
                 parameters=AssistantMessage(query=message.content),
                 query=message.content,

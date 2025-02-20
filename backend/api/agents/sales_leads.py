@@ -28,11 +28,12 @@ class SalesLeadsAgent(RoutedAgent):
             ))
             
             crew = ResearchCrew(
-                llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
+                llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)),
                 exa_key=self.api_keys.exa_key,
                 user_id=user_id,
                 run_id=conversation_id,
-                verbose=False
+                verbose=False,
+                provider=message.provider,
             )
             parameters_dict = {k: v if v is not None else "" for k, v in message.parameters.model_dump().items()}
             logger.info(logger.format_message(

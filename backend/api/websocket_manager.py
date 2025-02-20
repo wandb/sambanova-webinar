@@ -167,6 +167,7 @@ class WebSocketConnectionManager:
                     source="User",
                     content=user_message_input["data"], 
                     use_planner=True,
+                    provider=user_message_input["provider"]
                 )    
 
                 # Store message in Redis asynchronously without waiting

@@ -29,7 +29,7 @@ class QueryRouterService:
     ):
         self.llm_api_key = llm_api_key
         self.provider = provider
-        self.model_name = "llama-3.1-8b"
+        self.model_name = "llama-3.1-70b"
         self.websocket = websocket
         self.redis_client = redis_client
         self.user_id = user_id

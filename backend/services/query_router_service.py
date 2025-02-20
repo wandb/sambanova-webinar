@@ -1,7 +1,14 @@
-from typing import Dict, Any
+import asyncio
+from datetime import datetime
+import time
+from typing import Dict, Any, Optional
 import json
-import requests
+from fastapi import WebSocket
+import aiohttp
 from pydantic import BaseModel
+import redis
+
+from config.model_registry import model_registry
 
 class QueryType(BaseModel):
     # Possible types: "sales_leads", "educational_content", or "financial_analysis"
@@ -9,10 +16,24 @@ class QueryType(BaseModel):
     parameters: Dict[str, Any]
 
 class QueryRouterService:
-    def __init__(self, sambanova_key: str):
-        self.sambanova_key = sambanova_key
-        self.api_url = "https://api.sambanova.ai/v1/chat/completions"
-        
+
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        websocket: Optional[WebSocket] = None,
+        redis_client: Optional[redis.Redis] = None,
+        user_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+    ):
+        self.llm_api_key = llm_api_key
+        self.provider = provider
+        self.model_name = "llama-3.1-8b"
+        self.websocket = websocket
+        self.redis_client = redis_client
+        self.user_id = user_id
+        self.conversation_id = conversation_id
+
         # Expanded / refined keywords for educational content (including some "report", "compare", etc.)
         self.edu_keywords = [
             "explain", "guide", "learn", "teach", "understand", "what is",
@@ -26,7 +47,7 @@ class QueryRouterService:
             # Newly added cues for research/educational style requests:
             "report", "tell me about", "describe", "differences", "similarities"
         ]
-        
+
         # Sales leads keywords
         self.sales_keywords = [
             "find", "search", "companies", "startups", "leads", "vendors",
@@ -36,7 +57,7 @@ class QueryRouterService:
             "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
-        # Financial keywords - removing generic “analysis” to avoid over-triggering
+        # Financial keywords - removing generic "analysis" to avoid over-triggering
         self.financial_keywords = [
             "stock",
             "fundamental analysis", 
@@ -87,7 +108,7 @@ class QueryRouterService:
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
 
-        # 3) Special logic for the words 'analysis' or 'analyze' 
+        # 3) Special logic for the words 'analysis' or 'analyze'
         #    => check if they appear alongside strong finance signals
         if ("analysis" in query_lower or "analyze" in query_lower):
             # If user also mentions known big cos, tickers, or finance words like 'stock'
@@ -105,36 +126,101 @@ class QueryRouterService:
             return "educational_content"
         return "sales_leads"
 
-    def _call_llm(self, system_message: str, user_message: str) -> str:
+    async def _call_llm(self, system_message: str, user_message: str) -> str:
         """
         Make an API call to SambaNova's LLM, returning raw string content.
         """
         headers = {
-            "Authorization": f"Bearer {self.sambanova_key}",
+            "Authorization": f"Bearer {self.llm_api_key}",
             "Content-Type": "application/json"
         }
-        
+
         payload = {
-            "model": "Meta-Llama-3.1-8B-Instruct",
+            "model": model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["model"],
             "messages": [
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
             "temperature": 0.01,
-            "stream": False
+            "stream": bool(self.websocket)  # Enable streaming if websocket exists
         }
 
         try:
-            response = requests.post(self.api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            json_response = response.json()
-            
-            if "choices" not in json_response or len(json_response["choices"]) == 0:
-                return self._get_default_response(self._detect_query_type(user_message))
+            # If we have a websocket, send the response to the client
+            planner_metadata = {
+                    "llm_name": payload["model"],
+                    "llm_provider": self.provider,
+                    "task": "planning",
+                }   
+            if self.websocket:
+                planner_event = {
+                    "event": "planner",
+                    "data": json.dumps({"metadata": planner_metadata}),
+                    "user_id": self.user_id,
+                    "conversation_id": self.conversation_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                await self.websocket.send_text(json.dumps(planner_event))
 
-            content = json_response["choices"][0]["message"]["content"].strip()
-            return content.replace("```json", "").replace("```", "").strip()
-            
+            api_url = model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["long_url"]
+
+            async with aiohttp.ClientSession() as session:
+                if self.websocket:
+                    start_time = time.time()
+                    # Streaming mode
+                    accumulated_content = ""
+                    async with session.post(api_url, headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        async for line in response.content:
+                            line = line.decode('utf-8').strip()
+                            if line.startswith('data: '):
+                                try:
+                                    json_response = json.loads(line.removeprefix('data: '))
+                                    if json_response.get("choices") and json_response["choices"][0].get("delta", {}).get("content"):
+                                        content = json_response["choices"][0]["delta"]["content"]
+                                        accumulated_content += content
+                                        # Send streaming update
+                                        stream_data = {
+                                            "event": "planner_chunk",
+                                            "data": json.dumps({"chunk": content}),
+                                            "user_id": self.user_id,
+                                            "conversation_id": self.conversation_id,
+                                            "timestamp": datetime.now().isoformat(),
+                                        }
+                                        await self.websocket.send_text(json.dumps(stream_data))
+                                except json.JSONDecodeError:
+                                    continue
+
+                    parsed_content = accumulated_content.replace("```json", "").replace("```", "").strip()
+
+                    end_time = time.time()
+                    processing_time = end_time - start_time
+                    planner_metadata["duration"] = processing_time
+
+                    # Send final message
+                    final_message_data = {
+                        "event": "planner",
+                        "data": json.dumps({"response": parsed_content, "metadata": planner_metadata}),
+                        "user_id": self.user_id,
+                        "conversation_id": self.conversation_id,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    message_key = f"messages:{self.user_id}:{self.conversation_id}"
+                    self.redis_client.rpush(message_key, json.dumps(final_message_data))
+                    await self.websocket.send_text(json.dumps(final_message_data))
+                    return parsed_content
+                else:
+                    # Non-streaming mode
+                    async with session.post(api_url, headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        json_response = await response.json()
+
+                        if "choices" not in json_response or len(json_response["choices"]) == 0:
+                            return self._get_default_response(self._detect_query_type(user_message))
+
+                        content = json_response["choices"][0]["message"]["content"].strip()
+                        return content.replace("```json", "").replace("```", "").strip()
+
         except Exception as e:
             print(f"Error calling LLM: {str(e)}")
             return self._get_default_response(self._detect_query_type(user_message))
@@ -207,11 +293,11 @@ class QueryRouterService:
             "ticker": params.get("ticker",""),
             "company_name": params.get("company_name","")
         }
-    
+
     def _normalize_deep_research_params(self, params: Dict) -> Dict:
         """Normalize deep research parameters with safe defaults."""
         return {
-            "topic": params.get("topic", "")
+            "deep_research_topic": params.get("deep_research_topic", "")
         }
 
     def _final_override(self, user_query: str, chosen_type: str) -> str:
@@ -228,7 +314,7 @@ class QueryRouterService:
 
         return chosen_type
 
-    def route_query(self, query: str) -> QueryType:
+    async def route_query(self, query: str, context_summary: str = "") -> QueryType:
         """
         Main routing method:
           1) Detect type using _detect_query_type
@@ -237,13 +323,16 @@ class QueryRouterService:
           4) Normalize parameters
           5) Final override check
         """
-        detected_type = self._detect_query_type(query)
-        
+
+        text = query + "\n\n" + context_summary
+        detected_type = self._detect_query_type(text)
+
         system_message = f"""
         You are a query routing expert that categorizes queries and extracts structured information.
+        To decide on the route take into account the user's query and the context summary.
         Always return a valid JSON object with 'type' and 'parameters'.
 
-        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', or 'deep_research'.
+        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', 'deep_research' or 'assistant'.
 
         Rules:
         1. For 'educational_content':
@@ -253,11 +342,13 @@ class QueryRouterService:
         2. For 'sales_leads': 
            - Extract specific industry, location, or other business parameters if any
         3. For 'financial_analysis': 
-           - Provide 'query_text' (the user’s full finance question)
+           - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
         4. For 'deep_research':
-           - Provide 'topic' (the users full research query)
+           - Provide 'deep_research_topic' (the users full research query)
+        5. For 'assistant':
+           - Provide 'query' (the user's full query)
      
 
         Examples:
@@ -266,7 +357,15 @@ class QueryRouterService:
         {{
           "type": "deep_research",
           "parameters": {{
-            "topic": "Write me a report on the future of AI"
+            "deep_research_topic": "Write me a report on the future of AI"
+          }}
+        }}
+
+        Query: "What is the weather in Tokyo?"
+        {{
+          "type": "assistant",
+          "parameters": {{
+            "query": "What is the weather in Tokyo?"
           }}
         }}
 
@@ -294,9 +393,7 @@ class QueryRouterService:
         {{
           "type": "deep_research",
           "parameters": {{
-            "topic": "Dark Matter, Black Holes and Quantum Physics",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "theoretical foundations", "current research"]
+            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics",
           }}
         }}
 
@@ -304,7 +401,7 @@ class QueryRouterService:
         {{
           "type": "deep_research",
           "parameters": {{
-            "topic": "relationship between quantum entanglement and teleportation",
+            "deep_research_topic": "relationship between quantum entanglement and teleportation",
           }}
         }}
 
@@ -372,7 +469,10 @@ class QueryRouterService:
           }}
         }}
 
+        Context summary: "{context_summary}"
+
         User query: "{query}"
+
         Initial type detection suggests: {detected_type}
 
         Return ONLY JSON with 'type' and 'parameters'.
@@ -381,7 +481,7 @@ class QueryRouterService:
         user_message = "Please classify and extract parameters."
 
         try:
-            llm_result_str = self._call_llm(system_message, user_message)
+            llm_result_str = await self._call_llm(system_message, user_message)
             parsed_result = json.loads(llm_result_str)
 
             # If LLM didn't provide "type", fallback
@@ -411,7 +511,7 @@ class QueryRouterService:
             parsed_result["type"] = final_type
 
             return QueryType(**parsed_result)
-            
+
         except json.JSONDecodeError as e:
             print(f"[route_query] JSON decode error: {str(e)}")
             # fallback if LLM fails

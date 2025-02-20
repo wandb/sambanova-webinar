@@ -183,10 +183,10 @@ class QueryRouterService:
                                         # Send streaming update
                                         stream_data = {
                                             "event": "planner_chunk",
-                                            "data": json.dumps({"chunk": content}),
-                                            "user_id": self.user_id,
-                                            "conversation_id": self.conversation_id,
-                                            "timestamp": datetime.now().isoformat(),
+                                            "data": content,
+                                            # "user_id": self.user_id,
+                                            # "conversation_id": self.conversation_id,
+                                            # "timestamp": datetime.now().isoformat(),
                                         }
                                         await self.websocket.send_text(json.dumps(stream_data))
                                 except json.JSONDecodeError:
@@ -304,7 +304,7 @@ class QueryRouterService:
     def _normalize_user_proxy_params(self, params: Dict) -> Dict:
         """Normalize user proxy parameters with safe defaults."""
         return {
-            "query": params.get("query", "")
+            "agent_question": params.get("agent_question", "")
         }
     
     def _normalize_assistant_params(self, params: Dict) -> Dict:
@@ -492,14 +492,14 @@ class QueryRouterService:
         }}
 
         "type": "user_proxy",
-        "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user.",
-        "examples": "Can you clarify your question?, Can you provide more information?",
+        "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user. If the query is vague or unclear, use this agent.",
+        "examples": "What are the best ways to save money?, Write a financial report on my local bank?",
 
         Query: "Tell me about this company?"
         {{
           "type": "user_proxy",
           "parameters": {{
-            "query": "Please clarify the name of the company?"
+            "agent_question": "Please clarify the name of the company?"
           }}
         }}
 
@@ -518,6 +518,8 @@ class QueryRouterService:
            - Provide 'deep_research_topic' (the users full research query)
         5. For 'assistant':
            - Provide 'query' (the user's full query)
+        6. For 'user_proxy':
+           - Provide 'agent_question' (the question that requires a response from the user)
 
         Context summary: "{context_summary}"
 

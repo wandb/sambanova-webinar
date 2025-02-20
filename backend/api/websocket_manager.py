@@ -72,36 +72,42 @@ class WebSocketConnectionManager:
         """
         agent_runtime = None
         pubsub = None
+        background_task = None
+        
+        # Pre-compute keys that will be used throughout the session
+        meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+        message_key = f"messages:{user_id}:{conversation_id}"
+        api_keys_key = f"api_keys:{user_id}"
+        source = f"{user_id}:{conversation_id}"
+        channel = f"agent_thoughts:{source}"
+
         try:
-            # Check if conversation exists
-            meta_key = f"chat_metadata:{user_id}:{conversation_id}"
-            if not self.redis_client.exists(meta_key):
+            # Initial setup tasks that can run concurrently
+            setup_tasks = [
+                asyncio.to_thread(self.redis_client.exists, meta_key),
+                asyncio.to_thread(self.redis_client.hgetall, api_keys_key),
+                asyncio.to_thread(lambda: self.redis_client.pubsub(ignore_subscribe_messages=True))
+            ]
+            
+            # Wait for all setup tasks to complete
+            exists, redis_api_keys, pubsub = await asyncio.gather(*setup_tasks)
+
+            if not exists:
                 await websocket.close(code=4004, reason="Conversation not found")
                 return
 
-            await websocket.accept()
-            self.add_connection(websocket, user_id, conversation_id)
-
-            # Set up Redis pubsub for this connection
-            # Combine user_id and conversation_id with a colon delimiter
-            source = f"{user_id}:{conversation_id}"
-            channel = f"agent_thoughts:{source}"
-            pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
-            pubsub.subscribe(channel)
-
-            # Load the API keys from Redis
-            redis_api_keys = self.redis_client.hgetall(f"api_keys:{user_id}")                
             if not redis_api_keys:
-                await websocket.send_json({
-                    "event": "error",
-                    "data": "No API keys found for this user",
-                    "user_id": user_id,
-                    "conversation_id": conversation_id,
-                    "timestamp": datetime.now().isoformat()
-                })
                 await websocket.close(code=4006, reason="No API keys found")
                 return
 
+            # Accept connection and subscribe to channel
+            await websocket.accept()
+            self.add_connection(websocket, user_id, conversation_id)
+            
+            # Subscribe to channel (must be done after pubsub creation)
+            await asyncio.to_thread(pubsub.subscribe, channel)
+
+            # Initialize API keys object
             api_keys = APIKeys(
                 sambanova_key=redis_api_keys.get("sambanova_key", ""),
                 fireworks_key=redis_api_keys.get("fireworks_key", ""),
@@ -109,7 +115,7 @@ class WebSocketConnectionManager:
                 exa_key=redis_api_keys.get("exa_key", "")
             )
 
-            # Initialize agent runtime with error handling
+            # Initialize agent runtime
             try:
                 agent_runtime = await initialize_agent_runtime(
                     websocket=websocket,
@@ -123,55 +129,37 @@ class WebSocketConnectionManager:
                 await websocket.close(code=4005, reason="Failed to initialize agent runtime")
                 return
 
-            # Send connection established message
-            await websocket.send_json({
+            # Start background task for Redis messages
+            background_task = asyncio.create_task(
+                self.handle_redis_messages(websocket, pubsub, user_id, conversation_id)
+            )
+
+            # Send connection established message (non-blocking)
+            asyncio.create_task(websocket.send_json({
                 "event": "connection_established",
                 "data": "WebSocket connection established",
                 "user_id": user_id,
                 "conversation_id": conversation_id,
                 "timestamp": datetime.now().isoformat()
-            })
-
-            # Start background task for Redis messages
-            background_task = asyncio.create_task(self.handle_redis_messages(websocket, pubsub, user_id, conversation_id))
+            }))
 
             # Handle incoming WebSocket messages
             while True:
                 user_message_text = await websocket.receive_text()
+                
                 try:
                     user_message_input = json.loads(user_message_text)
                 except json.JSONDecodeError:
-                    await websocket.send_json({
+                    asyncio.create_task(websocket.send_json({
                         "event": "error",
                         "data": "Invalid JSON message format",
                         "user_id": user_id,
                         "conversation_id": conversation_id,
                         "timestamp": datetime.now().isoformat()
-                    })
+                    }))
                     continue
 
-                # Check if name field exists in metadata - non-blocking
-                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
-                async def update_metadata():
-                    meta_data = await asyncio.to_thread(self.redis_client.get, meta_key)
-                    if meta_data:
-                        metadata = json.loads(meta_data)
-                        if "name" not in metadata:
-                            metadata["name"] = user_message_input["data"]
-                            await asyncio.to_thread(self.redis_client.set, meta_key, json.dumps(metadata))
-
-                # Create task for metadata update without waiting
-                asyncio.create_task(update_metadata())
-
-                user_message = EndUserMessage(
-                    source="User",
-                    content=user_message_input["data"], 
-                    use_planner=False,
-                    provider=user_message_input["provider"]
-                )    
-
-                # Store message in Redis asynchronously without waiting
-                message_key = f"messages:{user_id}:{conversation_id}"
+                # Create message data once
                 message_data = {
                     "event": "user_message", 
                     "data": user_message_input["data"],
@@ -179,53 +167,85 @@ class WebSocketConnectionManager:
                     "conversation_id": conversation_id,
                     "timestamp": user_message_input["timestamp"]
                 }
-                # Run Redis rpush in a thread pool since it's blocking
+
+                # Launch Redis operations as background tasks
+                asyncio.create_task(self._update_metadata(meta_key, user_message_input["data"]))
                 asyncio.create_task(asyncio.to_thread(
                     self.redis_client.rpush,
                     message_key,
                     json.dumps(message_data)
                 ))
 
+                # Log message receipt (non-blocking)
                 logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
 
-                # Publish the user's message to the agent using combined source
+                # Create and publish user message
+                user_message = EndUserMessage(
+                    source="User",
+                    content=user_message_input["data"], 
+                    use_planner=False,
+                    provider=user_message_input["provider"]
+                )    
+
+                # This must be awaited as it affects the conversation flow
                 await agent_runtime.publish_message(
                     user_message,
-                    DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
+                    DefaultTopicId(type="user_proxy", source=source),
                 )
-                await asyncio.sleep(0.1)
 
         except WebSocketDisconnect:
             logger.info(f"WebSocket connection closed for conversation: {conversation_id}")
         except Exception as e:
             logger.error(f"Exception in WebSocket connection for conversation {conversation_id}: {str(e)}")
         finally:
-            # Clean up
-            if 'background_task' in locals():
+            # Create cleanup tasks
+            cleanup_tasks = []
+            
+            if background_task is not None:
                 background_task.cancel()
-            if pubsub:
-                pubsub.unsubscribe()
-                pubsub.close()
-            if agent_runtime:
-                try:
-                    await agent_runtime.close()
-                except Exception as e:
-                    logger.error(f"Error closing agent runtime: {str(e)}")
+                cleanup_tasks.append(background_task)
+            
+            if pubsub is not None:
+                cleanup_tasks.extend([
+                    asyncio.create_task(asyncio.to_thread(pubsub.unsubscribe)),
+                    asyncio.create_task(asyncio.to_thread(pubsub.close))
+                ])
+            
+            if agent_runtime is not None:
+                cleanup_tasks.append(asyncio.create_task(agent_runtime.close()))
+            
+            # Run all cleanup tasks concurrently and wait for completion
+            if cleanup_tasks:
+                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            
             self.remove_connection(user_id, conversation_id)
 
-            # Only attempt to close if the connection hasn't been closed from either end
             if (websocket.client_state != WebSocketState.DISCONNECTED and 
                 websocket.application_state != WebSocketState.DISCONNECTED):
-                try:
-                    await websocket.close()
-                except Exception as e:
-                    # Log any closure errors but don't raise them
-                    logger.info(f"Error during WebSocket closure for conversation {conversation_id}: {str(e)}")
+                await websocket.close()
+
+    async def _update_metadata(self, meta_key: str, message_data: str):
+        """Helper method to update metadata asynchronously"""
+        try:
+            meta_data = await asyncio.to_thread(self.redis_client.get, meta_key)
+            if meta_data:
+                metadata = json.loads(meta_data)
+                if "name" not in metadata:
+                    metadata["name"] = message_data
+                    await asyncio.to_thread(
+                        self.redis_client.set,
+                        meta_key,
+                        json.dumps(metadata)
+                    )
+        except Exception as e:
+            logger.error(f"Error updating metadata: {str(e)}")
 
     async def handle_redis_messages(self, websocket: WebSocket, pubsub, user_id: str, conversation_id: str):
         """
         Background task to handle Redis pub/sub messages and forward them to WebSocket.
         """
+        message_key = f"messages:{user_id}:{conversation_id}"
+        
         try:
             while True:
                 message = pubsub.get_message(timeout=1.0)
@@ -239,17 +259,17 @@ class WebSocketConnectionManager:
                         "timestamp": datetime.now().isoformat()
                     }
 
-                    # Store think event in Redis
-                    message_key = f"messages:{user_id}:{conversation_id}"
-                    await asyncio.to_thread(
+                    # Launch Redis operation as background task
+                    asyncio.create_task(asyncio.to_thread(
                         self.redis_client.rpush,
                         message_key,
                         json.dumps(message_data)
-                    )
+                    ))
 
+                    # Send message to websocket (must be awaited to maintain order)
                     await websocket.send_json(message_data)
 
-                # Send periodic ping to keep connection alive (not stored in Redis)
+                # Send periodic ping (must be awaited to maintain timing)
                 await websocket.send_json({
                     "event": "ping",
                     "data": json.dumps({"type": "ping"}),

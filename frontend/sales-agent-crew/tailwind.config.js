@@ -26,12 +26,11 @@ export default {
          brandTextPrimary:"#101828",
          brandBorder:"#EE762480",
          brandColor:"#EE7624",
+         brandPrimaryColor:"#EE7624",
          bodyBg:"#f9fafb",
+         brandPlaceholder:"#98A2B3",
          brandFrame:"#EAECF0",
-
-
-
-        
+         
         }
       }
     },

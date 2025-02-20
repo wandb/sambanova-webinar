@@ -188,6 +188,48 @@
               </button>
             </div>
           </div>
+                <!-- Fireworks API Key -->
+                <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Fireworks API Key
+              <a 
+                href="https://fireworks.ai/"
+                target="_blank"
+                class="text-primary-600 hover:text-primary-700 ml-2 text-sm"
+              >
+                Get Key →
+              </a>
+            </label>
+            <div class="relative">
+              <input
+                v-model="fireworksKey"
+                :type="fireworksKeyVisible ? 'text' : 'password'"
+                placeholder="Enter your Fireworks API Key"
+                class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500 pr-10"
+              />
+              <button 
+                @click="toggleFireworksKeyVisibility"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                <!-- Eye icon -->
+              </button>
+            </div>
+            <!-- Add Save and Clear Buttons for Serper -->
+            <div class="flex justify-end space-x-2 mt-2">
+              <button 
+                @click="clearFireworksKey"
+                class="px-3 py-1 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none"
+              >
+                Clear Key
+              </button>
+              <button 
+                @click="saveFireworksKey"
+                class="px-3 py-1 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -203,6 +245,7 @@ const isOpen = ref(false)
 const sambanovaKey = ref('')
 const exaKey = ref('')
 const serperKey = ref('')
+const fireworksKey = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -210,6 +253,7 @@ const successMessage = ref('')
 const sambanovaKeyVisible = ref(false)
 const exaKeyVisible = ref(false)
 const serperKeyVisible = ref(false)
+const fireworksKeyVisible = ref(false)
 
 const { userId } = useAuth()
 
@@ -313,6 +357,33 @@ const saveSerperKey = async () => {
   }
 }
 
+
+const clearFireworksKey = () => {
+  localStorage.removeItem(`fireworks_key_${userId.value}`)
+  exaKey.value = ''
+  successMessage.value = 'Fireworks API key cleared successfully!'
+  emit('keysUpdated')
+  clearMessagesAfterDelay()
+}
+
+const saveFireworksKey = async () => {
+  try {
+    if (!serperKey.value) {
+      errorMessage.value = 'Fireworks API key cannot be empty!'
+      return
+    }
+    const encryptedKey = await encryptKey(serperKey.value)
+    localStorage.setItem(`fireworks_key_${userId.value}`, encryptedKey)
+    successMessage.value = 'Fireworks API key saved successfully!'
+    emit('keysUpdated')
+  } catch (error) {
+    console.error('Failed to save Fireworks key:', error)
+    errorMessage.value = 'Failed to save Fireworks API key'
+  } finally {
+    clearMessagesAfterDelay()
+  }
+}
+
 const clearSerperKey = () => {
   localStorage.removeItem(`serper_key_${userId.value}`)
   serperKey.value = ''
@@ -333,6 +404,11 @@ const toggleExaKeyVisibility = () => {
 const toggleSerperKeyVisibility = () => {
   serperKeyVisible.value = !serperKeyVisible.value
 }
+
+const toggleFireworksKeyVisibility = () => {
+  fireworksKeyVisible.value = !fireworksKeyVisible.value
+}
+
 
 const close = () => {
   isOpen.value = false

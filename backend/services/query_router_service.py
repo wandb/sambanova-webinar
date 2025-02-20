@@ -1,7 +1,15 @@
-from typing import Dict, Any
+import asyncio
+from datetime import datetime
+import time
+from typing import Dict, Any, Optional
 import json
-import requests
+from fastapi import WebSocket
+import aiohttp
 from pydantic import BaseModel
+import redis
+
+from utils.json_utils import extract_json_from_string
+from config.model_registry import model_registry
 
 class QueryType(BaseModel):
     # Possible types: "sales_leads", "educational_content", or "financial_analysis"
@@ -9,10 +17,24 @@ class QueryType(BaseModel):
     parameters: Dict[str, Any]
 
 class QueryRouterService:
-    def __init__(self, sambanova_key: str):
-        self.sambanova_key = sambanova_key
-        self.api_url = "https://api.sambanova.ai/v1/chat/completions"
-        
+
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        websocket: Optional[WebSocket] = None,
+        redis_client: Optional[redis.Redis] = None,
+        user_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+    ):
+        self.llm_api_key = llm_api_key
+        self.provider = provider
+        self.model_name = "llama-3.1-8b"
+        self.websocket = websocket
+        self.redis_client = redis_client
+        self.user_id = user_id
+        self.conversation_id = conversation_id
+
         # Expanded / refined keywords for educational content (including some "report", "compare", etc.)
         self.edu_keywords = [
             "explain", "guide", "learn", "teach", "understand", "what is",
@@ -26,7 +48,7 @@ class QueryRouterService:
             # Newly added cues for research/educational style requests:
             "report", "tell me about", "describe", "differences", "similarities"
         ]
-        
+
         # Sales leads keywords
         self.sales_keywords = [
             "find", "search", "companies", "startups", "leads", "vendors",
@@ -36,7 +58,7 @@ class QueryRouterService:
             "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
-        # Financial keywords - removing generic “analysis” to avoid over-triggering
+        # Financial keywords - removing generic "analysis" to avoid over-triggering
         self.financial_keywords = [
             "stock",
             "fundamental analysis", 
@@ -87,7 +109,7 @@ class QueryRouterService:
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
 
-        # 3) Special logic for the words 'analysis' or 'analyze' 
+        # 3) Special logic for the words 'analysis' or 'analyze'
         #    => check if they appear alongside strong finance signals
         if ("analysis" in query_lower or "analyze" in query_lower):
             # If user also mentions known big cos, tickers, or finance words like 'stock'
@@ -105,36 +127,101 @@ class QueryRouterService:
             return "educational_content"
         return "sales_leads"
 
-    def _call_llm(self, system_message: str, user_message: str) -> str:
+    async def _call_llm(self, system_message: str, user_message: str) -> str:
         """
         Make an API call to SambaNova's LLM, returning raw string content.
         """
         headers = {
-            "Authorization": f"Bearer {self.sambanova_key}",
+            "Authorization": f"Bearer {self.llm_api_key}",
             "Content-Type": "application/json"
         }
-        
+
         payload = {
-            "model": "Meta-Llama-3.1-8B-Instruct",
+            "model": model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["model"],
             "messages": [
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
             "temperature": 0.01,
-            "stream": False
+            "stream": bool(self.websocket)  # Enable streaming if websocket exists
         }
 
         try:
-            response = requests.post(self.api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            json_response = response.json()
-            
-            if "choices" not in json_response or len(json_response["choices"]) == 0:
-                return self._get_default_response(self._detect_query_type(user_message))
+            # If we have a websocket, send the response to the client
+            planner_metadata = {
+                    "llm_name": payload["model"],
+                    "llm_provider": self.provider,
+                    "task": "planning",
+                }   
+            if self.websocket:
+                planner_event = {
+                    "event": "planner",
+                    "data": json.dumps({"metadata": planner_metadata}),
+                    "user_id": self.user_id,
+                    "conversation_id": self.conversation_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                await self.websocket.send_text(json.dumps(planner_event))
 
-            content = json_response["choices"][0]["message"]["content"].strip()
-            return content.replace("```json", "").replace("```", "").strip()
-            
+            api_url = model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["long_url"]
+
+            async with aiohttp.ClientSession() as session:
+                if self.websocket:
+                    start_time = time.time()
+                    # Streaming mode
+                    accumulated_content = ""
+                    async with session.post(api_url, headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        async for line in response.content:
+                            line = line.decode('utf-8').strip()
+                            if line.startswith('data: '):
+                                try:
+                                    json_response = json.loads(line.removeprefix('data: '))
+                                    if json_response.get("choices") and json_response["choices"][0].get("delta", {}).get("content"):
+                                        content = json_response["choices"][0]["delta"]["content"]
+                                        accumulated_content += content
+                                        # Send streaming update
+                                        stream_data = {
+                                            "event": "planner_chunk",
+                                            "data": json.dumps({"chunk": content}),
+                                            "user_id": self.user_id,
+                                            "conversation_id": self.conversation_id,
+                                            "timestamp": datetime.now().isoformat(),
+                                        }
+                                        await self.websocket.send_text(json.dumps(stream_data))
+                                except json.JSONDecodeError:
+                                    continue
+
+                    parsed_content = extract_json_from_string(accumulated_content)
+
+                    end_time = time.time()
+                    processing_time = end_time - start_time
+                    planner_metadata["duration"] = processing_time
+
+                    # Send final message
+                    final_message_data = {
+                        "event": "planner",
+                        "data": json.dumps({"response": parsed_content, "metadata": planner_metadata}),
+                        "user_id": self.user_id,
+                        "conversation_id": self.conversation_id,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    message_key = f"messages:{self.user_id}:{self.conversation_id}"
+                    self.redis_client.rpush(message_key, json.dumps(final_message_data))
+                    await self.websocket.send_text(json.dumps(final_message_data))
+                    return parsed_content
+                else:
+                    # Non-streaming mode
+                    async with session.post(api_url, headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        json_response = await response.json()
+
+                        if "choices" not in json_response or len(json_response["choices"]) == 0:
+                            return self._get_default_response(self._detect_query_type(user_message))
+
+                        content = json_response["choices"][0]["message"]["content"].strip()
+                        return extract_json_from_string(content)
+
         except Exception as e:
             print(f"Error calling LLM: {str(e)}")
             return self._get_default_response(self._detect_query_type(user_message))
@@ -207,11 +294,23 @@ class QueryRouterService:
             "ticker": params.get("ticker",""),
             "company_name": params.get("company_name","")
         }
-    
+
     def _normalize_deep_research_params(self, params: Dict) -> Dict:
         """Normalize deep research parameters with safe defaults."""
         return {
-            "topic": params.get("topic", "")
+            "deep_research_topic": params.get("deep_research_topic", "")
+        }
+
+    def _normalize_user_proxy_params(self, params: Dict) -> Dict:
+        """Normalize user proxy parameters with safe defaults."""
+        return {
+            "query": params.get("query", "")
+        }
+    
+    def _normalize_assistant_params(self, params: Dict) -> Dict:
+        """Normalize assistant parameters with safe defaults."""
+        return {
+            "query": params.get("query", "")
         }
 
     def _final_override(self, user_query: str, chosen_type: str) -> str:
@@ -228,7 +327,7 @@ class QueryRouterService:
 
         return chosen_type
 
-    def route_query(self, query: str) -> QueryType:
+    async def route_query(self, query: str, context_summary: str = "") -> QueryType:
         """
         Main routing method:
           1) Detect type using _detect_query_type
@@ -237,98 +336,40 @@ class QueryRouterService:
           4) Normalize parameters
           5) Final override check
         """
-        detected_type = self._detect_query_type(query)
-        
+
+        text = query + "\n\n" + context_summary
+        detected_type = self._detect_query_type(text)
+
         system_message = f"""
         You are a query routing expert that categorizes queries and extracts structured information.
+        To decide on the route take into account the user's query and the context summary.
         Always return a valid JSON object with 'type' and 'parameters'.
-
-        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', or 'deep_research'.
-
-        Rules:
-        1. For 'educational_content':
-           - Extract the FULL topic from the query
-           - Do NOT truncate or summarize the topic
-           - If multiple concepts are present, keep them in 'topic'
-        2. For 'sales_leads': 
-           - Extract specific industry, location, or other business parameters if any
-        3. For 'financial_analysis': 
-           - Provide 'query_text' (the user’s full finance question)
-           - Provide 'ticker' if recognized
-           - Provide 'company_name' if recognized
-        4. For 'deep_research':
-           - Provide 'topic' (the users full research query)
      
+        Agents:
 
-        Examples:
+        "type": "assistant",
+        "description": "Handles user queries that do not fit into other specific categories. ALWAYS Route messages here if they are general queries that do not specify a destination or service. If the query is a factual answer or quick information about a company person or product, use this agent. For examlple What is Apple's stock price today or another company can be answered by this agent vs the financial_analysis agent.",
+        "examples": "'What is the weather in Tokyo?', 'What is the capital of France?' What is Tesla's stock price? What is the latest news on Apple? What is the latest news on Elon Musk?",
 
-        Query: Write me a report on the future of AI 
+        Query: "What is the weather in Tokyo?"
         {{
-          "type": "deep_research",
+          "type": "assistant",
           "parameters": {{
-            "topic": "Write me a report on the future of AI"
+            "query": "What is the weather in Tokyo?"
           }}
         }}
 
-        Query: "Prepare a syllabus for a course on flowers"
+        Query: "Who are SambaNova?"
         {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Prepare a syllabus for a course on flowers",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-        
-        Query: "Write me a report on the second world war"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Write me a report on the second world war",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
+            "type": "assistant",
+            "parameters": {{
+                "query": "Who are SambaNova?"
+            }}
         }}
 
-        Query: "Dark Matter, Black Holes and Quantum Physics"
-        {{
-          "type": "deep_research",
-          "parameters": {{
-            "topic": "Dark Matter, Black Holes and Quantum Physics",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "theoretical foundations", "current research"]
-          }}
-        }}
-
-        Query: "Explain the relationship between quantum entanglement and teleportation"
-        {{
-          "type": "deep_research",
-          "parameters": {{
-            "topic": "relationship between quantum entanglement and teleportation",
-          }}
-        }}
-
-        Query: "Find AI startups in Boston"
-        {{
-          "type": "sales_leads",
-          "parameters": {{
-            "industry": "AI",
-            "company_stage": "startup",
-            "geography": "Boston",
-            "funding_stage": "",
-            "product": ""
-          }}
-        }}
-
-        Query: "Explain how memory bandwidth impacts GPU performance"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "memory bandwidth impacts GPU performance",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
+        "type": "financial_analysis"
+        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers."
+        "examples": "Tell me about Apples financials, What's the financial statement of Tesla?, Market trends in the tech sector?"
 
         Query: "Analyze Google"
         {{
@@ -350,6 +391,22 @@ class QueryRouterService:
           }}
         }}
 
+        "type": "sales_leads",
+        "description": "Handles sales lead generation queries, including industry, location, and product information."
+        "examples": "Find me sales leads in the tech sector, What are the sales leads in the US?, Sales leads in the retail industry?"
+
+        Query: "Find AI startups in Boston"
+        {{
+          "type": "sales_leads",
+          "parameters": {{
+            "industry": "AI",
+            "company_stage": "startup",
+            "geography": "Boston",
+            "funding_stage": "",
+            "product": ""
+          }}
+        }}
+
         Query: "Ai chip companies based in geneva"
         {{
           "type": "sales_leads",
@@ -359,6 +416,30 @@ class QueryRouterService:
             "geography": "Geneva",
             "funding_stage": "",
             "product": ""
+          }}
+        }}
+
+        "type": "educational_content"
+        "description": "Handles simpler or legacy educational queries. Possibly replaced by 'deep_research' for advanced multi-step analysis."
+        "examples": "Explain classical Newtonian mechanics in short form, Summarize a simple topic quickly."
+
+        Query: "Prepare a syllabus for a course on flowers"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "Prepare a syllabus for a course on flowers",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+
+        Query: "Write me a report on the second world war"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "Write me a report on the second world war",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
           }}
         }}
 
@@ -372,17 +453,85 @@ class QueryRouterService:
           }}
         }}
 
+        Query: "Explain how memory bandwidth impacts GPU performance"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "memory bandwidth impacts GPU performance",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+
+        "type": "deep_research",
+        "description": "Handles advanced educational content queries with a multi-step research flow (LangGraph). For queries that require a more in-depth or structured approach.",
+        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps.",
+
+        Query: Write me a report on the future of AI 
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Write me a report on the future of AI"
+          }}
+        }}
+
+        Query: "Dark Matter, Black Holes and Quantum Physics"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics",
+          }}
+        }}
+
+        Query: "Explain the relationship between quantum entanglement and teleportation"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "relationship between quantum entanglement and teleportation",
+          }}
+        }}
+
+        "type": "user_proxy",
+        "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user.",
+        "examples": "Can you clarify your question?, Can you provide more information?",
+
+        Query: "Tell me about this company?"
+        {{
+          "type": "user_proxy",
+          "parameters": {{
+            "query": "Please clarify the name of the company?"
+          }}
+        }}
+
+        Rules:
+        1. For 'educational_content':
+           - Extract the FULL topic from the query
+           - Do NOT truncate or summarize the topic
+           - If multiple concepts are present, keep them in 'topic'
+        2. For 'sales_leads': 
+           - Extract specific industry, location, or other business parameters if any
+        3. For 'financial_analysis': 
+           - Provide 'query_text' (the user's full finance question)
+           - Provide 'ticker' if recognized
+           - Provide 'company_name' if recognized
+        4. For 'deep_research':
+           - Provide 'deep_research_topic' (the users full research query)
+        5. For 'assistant':
+           - Provide 'query' (the user's full query)
+
+        Context summary: "{context_summary}"
+
         User query: "{query}"
+
         Initial type detection suggests: {detected_type}
 
-        Return ONLY JSON with 'type' and 'parameters'.
+        Return ONLY JSON with 'type' and 'parameters'. Your job depends on it. 
         """
 
         user_message = "Please classify and extract parameters."
 
         try:
-            llm_result_str = self._call_llm(system_message, user_message)
-            parsed_result = json.loads(llm_result_str)
+            parsed_result = await self._call_llm(system_message, user_message)
 
             # If LLM didn't provide "type", fallback
             if "type" not in parsed_result:
@@ -401,6 +550,14 @@ class QueryRouterService:
                 parsed_result["parameters"] = self._normalize_deep_research_params(
                     parsed_result.get("parameters", {})
                 )
+            elif parsed_result["type"] == "user_proxy":
+                parsed_result["parameters"] = self._normalize_user_proxy_params(
+                    parsed_result.get("parameters", {})
+                )
+            elif parsed_result["type"] == "assistant":
+                parsed_result["parameters"] = self._normalize_assistant_params(
+                    parsed_result.get("parameters", {})
+                )
             else:
                 parsed_result["parameters"] = self._normalize_sales_params(
                     parsed_result.get("parameters", {})
@@ -411,7 +568,7 @@ class QueryRouterService:
             parsed_result["type"] = final_type
 
             return QueryType(**parsed_result)
-            
+
         except json.JSONDecodeError as e:
             print(f"[route_query] JSON decode error: {str(e)}")
             # fallback if LLM fails

@@ -62,6 +62,7 @@ class SemanticRouterAgent(RoutedAgent):
         super().__init__("SemanticRouterAgent")
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
+        self.api_keys = api_keys
 
         self._reasoning_model_name = "llama-3.1-70b"
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
@@ -88,6 +89,20 @@ class SemanticRouterAgent(RoutedAgent):
                 "vision": False,
             },
         )
+
+        self._context_summary_model_name = "llama-3.1-70b"
+        self._context_summary_model = lambda provider: OpenAIChatCompletionClient(
+            model=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["model"],
+            base_url=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["url"],
+            api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
+            model_info={
+                "json_output": False,
+                "function_calling": True,
+                "family": "unknown",
+                "vision": False,
+            },
+        )
+
         self._session_manager = session_manager
         self.websocket = websocket
         self.redis_client = redis_client
@@ -153,8 +168,53 @@ class SemanticRouterAgent(RoutedAgent):
             ctx.topic_id.source,
             f"Using query router for message: '{message.content[:100]}...'"
         ))
-        router = QueryRouterService(message.api_keys.sambanova_key)
-        route_result: QueryType = router.route_query(message.content)
+
+        user_id, conversation_id = ctx.topic_id.source.split(":")
+        history = self._session_manager.get_history(conversation_id)
+
+        last_content = {}
+        if len(history) > 0:
+            try:
+                last_content = json.loads(history[-1].content)
+            except json.JSONDecodeError:
+                pass
+                
+        if "deep_research_user_question" in last_content:
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                "Deep research feedback received, routing to deep research"
+            ))
+            deep_research_request = AgentRequest(
+                agent_type=AgentEnum.DeepResearch,
+                parameters=DeepResearch(deep_research_topic=""),
+                query=message.content,
+                provider=message.provider,
+            )
+            await self.publish_message(
+                deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
+            return
+
+
+        api_key = getattr(self.api_keys, model_registry.get_api_key_env(message.provider))
+        router = QueryRouterService(llm_api_key=api_key, provider=message.provider, websocket=self.websocket, redis_client=self.redis_client, user_id=user_id, conversation_id=conversation_id)
+
+        history = self._session_manager.get_history(conversation_id)
+
+        if len(history) > 0:
+            model_response = await self._context_summary_model(message.provider).create(
+                list(history)
+                + [UserMessage(content="Summarize the messages so far in a few sentences.", source="user")]
+            )
+            context_summary = model_response.content
+        else:
+            context_summary = ""
+
+        route_result: QueryType = await router.route_query(message.content, context_summary)
+
+        self._session_manager.add_to_history(
+                conversation_id,
+                UserMessage(content=message.content, source="user")
+        )
 
         try:
             request_obj = self._create_request(
@@ -205,7 +265,7 @@ class SemanticRouterAgent(RoutedAgent):
         elif len(deep_research_plans) > 0:
             return [deep_research_plans[0]]
         else:
-            return plans[0]
+            return [plans[0]]
 
     @message_handler
     async def handle_handoff(

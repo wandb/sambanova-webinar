@@ -1,7 +1,7 @@
 <template>
     <div class="user-proxy-message">
       
-      <p>{{ parsed.data?.user_question }}</p>
+      <p>{{ parsed.data?.user_question || parsed.data?.deep_research_user_question }}</p>
       <!-- You might also parse parsed.message if needed -->
     </div>
   </template>

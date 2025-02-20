@@ -240,8 +240,8 @@ class AssistantAgentWrapper(RoutedAgent):
 
             assistant_metadata = {
                 "duration": processing_time,
-                "model": self.get_assistant(message.provider)._model_client._resolved_model,
-                "provider": message.provider,
+                "llm_name": self.get_assistant(message.provider)._model_client._resolved_model,
+                "llm_provider": message.provider,
                 "workflow": "General Assistant",
                 "agent_name": "General Assistant",
                 "task": "assistant",

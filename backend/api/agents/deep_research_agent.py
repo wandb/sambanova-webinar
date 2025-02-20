@@ -102,7 +102,7 @@ class DeepResearchAgent(RoutedAgent):
                         )
                         response = AgentStructuredResponse(
                             agent_type=AgentEnum.UserProxy,
-                            data=DeepResearchUserQuestion(deep_research_user_question=user_question_str),
+                            data=DeepResearchUserQuestion(deep_research_question=user_question_str),
                             message=user_question_str
                         )
                         await self.publish_message(

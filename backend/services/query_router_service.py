@@ -8,6 +8,7 @@ import aiohttp
 from pydantic import BaseModel
 import redis
 
+from utils.json_utils import extract_json_from_string
 from config.model_registry import model_registry
 
 class QueryType(BaseModel):
@@ -191,7 +192,7 @@ class QueryRouterService:
                                 except json.JSONDecodeError:
                                     continue
 
-                    parsed_content = accumulated_content.replace("```json", "").replace("```", "").strip()
+                    parsed_content = extract_json_from_string(accumulated_content)
 
                     end_time = time.time()
                     processing_time = end_time - start_time
@@ -219,7 +220,7 @@ class QueryRouterService:
                             return self._get_default_response(self._detect_query_type(user_message))
 
                         content = json_response["choices"][0]["message"]["content"].strip()
-                        return content.replace("```json", "").replace("```", "").strip()
+                        return extract_json_from_string(content)
 
         except Exception as e:
             print(f"Error calling LLM: {str(e)}")
@@ -300,6 +301,18 @@ class QueryRouterService:
             "deep_research_topic": params.get("deep_research_topic", "")
         }
 
+    def _normalize_user_proxy_params(self, params: Dict) -> Dict:
+        """Normalize user proxy parameters with safe defaults."""
+        return {
+            "query": params.get("query", "")
+        }
+    
+    def _normalize_assistant_params(self, params: Dict) -> Dict:
+        """Normalize assistant parameters with safe defaults."""
+        return {
+            "query": params.get("query", "")
+        }
+
     def _final_override(self, user_query: str, chosen_type: str) -> str:
         """
         If user query explicitly mentions certain override phrases 
@@ -331,35 +344,12 @@ class QueryRouterService:
         You are a query routing expert that categorizes queries and extracts structured information.
         To decide on the route take into account the user's query and the context summary.
         Always return a valid JSON object with 'type' and 'parameters'.
-
-        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', 'deep_research' or 'assistant'.
-
-        Rules:
-        1. For 'educational_content':
-           - Extract the FULL topic from the query
-           - Do NOT truncate or summarize the topic
-           - If multiple concepts are present, keep them in 'topic'
-        2. For 'sales_leads': 
-           - Extract specific industry, location, or other business parameters if any
-        3. For 'financial_analysis': 
-           - Provide 'query_text' (the user's full finance question)
-           - Provide 'ticker' if recognized
-           - Provide 'company_name' if recognized
-        4. For 'deep_research':
-           - Provide 'deep_research_topic' (the users full research query)
-        5. For 'assistant':
-           - Provide 'query' (the user's full query)
      
+        Agents:
 
-        Examples:
-
-        Query: Write me a report on the future of AI 
-        {{
-          "type": "deep_research",
-          "parameters": {{
-            "deep_research_topic": "Write me a report on the future of AI"
-          }}
-        }}
+        "type": "assistant",
+        "description": "Handles user queries that do not fit into other specific categories. ALWAYS Route messages here if they are general queries that do not specify a destination or service. If the query is a factual answer or quick information about a company person or product, use this agent. For examlple What is Apple's stock price today or another company can be answered by this agent vs the financial_analysis agent.",
+        "examples": "'What is the weather in Tokyo?', 'What is the capital of France?' What is Tesla's stock price? What is the latest news on Apple? What is the latest news on Elon Musk?",
 
         Query: "What is the weather in Tokyo?"
         {{
@@ -369,63 +359,10 @@ class QueryRouterService:
           }}
         }}
 
-        Query: "Prepare a syllabus for a course on flowers"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Prepare a syllabus for a course on flowers",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-        
-        Query: "Write me a report on the second world war"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Write me a report on the second world war",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
 
-        Query: "Dark Matter, Black Holes and Quantum Physics"
-        {{
-          "type": "deep_research",
-          "parameters": {{
-            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics",
-          }}
-        }}
-
-        Query: "Explain the relationship between quantum entanglement and teleportation"
-        {{
-          "type": "deep_research",
-          "parameters": {{
-            "deep_research_topic": "relationship between quantum entanglement and teleportation",
-          }}
-        }}
-
-        Query: "Find AI startups in Boston"
-        {{
-          "type": "sales_leads",
-          "parameters": {{
-            "industry": "AI",
-            "company_stage": "startup",
-            "geography": "Boston",
-            "funding_stage": "",
-            "product": ""
-          }}
-        }}
-
-        Query: "Explain how memory bandwidth impacts GPU performance"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "memory bandwidth impacts GPU performance",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
+        "type": "financial_analysis"
+        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers."
+        "examples": "Tell me about Apples financials, What's the financial statement of Tesla?, Market trends in the tech sector?"
 
         Query: "Analyze Google"
         {{
@@ -447,6 +384,22 @@ class QueryRouterService:
           }}
         }}
 
+        "type": "sales_leads",
+        "description": "Handles sales lead generation queries, including industry, location, and product information."
+        "examples": "Find me sales leads in the tech sector, What are the sales leads in the US?, Sales leads in the retail industry?"
+
+        Query: "Find AI startups in Boston"
+        {{
+          "type": "sales_leads",
+          "parameters": {{
+            "industry": "AI",
+            "company_stage": "startup",
+            "geography": "Boston",
+            "funding_stage": "",
+            "product": ""
+          }}
+        }}
+
         Query: "Ai chip companies based in geneva"
         {{
           "type": "sales_leads",
@@ -456,6 +409,30 @@ class QueryRouterService:
             "geography": "Geneva",
             "funding_stage": "",
             "product": ""
+          }}
+        }}
+
+        "type": "educational_content"
+        "description": "Handles simpler or legacy educational queries. Possibly replaced by 'deep_research' for advanced multi-step analysis."
+        "examples": "Explain classical Newtonian mechanics in short form, Summarize a simple topic quickly."
+
+        Query: "Prepare a syllabus for a course on flowers"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "Prepare a syllabus for a course on flowers",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+
+        Query: "Write me a report on the second world war"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "Write me a report on the second world war",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
           }}
         }}
 
@@ -469,20 +446,85 @@ class QueryRouterService:
           }}
         }}
 
+        Query: "Explain how memory bandwidth impacts GPU performance"
+        {{
+          "type": "educational_content",
+          "parameters": {{
+            "topic": "memory bandwidth impacts GPU performance",
+            "audience_level": "intermediate",
+            "focus_areas": ["key concepts", "practical applications"]
+          }}
+        }}
+
+        "type": "deep_research",
+        "description": "Handles advanced educational content queries with a multi-step research flow (LangGraph). For queries that require a more in-depth or structured approach.",
+        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps.",
+
+        Query: Write me a report on the future of AI 
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Write me a report on the future of AI"
+          }}
+        }}
+
+        Query: "Dark Matter, Black Holes and Quantum Physics"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics",
+          }}
+        }}
+
+        Query: "Explain the relationship between quantum entanglement and teleportation"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "relationship between quantum entanglement and teleportation",
+          }}
+        }}
+
+        "type": "user_proxy",
+        "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user.",
+        "examples": "Can you clarify your question?, Can you provide more information?",
+
+        Query: "Tell me about this company?"
+        {{
+          "type": "user_proxy",
+          "parameters": {{
+            "query": "Please clarify the name of the company?"
+          }}
+        }}
+
+        Rules:
+        1. For 'educational_content':
+           - Extract the FULL topic from the query
+           - Do NOT truncate or summarize the topic
+           - If multiple concepts are present, keep them in 'topic'
+        2. For 'sales_leads': 
+           - Extract specific industry, location, or other business parameters if any
+        3. For 'financial_analysis': 
+           - Provide 'query_text' (the user's full finance question)
+           - Provide 'ticker' if recognized
+           - Provide 'company_name' if recognized
+        4. For 'deep_research':
+           - Provide 'deep_research_topic' (the users full research query)
+        5. For 'assistant':
+           - Provide 'query' (the user's full query)
+
         Context summary: "{context_summary}"
 
         User query: "{query}"
 
         Initial type detection suggests: {detected_type}
 
-        Return ONLY JSON with 'type' and 'parameters'.
+        Return ONLY JSON with 'type' and 'parameters'. Your job depends on it. 
         """
 
         user_message = "Please classify and extract parameters."
 
         try:
-            llm_result_str = await self._call_llm(system_message, user_message)
-            parsed_result = json.loads(llm_result_str)
+            parsed_result = await self._call_llm(system_message, user_message)
 
             # If LLM didn't provide "type", fallback
             if "type" not in parsed_result:
@@ -499,6 +541,14 @@ class QueryRouterService:
                 )
             elif parsed_result["type"] == "deep_research":
                 parsed_result["parameters"] = self._normalize_deep_research_params(
+                    parsed_result.get("parameters", {})
+                )
+            elif parsed_result["type"] == "user_proxy":
+                parsed_result["parameters"] = self._normalize_user_proxy_params(
+                    parsed_result.get("parameters", {})
+                )
+            elif parsed_result["type"] == "assistant":
+                parsed_result["parameters"] = self._normalize_assistant_params(
                     parsed_result.get("parameters", {})
                 )
             else:

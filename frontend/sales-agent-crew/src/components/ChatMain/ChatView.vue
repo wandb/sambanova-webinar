@@ -1166,11 +1166,7 @@ function connectWebSocket() {
 
       }
       else if(receivedData.event==="planner_chunk"){
-      
-      let dataParsed=JSON.parse(receivedData.data)
-      
-        plannerText.value=`${plannerText.value} ${dataParsed.chunk}`
-        
+        plannerText.value=`${plannerText.value} ${receivedData.data}`
       }
       else if(receivedData.event==="planner"){
       

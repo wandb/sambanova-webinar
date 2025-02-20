@@ -399,10 +399,6 @@ class LeadGenerationAPI:
                 request (Request): The request object containing headers
                 chat_name (Optional[str]): Optional name for the chat. If not provided, a default will be used.
             """
-            sambanova_key = request.headers.get("x-sambanova-key", "")
-            fireworks_key = request.headers.get("x-fireworks-key", "")
-            serper_key = request.headers.get("x-serper-key", "")
-            exa_key = request.headers.get("x-exa-key", "")
             user_id = request.headers.get("x-user-id", "anonymous")
 
             try:
@@ -426,18 +422,6 @@ class LeadGenerationAPI:
                 # Add to user's conversation list
                 user_chats_key = f"user_chats:{user_id}"
                 self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp})
-
-                # Store API keys
-                key_prefix = f"api_keys:{user_id}"
-                self.app.state.redis_client.hset(
-                    key_prefix,
-                    mapping={
-                        "sambanova_key": sambanova_key,
-                        "fireworks_key": fireworks_key,
-                        "serper_key": serper_key,
-                        "exa_key": exa_key
-                    }
-                )
 
                 #TODO: init autogen agent
 

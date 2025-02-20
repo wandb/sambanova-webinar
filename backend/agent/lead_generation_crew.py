@@ -143,28 +143,28 @@ class ResearchCrew:
             run_id=self.run_id,
             agent_name="Aggregator Search Agent",
             workflow_name="Lead Generation",
-            llm_name=self.aggregator_agent.llm.model,
+            llm_name=self.llm.model,
         )
         self.data_extraction_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Data Extraction Agent",
             workflow_name="Lead Generation",
-            llm_name=self.data_extraction_agent.llm.model,
+            llm_name=self.llm.model,
         )
         self.market_trends_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Market Trends Analyst",
             workflow_name="Lead Generation",
-            llm_name=self.market_trends_agent.llm.model,
+            llm_name=self.llm.model,
         )
         self.outreach_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
             agent_name="Outreach Specialist",
             workflow_name="Lead Generation",
-            llm_name=self.outreach_agent.llm.model,
+            llm_name=self.llm.model,
         )
 
     def _initialize_tasks(self) -> None:

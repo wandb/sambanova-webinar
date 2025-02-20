@@ -661,14 +661,9 @@ async function loadKeys() {
 onMounted(async () => {
   await loadKeys()
   await loadUserDocuments()
-  authRequest()
-  // connectWebSocket()
-
   let newId=route.params.id
   if(newId)
   loadPreviousChat(newId)
-
-  
 })
 
 watch(
@@ -979,28 +974,6 @@ function toggleDocumentSelection(docId) {
     selectedDocuments.value.push(docId)
   } else {
     selectedDocuments.value.splice(index, 1)
-  }
-}
-async function authRequest() {
-  
-  // const baseUrl = import.meta.env.VITE_API_URL || ''
-  const url = `${import.meta.env.VITE_API_URL}/set_api_keys/${props.userId}` // Replace with your API URL
-  const postParams = {
-    "sambanova_key": "8f462f72-0a98-42cc-a5ca-e784470cb85f",
-  "serper_key": "fa053a785d306bc110c0dd657d220b1825338f67",
-  "exa_key": "f2f5b5bf-84da-472f-8711-088dfbe9e04c",
-  'fireworks_key':'fw_3ZGJL9eUHcjt4WnYxMHqFqEo'
-  }
-
-  try {
-    const response = await axios.post(url, postParams)
-    if (response.status === 200) {
-      // Call the next function after success
-    
-      // connectWebSocket()
-    }
-  } catch (error) {
-    console.error('Error in POST request:', error)
   }
 }
 

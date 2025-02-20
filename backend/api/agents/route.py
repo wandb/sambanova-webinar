@@ -63,7 +63,7 @@ class SemanticRouterAgent(RoutedAgent):
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
 
-        reasoning_model_metadata = model_registry.get_model_info(model_key="llama-3.3-70b")
+        reasoning_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
         self._reasoning_model_client = OpenAIChatCompletionClient(
             model=reasoning_model_metadata["model"],
             base_url=reasoning_model_metadata["url"],
@@ -76,7 +76,7 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.3-70b")
+        structure_extraction_model_metadata = model_registry.get_model_info(model_key="llama-3.1-70b")
         self._structure_extraction_model = OpenAIChatCompletionClient(
             model=structure_extraction_model_metadata["model"],
             base_url=structure_extraction_model_metadata["url"],

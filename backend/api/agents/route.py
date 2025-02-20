@@ -63,7 +63,7 @@ class SemanticRouterAgent(RoutedAgent):
         logger.info(logger.format_message(None, f"Initializing SemanticRouterAgent '{name}' with ID: {self.id}"))
         self._name = name
 
-        self._reasoning_model_name = "deepseek-r1-distill-llama-70b"
+        self._reasoning_model_name = "llama-3.1-70b"
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["url"],

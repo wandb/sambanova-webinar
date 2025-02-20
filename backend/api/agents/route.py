@@ -189,18 +189,23 @@ class SemanticRouterAgent(RoutedAgent):
         """
         user_proxy_plans = []
         assistant_plans = []
+        deep_research_plans = []
         for plan in plans:
             if plan["agent_type"] == AgentEnum.UserProxy:
                 user_proxy_plans.append(plan)
             elif plan["agent_type"] == AgentEnum.Assistant:
                 assistant_plans.append(plan)
+            elif plan["agent_type"] == AgentEnum.DeepResearch:
+                deep_research_plans.append(plan)
 
         if len(user_proxy_plans) > 0:
             return [user_proxy_plans[0]]
         elif len(assistant_plans) > 0:
             return [assistant_plans[0]]
+        elif len(deep_research_plans) > 0:
+            return [deep_research_plans[0]]
         else:
-            return plans
+            return plans[0]
 
     @message_handler
     async def handle_handoff(

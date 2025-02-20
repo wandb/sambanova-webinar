@@ -26,7 +26,7 @@
       <div class="p-4 md:p-5">
         <div class="flex gap-x-5">
           <div class="grow">
-            <h3 class="group-hover:text-blue-600 text-gray-800 dark:group-hover:text-neutral-400 dark:text-neutral-200">
+            <h3 class="text-sm text-priamry-brandPrimaryColor">
               {{ item.llm_name }}({{ item.count }})
             </h3>
             <p class="text-sm text-gray-500 flex justify-between dark:text-neutral-500">
@@ -38,7 +38,7 @@
         </div>
       </div>
       <div class="mt-1 w-full h-1 bg-gray-300 dark:bg-gray-700 overflow-hidden relative">
-    <div class="absolute top-0 left-0 h-full bg-blue-500 dark:bg-blue-400 animate-loader"></div>
+    <div class="absolute top-0 left-0 h-full bg-primary-brandPrimaryColor dark:bg-blue-400 animate-loader"></div>
   </div>
     </a>
   </div>

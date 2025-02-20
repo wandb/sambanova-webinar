@@ -78,7 +78,7 @@
               </h3>
               <p class="text-sm text-gray-500 flex justify-between dark:text-neutral-500">
               <span class="capitalize">{{ item.task }} </span>
-              <span v-if="item.duration">{{ formattedDuration(item.duration) }}s</span>
+              <span v-if="item?.duration">{{ formattedDuration(item?.duration) }}s</span>
             </p>
             </div>
           </div>

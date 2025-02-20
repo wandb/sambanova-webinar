@@ -134,13 +134,16 @@
           type="search"
           placeholder="Ask me about...companies to target, research topics, or company stocks and financials"   
           :disabled="isLoading"
-        class="p-4 pb-12 block w-full  bg-gray-100 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none active:outline-none border  focus:border-orange-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+        class="p-4 pb-12 block w-full  bg-primary-brandFrame 
+        border-primary-brandFrame rounded-lg text-sm 
+         focus:outline-none active:outline-none border  
+         focus:border-primary-brandColor disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
         
          ></textarea>
 
         <!-- Toolbar -->
        
-        <div class="absolute bottom-px inset-x-px p-2 rounded-b-lg bg-gray-100">
+        <div class="absolute bottom-px inset-x-px p-2 rounded-b-lg border-primary-brandFrame ">
         <div class="flex justify-between items-center">
           <!-- Button Group -->
           <div class="flex items-center">
@@ -241,20 +244,21 @@
             <button
               type="button"
               @click="addMessage"
-        :disabled="isLoading || !searchQuery.trim()"
-        
-              class="inline-flex shrink-0 justify-center items-center size-8 rounded-lg text-white bg-orange-600 hover:bg-orange-500 focus:z-1 disabled:opacity-50 focus:outline-none focus:bg-orange-500"
+             :disabled="isLoading || !searchQuery.trim()"
+              class="inline-flex shrink-0 
+              justify-center items-center 
+               bg-transparent
+               cursor-pointer
+              "
             >
-              <svg
-                class="shrink-0 size-3.5"
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                fill="currentColor"
-                viewBox="0 0 16 16"
-              >
-                <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z" />
-              </svg>
+            <svg v-if="!isLoading" width="21" height="18" viewBox="0 0 21 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M0.00999999 18L21 9L0.00999999 0L0 7L15 9L0 11L0.00999999 18Z" fill="#EE7624"/>
+</svg>
+<svg v-if="isLoading"  width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM10 18C5.58 18 2 14.42 2 10C2 5.58 5.58 2 10 2C14.42 2 18 5.58 18 10C18 14.42 14.42 18 10 18ZM14 14H6V6H14V14Z" fill="#667085"/>
+</svg>
+
+
             </button>
             <!-- End Send Button -->
           </div>
@@ -976,41 +980,78 @@ onBeforeUnmount(() => {
   }
 })
 
-const addMessage=()=>{
 
 
-   isLoading.value=true
-   completionMetaData.value=null
-   plannerText.value=''
-   statusText.value='Loading...'
-   AutoScrollToBottom()
-   agentThoughtsData.value=[]
-   workflowData.value=[]
-        emit('agentThoughtsDataChanged', agentThoughtsData.value)
-        emit('metadataChanged', completionMetaData.value)
-  try{  
-  if (!searchQuery.value.trim()) return
-
-const messagePayload = {
-  event: "user_message",
-  data: searchQuery.value,
-  timestamp: new Date().toISOString()
+// Helper: Wait until the socket connection is open or timeout after 5 seconds.
+function waitForSocketOpen(timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const interval = 50; // Check every 50ms
+    let elapsed = 0;
+    const checkInterval = setInterval(() => {
+      if (socket.value && socket.value.readyState === WebSocket.OPEN) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+      elapsed += interval;
+      if (elapsed >= timeout) {
+        clearInterval(checkInterval);
+        reject(new Error("Socket connection timeout"));
+      }
+    }, interval);
+  });
 }
 
-// Add message to local state so the user sees it immediately
-messagesData.value.push(messagePayload)
+const addMessage = async () => {
+  // Reset UI state and local variables.
+  completionMetaData.value = null;
+  plannerText.value = '';
+  statusText.value = 'Loading...';
+  AutoScrollToBottom();
+  agentThoughtsData.value = [];
+  workflowData.value = [];
+  emit('agentThoughtsDataChanged', agentThoughtsData.value);
+  emit('metadataChanged', completionMetaData.value);
 
-// Send message via WebSocket
-socket.value.send(JSON.stringify(messagePayload))
+  // Don't proceed if there's no text.
+  if (!searchQuery.value.trim()) return;
 
-// Clear input field
-searchQuery.value = ''
-// isLoading.value=false
+  const messagePayload = {
+    event: "user_message",
+    data: searchQuery.value,
+    timestamp: new Date().toISOString()
+  };
 
-}catch(e){
-    console.log("ChatView error", e)
+  // Check if the WebSocket is connected.
+  if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
+    try {
+      console.log("Socket not connected. Connecting...");
+      // Connect the socket.
+      connectWebSocket();
+      // Wait until the socket is open.
+      await waitForSocketOpen();
+      // Optionally update local state so the user sees their message immediately.
+      messagesData.value.push(messagePayload);
+      // Send the message via the open WebSocket.
+      socket.value.send(JSON.stringify(messagePayload));
+      isLoading.value = true;
+      console.log('Message sent after connecting:', messagePayload);
+    } catch (error) {
+      console.error('Failed to connect and send message:', error);
+    }
+  } else {
+    try {
+      isLoading.value = true;
+      // Update local state.
+      messagesData.value.push(messagePayload);
+      // Send the message.
+      socket.value.send(JSON.stringify(messagePayload));
+      // Clear the input field.
+      searchQuery.value = '';
+    } catch (e) {
+      console.error("ChatView error", e);
+    }
   }
-}
+};
 
 
 
@@ -1121,6 +1162,8 @@ function connectWebSocket() {
       isLoading.value=false
       
     }
+
+    AutoScrollToBottom()
   }
 
   socket.value.onerror = (error) => {

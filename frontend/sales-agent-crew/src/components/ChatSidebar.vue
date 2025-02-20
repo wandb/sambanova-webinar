@@ -190,9 +190,9 @@ async function createNewChat() {
       {}, 
       {
         headers: {
-          'x-sambanova-key': sambanovaKey.value || '',
-          'x-serper-key': serperKey.value || '',
-          'x-exa-key': exaKey.value || '',
+          // 'x-sambanova-key': sambanovaKey.value || '',
+          // 'x-serper-key': serperKey.value || '',
+          // 'x-exa-key': exaKey.value || '',
           'x-user-id': uid
         }
       }

@@ -989,7 +989,7 @@ async function authRequest() {
     "sambanova_key": "8f462f72-0a98-42cc-a5ca-e784470cb85f",
   "serper_key": "fa053a785d306bc110c0dd657d220b1825338f67",
   "exa_key": "f2f5b5bf-84da-472f-8711-088dfbe9e04c",
-  'firework_key':'fw_3ZGJL9eUHcjt4WnYxMHqFqEo'
+  'fireworks_key':'fw_3ZGJL9eUHcjt4WnYxMHqFqEo'
   }
 
   try {

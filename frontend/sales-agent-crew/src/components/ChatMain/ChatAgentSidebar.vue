@@ -84,8 +84,8 @@
         <span>
           
       
-          <strong v-if="item.key==='duration'">{{ formattedDuration(parseFloat(item.value)) }}s</strong>
-          <strong v-else>{{ item.value }}s</strong>{{ item.label }} 
+          <strong class="mx-2" v-if="item.key==='duration'">{{ formattedDuration(parseFloat(item.value)) }}s</strong>
+          <strong class="mx-2" v-else>{{ item.value }}s</strong>{{ item.label }} 
 
         </span>
       </template>
@@ -459,42 +459,42 @@ const presentMetadata = computed(() => {
   if (props.metadata.total_tokens != null) {
     data.push({
       key: 'total_tokens',
-      label: 'Total tokens:',
+      label: 'total tokens:',
       value: props.metadata.total_tokens
     });
   }
   if (props.metadata.prompt_tokens != null) {
     data.push({
       key: 'prompt_tokens',
-      label: 'Prompt tokens:',
+      label: 'prompt tokens:',
       value: props.metadata.prompt_tokens
     });
   }
   if (props.metadata.cached_prompt_tokens != null) {
     data.push({
       key: 'cached_prompt_tokens',
-      label: 'Cached prompt tokens:',
+      label: 'cached prompt tokens:',
       value: props.metadata.cached_prompt_tokens
     });
   }
   if (props.metadata.completion_tokens != null) {
     data.push({
       key: 'completion_tokens',
-      label: 'Completion tokens:',
+      label: 'dompletion tokens:',
       value: props.metadata.completion_tokens
     });
   }
   if (props.metadata.successful_requests != null) {
     data.push({
       key: 'successful_requests',
-      label: 'Successful requests:',
+      label: 'duccessful requests:',
       value: props.metadata.successful_requests
     });
   }
   if (props.metadata.duration != null) {
     data.push({
       key: 'duration',
-      label: 'total Duration',
+      label: 'total duration',
       value: `${props.metadata.duration}s`
     });
   }

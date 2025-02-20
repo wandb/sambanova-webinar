@@ -261,38 +261,6 @@ class SemanticRouterAgent(RoutedAgent):
         else:
             return [plans[0]]
 
-    @message_handler
-    async def handle_handoff(
-        self, message: HandoffMessage, ctx: MessageContext
-    ) -> None:
-        """
-        Handles handoff messages from other agents.
-
-        Args:
-            message (HandoffMessage): The handoff message from another agent.
-            ctx (MessageContext): Context information for the message.
-        """
-        session_id = ctx.topic_id.source
-        logger.info(logger.format_message(
-            session_id,
-            f"Received handoff from {message.source} agent"
-        ))
-
-        # Clear session if conversation is complete, otherwise continue routing
-        if message.original_task and "complete" in message.content.lower():
-            logger.info(logger.format_message(
-                session_id,
-                "Task complete, clearing session"
-            ))
-            self._session_manager.clear_session(session_id)
-        else:
-            logger.info(logger.format_message(
-                session_id,
-                f"Continuing conversation with new message from {message.source}"
-            ))
-            await self.route_message(
-                EndUserMessage(content=message.content, source=message.source), ctx
-            )
 
     async def _publish_message(
         self, request_obj: AgentRequest, ctx: MessageContext

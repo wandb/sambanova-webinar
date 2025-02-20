@@ -140,30 +140,63 @@ class AssistantAgentWrapper(RoutedAgent):
         self.api_keys = api_keys
         self.websocket = websocket
         self.redis_client = redis_client
+        self._default_model = "llama-3.1-70b"
+        self._current_provider = None
+        self._assistant_instance = None
 
-        model_info = model_registry.get_model_info(model_key="llama-3.3-70b")
-        self._assistant = AssistantAgent(
-            name="assistant",
-            model_client=OpenAIChatCompletionClient(
-                model=model_info["model"],
-                base_url=model_info["url"],
-                api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
-                model_info={
-                    "json_output": False,
-                    "function_calling": True,
-                    "family": "unknown",
-                    "vision": False,
-                },
-            ),
-            tools=[
-                get_current_time,
-                functools.partial(serper_search, self.api_keys.serper_key),
-                yahoo_finance_search,
-                functools.partial(exa_news_search, self.api_keys.exa_key),
-            ],
-            system_message="You are a helpful AI assistant. You have access to real-time stock data and news information and you should use the company ticker when searching for stock data. For example, if the user asks for Apple's stock price, you should use the ticker 'AAPL' when searching for stock data.",
-            reflect_on_tool_use=True,
-        )
+    def get_assistant(self, provider: str) -> AssistantAgent:
+        """Get or create an AssistantAgent instance for the given provider.
+        Only creates a new instance if the provider changes.
+        
+        Args:
+            provider: The model provider to use
+            
+        Returns:
+            AssistantAgent: The current or new assistant instance
+            
+        Raises:
+            ValueError: If the provider or model configuration is invalid
+        """
+        if provider == self._current_provider:
+            return self._assistant_instance
+
+        try:
+            # Get model configuration
+            model_info = model_registry.get_model_info(
+                model_key=self._default_model, 
+                provider=provider
+            )
+            if not model_info:
+                raise ValueError(f"No model configuration found for provider {provider}")
+
+            self._current_provider = provider
+            self._assistant_instance = AssistantAgent(
+                name="assistant",
+                model_client=OpenAIChatCompletionClient(
+                    model=model_info["model"],
+                    base_url=model_info["url"],
+                    api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=provider)),
+                    model_info={
+                        "json_output": False,
+                        "function_calling": True,
+                        "family": "unknown",
+                        "vision": False,
+                    },
+                ),
+                tools=[
+                    get_current_time,
+                    functools.partial(serper_search, self.api_keys.serper_key),
+                    yahoo_finance_search,
+                    functools.partial(exa_news_search, self.api_keys.exa_key),
+                ],
+                system_message="You are a helpful AI assistant. You have access to real-time stock data and news information and you should use the company ticker when searching for stock data. For example, if the user asks for Apple's stock price, you should use the ticker 'AAPL' when searching for stock data.",
+                reflect_on_tool_use=True,
+            )
+            return self._assistant_instance
+
+        except Exception as e:
+            logger.error(f"Failed to create assistant for provider {provider}: {str(e)}")
+            raise ValueError(f"Failed to initialize assistant: {str(e)}")
 
     @message_handler
     async def handle_text_message(
@@ -179,10 +212,10 @@ class AssistantAgentWrapper(RoutedAgent):
             agent_message = TextMessage(content=message.parameters.query, source="user")
 
             start_time = time.time()
-            response = await self._assistant.on_messages(
+            response = await self.get_assistant(message.provider).on_messages(
                 [agent_message], ctx.cancellation_token
             )
-            await self._assistant._model_context.clear()
+            await self.get_assistant(message.provider)._model_context.clear()
             logger.info(
                 logger.format_message(
                     ctx.topic_id.source, "Generated response successfully"
@@ -207,8 +240,8 @@ class AssistantAgentWrapper(RoutedAgent):
 
             assistant_metadata = {
                 "duration": processing_time,
-                "model": self._assistant._model_client._resolved_model,
-                "provider": model_registry.get_current_provider(),
+                "llm_name": self.get_assistant(message.provider)._model_client._resolved_model,
+                "llm_provider": message.provider,
                 "workflow": "General Assistant",
                 "agent_name": "General Assistant",
                 "task": "assistant",
@@ -238,7 +271,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 ),
                 exc_info=True,
             )
-            await self._assistant._model_context.clear()
+            await self.get_assistant(message.provider)._model_context.clear()
             response_content = "Unable to assist with this request."
 
         try:

@@ -18,11 +18,11 @@ class FinancialPromptExtractor:
     If LLM fails, fallback to a naive regex approach.
     """
 
-    def __init__(self, llm_api_key: str):
+    def __init__(self, llm_api_key: str, provider: str):
         self.env_utils = EnvUtils()
         self.api_key = llm_api_key
         # Example model name 
-        model_info = model_registry.get_model_info(model_key="llama-3.1-8b")
+        model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
         self.model_name = model_info["model"]
         self.url = model_info["long_url"]
 

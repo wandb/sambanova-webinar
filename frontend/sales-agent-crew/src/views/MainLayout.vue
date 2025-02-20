@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, onMounted, computed, watch, onBeforeUnmount,provide } from 'vue'
 import { useUser } from '@clerk/vue'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -169,6 +169,13 @@ import ErrorModal from '@/components/ErrorModal.vue'
 import FullReportModal from '@/components/FullReportModal.vue'
 import ChatAgentSidebar from '@/components/ChatMain/ChatAgentSidebar.vue' 
 import { useReportStore } from '@/stores/reportStore'
+
+
+// Create a reactive property for the selected option.
+const selectedOption = ref({ label: 'Sambanova', value: 'sambanova' })
+
+// Provide the state so that descendant components can access it.
+provide('selectedOption', selectedOption)
 
 
 // PROPS

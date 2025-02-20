@@ -24,16 +24,19 @@
       <!-- Right: Chat mode toggle, date/time, settings, user -->
       <div class="flex items-center space-x-4">
         
+        <SelectProvider  v-model:selectedOption="selectedOption" />
         <!-- NEW: Chat Mode Toggle -->
         <div class="flex items-center space-x-2">
-          <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
+          <ToggleSwitch v-model:chatMode="chatMode" label="" />
+
+          <!-- <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
           <input
             
             id="modeToggle"
             type="checkbox"
             v-model="chatMode"
             class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
-          />
+          /> -->
         </div>
 
         <!-- <ToggleSwitch 
@@ -81,10 +84,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch ,onMounted} from 'vue'
+import { ref, computed, watch ,inject, onMounted} from 'vue'
 import { SignedIn, UserButton } from '@clerk/vue'
 import SettingsModal from './SettingsModal.vue'
 import ToggleSwitch from '@/components/Common/UIComponents/ToggleSwitch.vue'
+import SelectProvider from '@/components/ChatMain/SelectProvider.vue'
+// import Dropdown from './Dropdown.vue'
+
+// Inject the shared state provided in MainLayout.vue.
+const selectedOption = inject('selectedOption')
+
 const chatMode = ref(true)
 // We'll emit 'modeToggled' to the parent
 const emit = defineEmits(['keysUpdated','modeToggled'])

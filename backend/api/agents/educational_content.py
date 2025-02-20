@@ -39,7 +39,8 @@ class EducationalContentAgent(RoutedAgent):
             ))
             
             edu_flow = SambaResearchFlow(
-                    llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env()),
+                    llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)),
+                    provider=message.provider,
                     serper_key=self.api_keys.serper_key,
                     user_id=user_id,
                     run_id=conversation_id,

@@ -263,7 +263,8 @@ class LeadGenerationAPI:
                         llm_api_key=sambanova_key,
                         exa_key=exa_key,
                         user_id=user_id,
-                        run_id=run_id
+                        run_id=run_id,
+                        provider="sambanova"
                     )
                     raw_result = await self.execute_research(crew, parameters)
                     parsed_result = json.loads(raw_result)
@@ -281,6 +282,7 @@ class LeadGenerationAPI:
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
+                        provider="sambanova",
                         docs_included="docs" in parameters
                     )
                     edu_inputs = {
@@ -313,9 +315,10 @@ class LeadGenerationAPI:
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
+                        provider="sambanova",
                         docs_included="docs" in parameters
                     )
-                    raw_result = await self.execute_financial(crew, parameters)
+                    raw_result = await self.execute_financial(crew, parameters, "sambanova")
                     parsed_fin = json.loads(raw_result)
                     return JSONResponse(content=parsed_fin)
 
@@ -927,8 +930,8 @@ class LeadGenerationAPI:
         raw_result, _ = await asyncio.to_thread(crew.execute_research, extracted_info)
         return raw_result
 
-    async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any]):
-        fextractor = FinancialPromptExtractor(crew.llm.api_key)
+    async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any], provider: str):
+        fextractor = FinancialPromptExtractor(crew.llm.api_key, provider)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 

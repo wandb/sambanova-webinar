@@ -2,6 +2,12 @@
 <template>
   <div class="relative h-full w-full ">
 <!-- Content -->
+
+
+<!-- <p class="text-lg font-medium">
+      Current Selection: <span class="font-bold">{{ selectedOption.label }}</span>
+    </p> -->
+
 <div class="relative h-full flex flex-col overflow-hdden">
   <div ref="container" class="flex-1  overflow-y-auto">
     <!-- Title -->
@@ -23,6 +29,7 @@
     <ul class="mt-16 space-y-5">
       <!-- Chat Bubble -->     
         <ChatBubble
+        metadata="completionMetaData.value?.metadata"
          :workflowData="workflowData"
         v-for="msgItem in messagesData" :plannerText="plannerText" 
         :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
@@ -279,7 +286,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick,onBeforeUnmount ,computed} from 'vue'
+import { ref, watch, onMounted, nextTick,onBeforeUnmount,inject ,computed} from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -297,6 +304,26 @@ import Popover from '@/components/Common/UIComponents/CustomPopover.vue'
 import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
+
+
+// Inject the shared selectedOption from MainLayout.vue.
+const selectedOption = inject('selectedOption')
+
+// Watch for changes to the selection and load data accordingly.
+const provider=ref('')
+
+watch(
+  selectedOption,
+  (newVal) => {
+    console.log('Selected option changed:', newVal)
+    // Call your data loading function here based on newVal
+    // Example: loadData(newVal.value)
+    provider.value=newVal.value
+  },
+  { immediate: true }
+)
+
+
 const newMessage = ref('') // User input field
 const socket = ref(null) // WebSocket reference
 const container = ref(null)
@@ -448,6 +475,8 @@ async function loadPreviousChat(convId) {
 
       console.log(resp)
       filterChat((resp.data))
+
+      AutoScrollToBottom()
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')
@@ -959,7 +988,8 @@ async function authRequest() {
   const postParams = {
     "sambanova_key": "8f462f72-0a98-42cc-a5ca-e784470cb85f",
   "serper_key": "fa053a785d306bc110c0dd657d220b1825338f67",
-  "exa_key": "f2f5b5bf-84da-472f-8711-088dfbe9e04c"
+  "exa_key": "f2f5b5bf-84da-472f-8711-088dfbe9e04c",
+  'firework_key':'fw_3ZGJL9eUHcjt4WnYxMHqFqEo'
   }
 
   try {
@@ -1018,9 +1048,10 @@ const addMessage = async () => {
   const messagePayload = {
     event: "user_message",
     data: searchQuery.value,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    provider: provider.value
   };
-
+  messagesData.value.push(messagePayload);
   // Check if the WebSocket is connected.
   if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
     try {
@@ -1030,7 +1061,7 @@ const addMessage = async () => {
       // Wait until the socket is open.
       await waitForSocketOpen();
       // Optionally update local state so the user sees their message immediately.
-      messagesData.value.push(messagePayload);
+      
       // Send the message via the open WebSocket.
       socket.value.send(JSON.stringify(messagePayload));
       isLoading.value = true;
@@ -1042,7 +1073,7 @@ const addMessage = async () => {
     try {
       isLoading.value = true;
       // Update local state.
-      messagesData.value.push(messagePayload);
+      
       // Send the message.
       socket.value.send(JSON.stringify(messagePayload));
       // Clear the input field.
@@ -1109,8 +1140,10 @@ function connectWebSocket() {
         }
        
        
-        messagesData.value=[receivedData]
+        messagesData.value.push(receivedData)
         isLoading.value=false
+
+        AutoScrollToBottom()
       }
      else if(receivedData.event==="think"){
       
@@ -1163,7 +1196,7 @@ function connectWebSocket() {
       
     }
 
-    AutoScrollToBottom()
+    
   }
 
   socket.value.onerror = (error) => {

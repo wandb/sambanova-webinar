@@ -66,6 +66,8 @@ const conversations = ref([])
 
 // Event handler functions for events emitted from ChatList/ChatItem.
 function onSelectConversation(conversation) {
+
+  
   console.log('Parent: Selected conversation', conversation)
   preselectedChat.value = conversation.conversation_id
   router.push(`/${conversation.conversation_id}`)

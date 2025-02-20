@@ -199,7 +199,7 @@ async def generate_report_plan(writer_model, planner_model, state: ReportState, 
     sections = report_sections.sections
     return {"sections": sections}
 
-def human_feedback(state: ReportState, config: RunnableConfig):
+def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Literal["generate_report_plan","build_section_with_web_research"]]:
     sections = state["sections"]
     sec_str = "\n\n".join(
         f"Section: {s.name}\nDescription: {s.description}\nResearch: {s.research}\n"
@@ -374,17 +374,26 @@ def compile_final_report(state: ReportState):
     return {"final_report": final_text, "deep_research_report": report}
 
 
-def get_graph(api_key: str):
+def get_graph(api_key: str, provider: str):
 
-    if model_registry.get_current_provider() == "fireworks":    
-        writer_model = ChatFireworks(model=Configuration.writer_model, temperature=0, max_tokens=8192, api_key=api_key)
-        planner_model = ChatFireworks(model=Configuration.planner_model, temperature=0, max_tokens=8192, api_key=api_key)
-        
+    model_name = "llama-3.3-70b"
+    planner_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
+        "model"
+    ] 
+    model_name = "llama-3.1-70b"
+    writer_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
+        "model"
+    ] 
+
+    if provider == "fireworks":    
+        writer_model = ChatFireworks(model=writer_model, temperature=0, max_tokens=8192, api_key=api_key)
+        planner_model = ChatFireworks(model=planner_model, temperature=0, max_tokens=8192, api_key=api_key)
+    elif provider == "sambanova":
+        writer_model = ChatSambaNovaCloud(model=writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        planner_model = ChatSambaNovaCloud(model=planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
     else:
-        writer_model = ChatSambaNovaCloud(model=Configuration.writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
-        planner_model = ChatSambaNovaCloud(model=Configuration.planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        raise ValueError(f"Unsupported provider: {provider}")
 
-    # Build subgraph
     section_builder = StateGraph(SectionState, output=SectionOutputState)
     section_builder.add_node("generate_queries", functools.partial(generate_queries, writer_model))
     section_builder.add_node("search_web", search_web)

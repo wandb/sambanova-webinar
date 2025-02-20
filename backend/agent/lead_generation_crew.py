@@ -68,6 +68,7 @@ class ExtractedMarketTrendList(BaseModel):
 class ResearchCrew:
     def __init__(self,
                  llm_api_key: str,
+                 provider: str,
                  exa_key: str,
                  user_id: str = "",
                  run_id: str = "",
@@ -75,7 +76,7 @@ class ResearchCrew:
                  ):
         
 
-        model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.llm = LLM(
             model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.00,

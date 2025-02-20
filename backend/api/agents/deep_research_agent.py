@@ -21,7 +21,7 @@ from api.data_types import (
     AgentStructuredResponse,
     APIKeys,
     AgentEnum,
-    UserQuestion,
+    DeepResearchUserQuestion,
     DeepResearchReport,
 )
 from config.model_registry import model_registry
@@ -55,14 +55,9 @@ class DeepResearchAgent(RoutedAgent):
     def _get_or_create_thread_config(self, session_id: str) -> dict:
         if session_id not in self._session_threads:
             thread_id = str(uuid.uuid4())
-            planner_model_info = model_registry.get_model_info(model_key="llama-3.1-70b")
-            writer_model_info = model_registry.get_model_info(model_key="llama-3.3-70b")
             self._session_threads[session_id] = {
                 "configurable": {
                     "thread_id": thread_id,
-                    # You can also include other config keys here if needed
-                    "planner_model": planner_model_info["model"],
-                    "writer_model": writer_model_info["model"],
                     "search_api": "tavily",
                 }
             }
@@ -87,7 +82,7 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.deep_research_topic}
 
         memory = self._get_or_create_memory(session_id)
-        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env()))
+        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)), provider=message.provider)
 
         graph = builder.compile(checkpointer=memory)
         thread_config = self._get_or_create_thread_config(session_id)
@@ -107,7 +102,7 @@ class DeepResearchAgent(RoutedAgent):
                         )
                         response = AgentStructuredResponse(
                             agent_type=AgentEnum.UserProxy,
-                            data=UserQuestion(user_question=user_question_str),
+                            data=DeepResearchUserQuestion(deep_research_user_question=user_question_str),
                             message=user_question_str
                         )
                         await self.publish_message(

@@ -20,6 +20,9 @@ class AgentEnum(str, Enum):
 class Greeter(BaseModel):
     greeting: str
 
+class DeepResearchUserQuestion(BaseModel):
+    deep_research_user_question: str
+
 class UserQuestion(BaseModel):
     user_question: str
 
@@ -85,6 +88,7 @@ class EndUserMessage(BaseAgentMessage):
     content: str
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
+    provider: str
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
@@ -93,6 +97,7 @@ class AgentRequest(BaseModel):
     ]
     query: str
     document_ids: Optional[List[str]] = None
+    provider: str
 
     @model_validator(mode="after")
     def validate_parameters_type(self) -> "AgentRequest":
@@ -150,6 +155,7 @@ class AgentStructuredResponse(BaseModel):
         Greeter,
         AssistantResponse,
         UserQuestion,
+        DeepResearchUserQuestion,
         DeepResearchReport,
     ]
     metadata: Optional[Dict[str, Any]] = None

@@ -33,21 +33,18 @@
       <table  class="w-full  text-left">
         <tbody>
           <tr >
-            <td class="px-1 py-0 font-semibold">Workflow:</td>
-            <td class="px-1 py-0">{{ data.metadata.workflow_name }}</td>
+            <td class="px-1 py-0 font-semibold">Name:</td>
+            <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
           </tr>
           <tr>
-            <td class="px-1 py-0 font-semibold">Agent:</td>
-            <td class="px-1 py-0">{{ data.metadata.agent_name }}</td>
+            <td class="px-1 py-0 font-semibold">Task:</td>
+            <td class="px-1 py-0">{{ data.metadata.task }}</td>
           </tr>
           <tr>
             <td class="px-1 py-0 font-semibold">Duration:</td>
             <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
           </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">LLM:</td>
-            <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
-          </tr>
+          
           <tr>
             <td class="px-1 py-0 font-semibold">Provider:</td>
             <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
@@ -231,6 +228,10 @@ const sections = computed(() => {
  * Otherwise, returns the original string.
  */
  function tryParseJSON(content) {
+
+  try{
+
+  
   if (typeof content !== 'string') return content;
   const trimmed = content.trim();
   if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
@@ -243,6 +244,11 @@ const sections = computed(() => {
     }
   }
   return content;
+
+}catch(e){
+console.log("Error TimelineItem tryParseJSON" ,e)
+return content;
+}
 }
 
 /**

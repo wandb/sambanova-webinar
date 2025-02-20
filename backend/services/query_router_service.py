@@ -359,6 +359,13 @@ class QueryRouterService:
           }}
         }}
 
+        Query: "Who are SambaNova?"
+        {{
+            "type": "assistant",
+            "parameters": {{
+                "query": "Who are SambaNova?"
+            }}
+        }}
 
         "type": "financial_analysis"
         "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers."

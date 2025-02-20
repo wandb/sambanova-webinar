@@ -193,8 +193,8 @@ class LeadGenerationAPI:
                     content={"error": "Missing required SambaNova API key"}
                 )
             try:
-                router = QueryRouterService(sambanova_key)
-                route_result = router.route_query(query_request.query)
+                router = QueryRouterService(sambanova_key, "sambanova")
+                route_result = await router.route_query(query_request.query)
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -271,7 +271,7 @@ class LeadGenerationAPI:
                     outreach_list = parsed_result.get("outreach_list", [])
                     return JSONResponse(content={"results": outreach_list})
 
-                elif query_type == "educational_content":
+                elif query_type == "educational_content" or query_type == "deep_research":                        
                     if not serper_key:
                         return JSONResponse(
                             status_code=401,
@@ -286,7 +286,7 @@ class LeadGenerationAPI:
                         docs_included="docs" in parameters
                     )
                     edu_inputs = {
-                        "topic": parameters["topic"],
+                        "topic": parameters["topic"] if query_type == "educational_content" else parameters["deep_research_topic"],
                         "audience_level": parameters.get("audience_level", "intermediate"),
                         "additional_context": ", ".join(parameters.get("focus_areas", []))
                     }

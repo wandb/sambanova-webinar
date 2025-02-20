@@ -83,6 +83,14 @@ class AgentRegistry:
     async def get_agent(self, intent: str) -> Optional[dict]:
         logger.info(f"AgentRegistry: Getting agent for intent: {intent}")
         return self.agents.get(intent)
+    
+    def get_context_summary_prompt(self) -> str:
+        return f"""
+        You are a context summary expert that summarizes the conversation history.
+        The context summary should be a short summary of the conversation history.
+        Mainly focus on the intent of the user's rather than the details of the conversation.
+        Be concise and to the point.
+        """
 
     def get_strucuted_output_plan_prompt(self, query: str) -> str:
         return f"""

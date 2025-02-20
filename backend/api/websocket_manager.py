@@ -166,7 +166,7 @@ class WebSocketConnectionManager:
                 user_message = EndUserMessage(
                     source="User",
                     content=user_message_input["data"], 
-                    use_planner=True,
+                    use_planner=False,
                     provider=user_message_input["provider"]
                 )    
 

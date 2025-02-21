@@ -64,17 +64,20 @@ class UserProxyAgent(RoutedAgent):
             else:
                 processing_time = time.time() - start_time
 
+            message_data = message.model_dump()
+            # Initialize metadata if None or add duration to existing metadata
+            if message_data.get("metadata") is None:
+                message_data["metadata"] = {}
+            message_data["metadata"]["duration"] = processing_time
+
             # Prepare message data
             message_data = {
                 "event": "completion",
-                "data": json.dumps(message.model_dump()),
+                "data": json.dumps(message_data),
                 "user_id": user_id,
                 "conversation_id": conversation_id,
                 "timestamp": datetime.now().isoformat()
             }
-
-            if processing_time is not None:
-                message_data["processing_time"] = processing_time
 
             if self.websocket:
                 # Create tasks for Redis operation and WebSocket send

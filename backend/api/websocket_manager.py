@@ -247,14 +247,15 @@ class WebSocketConnectionManager:
         """
         message_key = f"messages:{user_id}:{conversation_id}"
         last_ping_time = 0
-        PING_INTERVAL = 5.0  # Reduce ping frequency to every 5 seconds
+        PING_INTERVAL = 15.0  # Increased ping interval to 15 seconds
+        BATCH_SIZE = 25  # Increased batch size to process more messages at once
         
         try:
             while True:
                 # Process multiple messages in one iteration if available
                 messages = []
-                for _ in range(10):  # Process up to 10 messages at once
-                    message = pubsub.get_message(timeout=0.1)
+                for _ in range(BATCH_SIZE):  # Process up to BATCH_SIZE messages at once
+                    message = pubsub.get_message(timeout=0.05)  # Reduced timeout
                     if message and message["type"] == "message":
                         messages.append(message)
                     if not message:
@@ -299,8 +300,8 @@ class WebSocketConnectionManager:
                     })
                     last_ping_time = current_time
 
-                # Small sleep to prevent CPU spinning
-                await asyncio.sleep(0.1)
+                # Slightly longer sleep when no messages to reduce CPU usage
+                await asyncio.sleep(0.2)
 
         except Exception as e:
             logger.error(f"Error in Redis message handler: {str(e)}")

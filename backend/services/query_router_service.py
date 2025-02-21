@@ -184,9 +184,6 @@ class QueryRouterService:
                                         stream_data = {
                                             "event": "planner_chunk",
                                             "data": content,
-                                            # "user_id": self.user_id,
-                                            # "conversation_id": self.conversation_id,
-                                            # "timestamp": datetime.now().isoformat(),
                                         }
                                         await self.websocket.send_text(json.dumps(stream_data))
                                 except json.JSONDecodeError:

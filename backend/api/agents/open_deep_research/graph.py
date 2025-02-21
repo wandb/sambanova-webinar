@@ -246,7 +246,7 @@ async def search_web(state: SectionState, config: RunnableConfig):
 
     if search_api == "tavily":
         sr = await tavily_search_async(query_list)
-        src_str = deduplicate_and_format_sources(sr, max_tokens_per_source=5000, include_raw_content=True)
+        src_str = deduplicate_and_format_sources(sr, max_tokens_per_source=1500, include_raw_content=True)
     elif search_api == "perplexity":
         sr = perplexity_search(query_list)
         src_str = deduplicate_and_format_sources(sr, max_tokens_per_source=5000, include_raw_content=False)

@@ -21,10 +21,10 @@ class Greeter(BaseModel):
     greeting: str
 
 class DeepResearchUserQuestion(BaseModel):
-    deep_research_user_question: str
+    deep_research_question: str
 
 class UserQuestion(BaseModel):
-    user_question: str
+    agent_question: str
 
 class AssistantMessage(BaseModel):
     query: str

@@ -240,6 +240,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { encryptKey, decryptKey } from '../utils/encryption'
+import axios from 'axios'
 
 const isOpen = ref(false)
 const sambanovaKey = ref('')
@@ -270,6 +271,7 @@ const loadKeys = async () => {
     const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
     const savedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
     const savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
+    const savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
 
     sambanovaKey.value = savedSambanovaKey
       ? await decryptKey(savedSambanovaKey)
@@ -279,6 +281,9 @@ const loadKeys = async () => {
       : ''
     serperKey.value = savedSerperKey
       ? await decryptKey(savedSerperKey)
+      : ''
+    fireworksKey.value = savedFireworksKey
+      ? await decryptKey(savedFireworksKey)
       : ''
   } catch (error) {
     console.error('Failed to load keys:', error)
@@ -296,6 +301,7 @@ const saveSambanovaKey = async () => {
     const encryptedKey = await encryptKey(sambanovaKey.value)
     localStorage.setItem(`sambanova_key_${userId.value}`, encryptedKey)
     successMessage.value = 'SambaNova API key saved successfully!'
+    await updateBackendKeys()
     emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save SambaNova key:', error)
@@ -309,6 +315,7 @@ const clearSambanovaKey = () => {
   localStorage.removeItem(`sambanova_key_${userId.value}`)
   sambanovaKey.value = ''
   successMessage.value = 'SambaNova API key cleared successfully!'
+  updateBackendKeys()
   emit('keysUpdated')
   clearMessagesAfterDelay()
 }
@@ -322,6 +329,7 @@ const saveExaKey = async () => {
     const encryptedKey = await encryptKey(exaKey.value)
     localStorage.setItem(`exa_key_${userId.value}`, encryptedKey)
     successMessage.value = 'Exa API key saved successfully!'
+    await updateBackendKeys()
     emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save Exa key:', error)
@@ -335,6 +343,7 @@ const clearExaKey = () => {
   localStorage.removeItem(`exa_key_${userId.value}`)
   exaKey.value = ''
   successMessage.value = 'Exa API key cleared successfully!'
+  updateBackendKeys()
   emit('keysUpdated')
   clearMessagesAfterDelay()
 }
@@ -348,6 +357,7 @@ const saveSerperKey = async () => {
     const encryptedKey = await encryptKey(serperKey.value)
     localStorage.setItem(`serper_key_${userId.value}`, encryptedKey)
     successMessage.value = 'Serper API key saved successfully!'
+    await updateBackendKeys()
     emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save Serper key:', error)
@@ -357,24 +367,16 @@ const saveSerperKey = async () => {
   }
 }
 
-
-const clearFireworksKey = () => {
-  localStorage.removeItem(`fireworks_key_${userId.value}`)
-  exaKey.value = ''
-  successMessage.value = 'Fireworks API key cleared successfully!'
-  emit('keysUpdated')
-  clearMessagesAfterDelay()
-}
-
 const saveFireworksKey = async () => {
   try {
-    if (!serperKey.value) {
+    if (!fireworksKey.value) {
       errorMessage.value = 'Fireworks API key cannot be empty!'
       return
     }
-    const encryptedKey = await encryptKey(serperKey.value)
+    const encryptedKey = await encryptKey(fireworksKey.value)
     localStorage.setItem(`fireworks_key_${userId.value}`, encryptedKey)
     successMessage.value = 'Fireworks API key saved successfully!'
+    await updateBackendKeys()
     emit('keysUpdated')
   } catch (error) {
     console.error('Failed to save Fireworks key:', error)
@@ -384,10 +386,20 @@ const saveFireworksKey = async () => {
   }
 }
 
+const clearFireworksKey = () => {
+  localStorage.removeItem(`fireworks_key_${userId.value}`)
+  fireworksKey.value = ''
+  successMessage.value = 'Fireworks API key cleared successfully!'
+  updateBackendKeys()
+  emit('keysUpdated')
+  clearMessagesAfterDelay()
+}
+
 const clearSerperKey = () => {
   localStorage.removeItem(`serper_key_${userId.value}`)
   serperKey.value = ''
   successMessage.value = 'Serper API key cleared successfully!'
+  updateBackendKeys()
   emit('keysUpdated')
   clearMessagesAfterDelay()
 }
@@ -424,13 +436,35 @@ const clearMessagesAfterDelay = () => {
   }, 3000)
 }
 
+// Add the updateBackendKeys function
+const updateBackendKeys = async () => {
+  try {
+    const url = `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`
+    const postParams = {
+      sambanova_key: sambanovaKey.value || '',
+      serper_key: serperKey.value || '',
+      exa_key: exaKey.value || '',
+      fireworks_key: fireworksKey.value || ''
+    }
+
+    const response = await axios.post(url, postParams)
+    if (response.status === 200) {
+      console.log('API keys updated in backend successfully')
+    }
+  } catch (error) {
+    console.error('Error updating API keys in backend:', error)
+    errorMessage.value = 'Failed to update API keys in backend'
+  }
+}
+
 // Expose methods and state
 defineExpose({
   isOpen,
   getKeys: () => ({
     sambanovaKey: sambanovaKey.value,
     exaKey: exaKey.value,
-    serperKey: serperKey.value
+    serperKey: serperKey.value,
+    fireworksKey: fireworksKey.value
   }),
 })
 </script>

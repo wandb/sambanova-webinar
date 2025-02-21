@@ -179,7 +179,7 @@ class SemanticRouterAgent(RoutedAgent):
             except json.JSONDecodeError:
                 pass
                 
-        if "deep_research_user_question" in last_content:
+        if "deep_research_question" in last_content:
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Deep research feedback received, routing to deep research"
@@ -224,13 +224,7 @@ class SemanticRouterAgent(RoutedAgent):
                 ctx.topic_id.source,
                 f"Routing to {request_obj.agent_type.value} agent with parameters: {route_result.parameters}"
             ))
-            await self.publish_message(
-                request_obj,
-                DefaultTopicId(
-                    type=request_obj.agent_type.value,
-                    source=ctx.topic_id.source,
-                ),
-            )
+            await self._publish_message(request_obj, ctx)
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Successfully published request to {request_obj.agent_type.value}"
@@ -267,37 +261,33 @@ class SemanticRouterAgent(RoutedAgent):
         else:
             return [plans[0]]
 
-    @message_handler
-    async def handle_handoff(
-        self, message: HandoffMessage, ctx: MessageContext
+
+    async def _publish_message(
+        self, request_obj: AgentRequest, ctx: MessageContext
     ) -> None:
         """
-        Handles handoff messages from other agents.
-
-        Args:
-            message (HandoffMessage): The handoff message from another agent.
-            ctx (MessageContext): Context information for the message.
+        Publishes a message to the appropriate agent.
         """
-        session_id = ctx.topic_id.source
-        logger.info(logger.format_message(
-            session_id,
-            f"Received handoff from {message.source} agent"
-        ))
-
-        # Clear session if conversation is complete, otherwise continue routing
-        if message.original_task and "complete" in message.content.lower():
-            logger.info(logger.format_message(
-                session_id,
-                "Task complete, clearing session"
-            ))
-            self._session_manager.clear_session(session_id)
+        if request_obj.agent_type == AgentEnum.UserProxy:
+            response = AgentStructuredResponse(
+                agent_type=request_obj.agent_type,
+                data=request_obj.parameters,
+                message=request_obj.parameters.model_dump_json(),
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(
+                    type=request_obj.agent_type.value,
+                    source=ctx.topic_id.source,
+                ),
+            )
         else:
-            logger.info(logger.format_message(
-                session_id,
-                f"Continuing conversation with new message from {message.source}"
-            ))
-            await self.route_message(
-                EndUserMessage(content=message.content, source=message.source), ctx
+            await self.publish_message(
+                request_obj,
+                DefaultTopicId(
+                    type=request_obj.agent_type.value,
+                    source=ctx.topic_id.source,
+                ),
             )
 
     async def _get_agents_to_route(
@@ -320,7 +310,7 @@ class SemanticRouterAgent(RoutedAgent):
             except json.JSONDecodeError:
                 last_content = {}
                 
-        if "deep_research_user_question" in last_content:
+        if "deep_research_question" in last_content:
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 "Deep research feedback received, routing to deep research"
@@ -455,27 +445,7 @@ class SemanticRouterAgent(RoutedAgent):
                         f"Publishing request to {request_obj.agent_type.value} with parameters: {request_obj.parameters}"
                     ))
 
-                    if request_obj.agent_type == AgentEnum.UserProxy:
-                        response = AgentStructuredResponse(
-                            agent_type=request_obj.agent_type,
-                            data=request_obj.parameters,
-                            message=request_obj.parameters.model_dump_json(),
-                        )
-                        await self.publish_message(
-                            response,
-                            DefaultTopicId(
-                                type=request_obj.agent_type.value,
-                                source=ctx.topic_id.source,
-                            ),
-                        )
-                    else:
-                        await self.publish_message(
-                            request_obj,
-                            DefaultTopicId(
-                                type=request_obj.agent_type.value,
-                                source=ctx.topic_id.source,
-                            ),
-                        )
+                    await self._publish_message(request_obj, ctx)
             else:
                 logger.error(logger.format_message(
                     ctx.topic_id.source,

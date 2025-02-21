@@ -71,7 +71,17 @@ services:
       - app-network
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --save 60 1000
+    # This configures:
+    # - AOF (Append Only File) persistence
+    # - RDB snapshots every 60 seconds if at least 1000 keys changed
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

@@ -7,7 +7,7 @@
           alt="SambaNova Logo" 
           class="h-12 mx-auto mb-6"
         />
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">Sales Co-Pilot</h1>
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">Agents</h1>
         <p class="text-lg text-gray-600">AI-Powered Sales Intelligence</p>
       </div>
       

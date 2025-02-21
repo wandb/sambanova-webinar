@@ -3,6 +3,7 @@ import asyncio
 import json
 from typing import Any, Union
 import uuid
+from redis import Redis
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -26,7 +27,7 @@ from api.data_types import (
 )
 from config.model_registry import model_registry
 from utils.logging import logger
-from api.agents.open_deep_research.graph import get_graph
+from api.agents.open_deep_research.graph import create_publish_callback, get_graph
 
 @type_subscription(topic_type="deep_research")
 class DeepResearchAgent(RoutedAgent):
@@ -34,10 +35,11 @@ class DeepResearchAgent(RoutedAgent):
     Handles advanced multi-section research with user feedback (interrupt).
     """
 
-    def __init__(self, api_keys: APIKeys, websocket: WebSocket):
+    def __init__(self, api_keys: APIKeys, websocket: WebSocket, redis_client: Redis = None):
         super().__init__("DeepResearchAgent")
         self.api_keys = api_keys
         self.websocket = websocket
+        self.redis_client = redis_client
         logger.info(
             logger.format_message(
                 None, f"Initializing DeepResearchAgent with ID: {self.id}"
@@ -52,13 +54,28 @@ class DeepResearchAgent(RoutedAgent):
             self.memory_stores[session_id] = MemorySaver()
         return self.memory_stores[session_id]
 
-    def _get_or_create_thread_config(self, session_id: str) -> dict:
+    def _get_or_create_thread_config(
+        self,
+        session_id: str,
+        llm_provider: str,
+    ) -> dict:
         if session_id not in self._session_threads:
+            user_id, conversation_id = session_id.split(":")
             thread_id = str(uuid.uuid4())
             self._session_threads[session_id] = {
                 "configurable": {
                     "thread_id": thread_id,
                     "search_api": "tavily",
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "callback": create_publish_callback(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        llm_provider=llm_provider,
+                        agent_name="deep_research",
+                        workflow_name="deep_research",
+                        redis_client=self.redis_client,
+                    ),
                 }
             }
         return self._session_threads[session_id]
@@ -82,14 +99,17 @@ class DeepResearchAgent(RoutedAgent):
             graph_input = {"topic": message.parameters.deep_research_topic}
 
         memory = self._get_or_create_memory(session_id)
-        builder = get_graph(getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)), provider=message.provider)
+        builder = get_graph(
+            getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)), 
+            provider=message.provider,
+        )
 
         graph = builder.compile(checkpointer=memory)
-        thread_config = self._get_or_create_thread_config(session_id)
+        thread_config = self._get_or_create_thread_config(session_id, message.provider)
 
         try:
             async for event in graph.astream(graph_input, thread_config, stream_mode="updates"):
-                logger.info(logger.format_message(session_id, f"[DeepResearchFlow Event]: {event}"))
+                logger.info(logger.format_message(session_id, f"DeepResearchFlow Event: {event}"))
                 # if there's an interrupt, we ask user for feedback
                 if "__interrupt__" in event:
                     interrupt_data = event["__interrupt__"]

@@ -1,6 +1,6 @@
 <!-- src/components/Header.vue -->
 <template>
-  <header class="shadow-md bg-white sticky top-0 z-50">
+  <header class=" bg-primary-bodyBg sticky top-0 z-50  ">
     <div class="h-16 mx-auto px-4 sm:px-6 flex items-center justify-between">
       <!-- Left: Brand -->
       <div class="flex items-center space-x-2 sm:space-x-4">
@@ -24,16 +24,27 @@
       <!-- Right: Chat mode toggle, date/time, settings, user -->
       <div class="flex items-center space-x-4">
         
+        <SelectProvider  v-model:selectedOption="selectedOption" />
         <!-- NEW: Chat Mode Toggle -->
         <div class="flex items-center space-x-2">
-          <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
+          <ToggleSwitch v-model:chatMode="chatMode" label="" />
+
+          <!-- <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
           <input
+            
             id="modeToggle"
             type="checkbox"
             v-model="chatMode"
             class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
-          />
+          /> -->
         </div>
+
+        <!-- <ToggleSwitch 
+           id="modeToggle"
+            type="checkbox"
+            v-model="chatMode"  
+            :chatMode="chatMode"
+            /> -->
 <!-- 
         <div class="hidden sm:block lg:hidden text-sm text-right text-gray-600">
           {{ shortCurrentDateTime }}
@@ -61,8 +72,9 @@
 
         <SignedIn>
           <UserButton 
+
             afterSignOutUrl="/login"
-            :appearance="{ elements: { avatarBox: 'h-8 w-8 sm:h-10 sm:w-10' } }"
+            :appearance="{ elements: { avatarBox: 'bg-primary-brandAvatarGray h-8 w-8 sm:h-10 sm:w-10' } }"
           />
         </SignedIn>
       </div>
@@ -72,16 +84,27 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch ,inject, onMounted} from 'vue'
 import { SignedIn, UserButton } from '@clerk/vue'
 import SettingsModal from './SettingsModal.vue'
+import ToggleSwitch from '@/components/Common/UIComponents/ToggleSwitch.vue'
+import SelectProvider from '@/components/ChatMain/SelectProvider.vue'
+// import Dropdown from './Dropdown.vue'
 
-const chatMode = ref(false)
+// Inject the shared state provided in MainLayout.vue.
+const selectedOption = inject('selectedOption')
+
+const chatMode = ref(true)
 // We'll emit 'modeToggled' to the parent
 const emit = defineEmits(['keysUpdated','modeToggled'])
 
 watch(chatMode, (val) => {
   emit('modeToggled', val)
+})
+
+onMounted(async () => {
+  emit('modeToggled', true)
+  
 })
 
 const settingsModalRef = ref(null)

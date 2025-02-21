@@ -8,6 +8,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+from config.model_registry import model_registry
 from utils.envutils import EnvUtils
 
 class FinancialPromptExtractor:
@@ -17,12 +18,13 @@ class FinancialPromptExtractor:
     If LLM fails, fallback to a naive regex approach.
     """
 
-    def __init__(self, sambanova_api_key: str):
+    def __init__(self, llm_api_key: str, provider: str):
         self.env_utils = EnvUtils()
-        self.api_key = sambanova_api_key
+        self.api_key = llm_api_key
         # Example model name 
-        self.model_name = "Meta-Llama-3.1-8B-Instruct"
-        self.url = "https://api.sambanova.ai/v1/chat/completions"
+        model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
+        self.model_name = model_info["model"]
+        self.url = model_info["long_url"]
 
     def extract_info(self, prompt: str):
         """

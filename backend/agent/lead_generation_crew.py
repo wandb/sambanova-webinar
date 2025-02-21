@@ -1,8 +1,5 @@
 import sys
 import os
-import json
-import time
-import redis
 import uuid
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -19,9 +16,10 @@ langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool
 from tools.market_research_tool import MarketResearchTool
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel
 from utils.agent_thought import RedisConversationLogger
+from config.model_registry import model_registry
 
 class Outreach(BaseModel):
     company_name: str
@@ -67,24 +65,29 @@ class ExtractedMarketTrend(BaseModel):
 class ExtractedMarketTrendList(BaseModel):
     market_trends: List[ExtractedMarketTrend]
 
-
-
 class ResearchCrew:
     def __init__(self,
-                 sambanova_key: str,
+                 llm_api_key: str,
+                 provider: str,
                  exa_key: str,
                  user_id: str = "",
-                 run_id: str = ""):
+                 run_id: str = "",
+                 verbose: bool = True
+                 ):
+        
+
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
-            temperature=0.01,
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
+            temperature=0.00,
             max_tokens=8192,
-            api_key=sambanova_key
+            api_key=llm_api_key,
+            base_url=model_info["url"]
         )
         self.exa_key = exa_key
-        self.sambanova_key = sambanova_key
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
 
         self._initialize_agents()
         self._initialize_tasks()
@@ -99,7 +102,7 @@ class ResearchCrew:
             backstory="You retrieve top-level aggregator results from Exa using the tool.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             tools=[CompanyIntelligenceTool(api_key=self.exa_key)]
         )
 
@@ -110,7 +113,7 @@ class ResearchCrew:
             backstory="You parse aggregator text with the LLM to produce structured data.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True
+            verbose=self.verbose
         )
 
         # 3) market_trends_agent
@@ -120,7 +123,7 @@ class ResearchCrew:
             backstory="You are an experienced market research analyst ...",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             tools=[MarketResearchTool(api_key=self.exa_key)]
         )
 
@@ -131,36 +134,38 @@ class ResearchCrew:
             backstory="You craft personalized outreach messages ...",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True
-        )
-
-        # Create Redis loggers per agent
-        aggregator_redis_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Aggregator Search Agent"
-        )
-        data_extraction_redis_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Data Extraction Agent"
-        )
-        market_trends_redis_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Market Trends Analyst"
-        )
-        outreach_redis_logger = RedisConversationLogger(
-            user_id=self.user_id,
-            run_id=self.run_id,
-            agent_name="Outreach Specialist"
+            verbose=self.verbose
         )
 
         # Hook them in
-        self.aggregator_agent.step_callback = aggregator_redis_logger
-        self.data_extraction_agent.step_callback = data_extraction_redis_logger
-        self.market_trends_agent.step_callback = market_trends_redis_logger
-        self.outreach_agent.step_callback = outreach_redis_logger
+        self.aggregator_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Aggregator Search Agent",
+            workflow_name="Lead Generation",
+            llm_name=self.llm.model,
+        )
+        self.data_extraction_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Data Extraction Agent",
+            workflow_name="Lead Generation",
+            llm_name=self.llm.model,
+        )
+        self.market_trends_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Market Trends Analyst",
+            workflow_name="Lead Generation",
+            llm_name=self.llm.model,
+        )
+        self.outreach_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Outreach Specialist",
+            workflow_name="Lead Generation",
+            llm_name=self.llm.model,
+        )
 
     def _initialize_tasks(self) -> None:
         """
@@ -295,7 +300,7 @@ class ResearchCrew:
             output_pydantic=OutreachList
         )
 
-    def execute_research(self, inputs: dict) -> str:
+    def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
         """
@@ -314,11 +319,11 @@ class ResearchCrew:
                 self.outreach_task
             ],
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
             memory=False
         )
         results = crew.kickoff(inputs=inputs)
-        return results.pydantic.model_dump_json()
+        return results.pydantic.model_dump_json(), dict(results.token_usage)
 
 
 def main():
@@ -345,7 +350,7 @@ def main():
         "product": ""
     }
 
-    final_output = crew.execute_research(example_inputs)
+    final_output, _ = crew.execute_research(example_inputs)
     print("Crew Output:")
     print(final_output)
 

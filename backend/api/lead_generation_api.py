@@ -2,8 +2,6 @@ from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 import json
 import uvicorn
-import sys
-import os
 import re
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,13 +11,17 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
 from starlette.websockets import WebSocketState
 from contextlib import asynccontextmanager
+import logging
 
 from api.agents.user_proxy import UserProxyAgent
 from api.websocket_manager import WebSocketConnectionManager
 
 from api.utils import initialize_agent_runtime
-from api.otlp_tracing import logger
+from utils.logging import logger
 from autogen_core import MessageContext
+from config.model_registry import model_registry
+import os
+import sys
 
 import redis
 import uuid
@@ -80,20 +82,27 @@ async def lifespan(app: FastAPI):
 
     Initializes the agent runtime and registers the UserProxyAgent.
     """
-    app.state.agent_runtime = await initialize_agent_runtime()
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
-    app.state.redis_client = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=0,
-            decode_responses=True
+    
+    # Create a Redis connection pool
+    pool = redis.ConnectionPool(
+        host=redis_host,
+        port=redis_port,
+        db=0,
+        decode_responses=True,
+        max_connections=20  # Adjust based on expected concurrent connections
     )
-    print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+    
+    # Create Redis client with connection pool
+    app.state.redis_client = redis.Redis(
+        connection_pool=pool,
+        decode_responses=True
+    )
+    print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port} with connection pool")
 
     app.state.manager = WebSocketConnectionManager(
-        agent_runtime=app.state.agent_runtime,
         redis_client=app.state.redis_client
     )
     UserProxyAgent.connection_manager = app.state.manager
@@ -101,7 +110,20 @@ async def lifespan(app: FastAPI):
 
     yield  # This separates the startup and shutdown logic
 
-    #TODO: Add cleanup logic here
+    # Cleanup chat-specific agent runtimes
+    chat_keys = app.state.redis_client.keys("chat_manager:*")
+    for key in chat_keys:
+        chat_data = app.state.redis_client.get(key)
+        if chat_data:
+            chat_info = json.loads(chat_data)
+            # TODO: Add cleanup for chat-specific agent runtime
+            app.state.redis_client.delete(key)
+
+    # Close Redis connection pool
+    app.state.redis_client.close()
+    pool.disconnect()
+
+    # Cleanup default agent runtime
     await app.state.agent_runtime.close()
 
 class LeadGenerationAPI:
@@ -112,6 +134,19 @@ class LeadGenerationAPI:
         self.context_length_summariser = 64000
         self.executor = ThreadPoolExecutor(max_workers=2)
 
+    def verify_conversation_exists(self, user_id: str, conversation_id: str) -> bool:
+        """
+        Verify if a conversation exists for the given user.
+        
+        Args:
+            user_id (str): The ID of the user
+            conversation_id (str): The ID of the conversation
+            
+        Returns:
+            bool: True if conversation exists, False otherwise
+        """
+        meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+        return bool(self.app.state.redis_client.exists(meta_key))
 
     def setup_cors(self):
         allowed_origins = os.getenv('ALLOWED_ORIGINS', '*').split(',')
@@ -171,8 +206,8 @@ class LeadGenerationAPI:
                     content={"error": "Missing required SambaNova API key"}
                 )
             try:
-                router = QueryRouterService(sambanova_key)
-                route_result = router.route_query(query_request.query)
+                router = QueryRouterService(sambanova_key, "sambanova")
+                route_result = await router.route_query(query_request.query)
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -238,31 +273,33 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Exa API key for sales leads"}
                         )
                     crew = ResearchCrew(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         exa_key=exa_key,
                         user_id=user_id,
-                        run_id=run_id
+                        run_id=run_id,
+                        provider="sambanova"
                     )
                     raw_result = await self.execute_research(crew, parameters)
                     parsed_result = json.loads(raw_result)
                     outreach_list = parsed_result.get("outreach_list", [])
                     return JSONResponse(content={"results": outreach_list})
 
-                elif query_type == "educational_content":
+                elif query_type == "educational_content" or query_type == "deep_research":                        
                     if not serper_key:
                         return JSONResponse(
                             status_code=401,
                             content={"error": "Missing required Serper API key for educational content"}
                         )
                     edu_flow = SambaResearchFlow(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
+                        provider="sambanova",
                         docs_included="docs" in parameters
                     )
                     edu_inputs = {
-                        "topic": parameters["topic"],
+                        "topic": parameters["topic"] if query_type == "educational_content" else parameters["deep_research_topic"],
                         "audience_level": parameters.get("audience_level", "intermediate"),
                         "additional_context": ", ".join(parameters.get("focus_areas", []))
                     }
@@ -286,14 +323,15 @@ class LeadGenerationAPI:
                             content={"error": "Missing required Exa or Serper API keys for financial analysis"}
                         )
                     crew = FinancialAnalysisCrew(
-                        sambanova_key=sambanova_key,
+                        llm_api_key=sambanova_key,
                         exa_key=exa_key,
                         serper_key=serper_key,
                         user_id=user_id,
                         run_id=run_id,
+                        provider="sambanova",
                         docs_included="docs" in parameters
                     )
-                    raw_result = await self.execute_financial(crew, parameters)
+                    raw_result = await self.execute_financial(crew, parameters, "sambanova")
                     parsed_fin = json.loads(raw_result)
                     return JSONResponse(content=parsed_fin)
 
@@ -363,6 +401,185 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[stream_logs] Error setting up SSE: {e}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
+
+        @self.app.post("/chat/init")
+        async def init_chat(request: Request, chat_name: Optional[str] = None):
+            """
+            Initializes a new chat session and stores the provided API keys.
+            Returns a chat ID for subsequent interactions.
+            
+            Args:
+                request (Request): The request object containing headers
+                chat_name (Optional[str]): Optional name for the chat. If not provided, a default will be used.
+            """
+            user_id = request.headers.get("x-user-id", "anonymous")
+
+            try:
+                # Generate a unique chat ID
+                conversation_id = str(uuid.uuid4())
+                
+                # Use provided chat name or default
+                timestamp = time.time()
+                
+                # Store chat metadata
+                metadata = {
+                    "conversation_id": conversation_id,
+                    **({"name": chat_name} if chat_name else {}),
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                    "user_id": user_id
+                }
+                chat_meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                self.app.state.redis_client.set(chat_meta_key, json.dumps(metadata))
+                
+                # Add to user's conversation list
+                user_chats_key = f"user_chats:{user_id}"
+                self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp})
+
+                #TODO: init autogen agent
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "conversation_id": conversation_id,
+                        "name": chat_name,
+                        "created_at": timestamp,
+                        "assistant_message": "Hello! How can I help you today?"
+                    }
+                )
+
+            except Exception as e:
+                print(f"[/chat/init] Error initializing chat: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to initialize chat: {str(e)}"}
+                )
+            
+        @self.app.get("/chat/history/{user_id}/{conversation_id}")
+        async def get_conversation_messages(user_id: str, conversation_id: str):
+            """
+            Retrieve all messages for a specific conversation.
+            
+            Args:
+                user_id (str): The ID of the user
+                conversation_id (str): The ID of the conversation
+            """
+            try:
+                message_key = f"messages:{user_id}:{conversation_id}"
+                messages = self.app.state.redis_client.lrange(message_key, 0, -1)
+                
+                if not messages:
+                    return JSONResponse(
+                        status_code=200,
+                        content={"messages": []}
+                    )
+                
+                # Parse JSON strings back into objects
+                parsed_messages = [json.loads(msg) for msg in messages]
+                
+                # Sort messages by timestamp
+                parsed_messages.sort(key=lambda x: x.get("timestamp", ""))
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"messages": parsed_messages}
+                )
+                
+            except Exception as e:
+                print(f"[/messages] Error retrieving messages: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve messages: {str(e)}"}
+                )
+            
+        @self.app.get("/chat/list/{user_id}")
+        async def list_chats(user_id: str):
+            """
+            Get list of all chats for a user, sorted by most recent first.
+            
+            Args:
+                user_id (str): The ID of the user
+            """
+            try:
+                # Get conversation IDs from sorted set, newest first
+                user_chats_key = f"user_chats:{user_id}"
+                conversation_ids = self.app.state.redis_client.zrevrange(user_chats_key, 0, -1)
+                
+                if not conversation_ids:
+                    return JSONResponse(
+                        status_code=200,
+                        content={"chats": []}
+                    )
+                
+                # Get metadata for each conversation
+                chats = []
+                for conv_id in conversation_ids:
+                    meta_key = f"chat_metadata:{user_id}:{conv_id}"
+                    meta_data = self.app.state.redis_client.get(meta_key)
+                    if meta_data:
+                        data = json.loads(meta_data)
+                        if "name" not in data:
+                            data["name"] = ""
+                        chats.append(data)
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={"chats": chats}
+                )
+                
+            except Exception as e:
+                print(f"[/chat/list] Error retrieving chats: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to retrieve chats: {str(e)}"}
+                )
+
+        @self.app.delete("/chat/{user_id}/{conversation_id}")
+        async def delete_chat(user_id: str, conversation_id: str):
+            """
+            Delete a chat conversation and all its associated data.
+            
+            Args:
+                user_id (str): The ID of the user
+                conversation_id (str): The ID of the conversation to delete
+            """
+            try:
+                # Verify chat exists and belongs to user
+                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                if not self.app.state.redis_client.exists(meta_key):
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "Chat not found or access denied"}
+                    )
+
+                # Close any active WebSocket connections for this chat
+                connection = self.app.state.manager.get_connection(user_id, conversation_id)
+                if connection:
+                    await connection.close(code=4000, reason="Chat deleted")
+                    self.app.state.manager.remove_connection(user_id, conversation_id)
+
+                # Delete chat metadata
+                self.app.state.redis_client.delete(meta_key)
+
+                # Delete chat messages
+                message_key = f"messages:{user_id}:{conversation_id}"
+                self.app.state.redis_client.delete(message_key)
+
+                # Remove from user's chat list
+                user_chats_key = f"user_chats:{user_id}"
+                self.app.state.redis_client.zrem(user_chats_key, conversation_id)
+
+                return JSONResponse(
+                    status_code=200,
+                    content={"message": "Chat deleted successfully"}
+                )
+
+            except Exception as e:
+                print(f"[/chat/delete] Error deleting chat: {str(e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to delete chat: {str(e)}"}
+                )
 
         # ----------------------------------------------------------------
         # NEW ENDPOINT: /newsletter_chat/init
@@ -645,12 +862,10 @@ class LeadGenerationAPI:
                     mapping={
                         "sambanova_key": keys.sambanova_key,
                         "serper_key": keys.serper_key,
-                        "exa_key": keys.exa_key
+                        "exa_key": keys.exa_key,
+                        "fireworks_key": keys.fireworks_key
                     }
                 )
-                
-                # Set expiration for security (24 hours)
-                self.app.state.redis_client.expire(key_prefix, 86400)  
                 
                 return JSONResponse(
                     status_code=200,
@@ -687,7 +902,8 @@ class LeadGenerationAPI:
                     content={
                         "sambanova_key": stored_keys.get("sambanova_key", ""),
                         "serper_key": stored_keys.get("serper_key", ""),
-                        "exa_key": stored_keys.get("exa_key", "")
+                        "exa_key": stored_keys.get("exa_key", ""),
+                        "fireworks_key": stored_keys.get("fireworks_key", "")
                     }
                 )
                 
@@ -698,8 +914,8 @@ class LeadGenerationAPI:
                     content={"error": f"Failed to retrieve API keys: {str(e)}"}
                 )
 
-    async def execute_research(self, crew, parameters: Dict[str, Any]):
-        extractor = UserPromptExtractor(crew.sambanova_key)
+    async def execute_research(self, crew: ResearchCrew, parameters: Dict[str, Any]):
+        extractor = UserPromptExtractor(crew.llm.api_key)
         combined_text = " ".join([
             parameters.get("industry", ""),
             parameters.get("company_stage", ""),
@@ -709,13 +925,11 @@ class LeadGenerationAPI:
         ]).strip()
         extracted_info = extractor.extract_lead_info(combined_text)
 
-        loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_research, extracted_info)
-        result = await loop.run_in_executor(None, future.result)
-        return result
+        raw_result, _ = await asyncio.to_thread(crew.execute_research, extracted_info)
+        return raw_result
 
-    async def execute_financial(self, crew, parameters: Dict[str,Any]):
-        fextractor = FinancialPromptExtractor(crew.sambanova_key)
+    async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any], provider: str):
+        fextractor = FinancialPromptExtractor(crew.llm.api_key, provider)
         query_text = parameters.get("query_text","")
         extracted_ticker, extracted_company = fextractor.extract_info(query_text)
 
@@ -734,9 +948,7 @@ class LeadGenerationAPI:
         if "docs" in parameters:
             inputs["docs"] = parameters["docs"]
 
-        loop = asyncio.get_running_loop()
-        future = self.executor.submit(crew.execute_financial_analysis, inputs)
-        raw_result = await loop.run_in_executor(None, future.result)
+        raw_result, _ = await asyncio.to_thread(crew.execute_financial_analysis, inputs)
         return raw_result
 
 def create_app():

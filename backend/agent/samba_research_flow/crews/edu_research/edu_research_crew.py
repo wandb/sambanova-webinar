@@ -13,12 +13,12 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
 from pydantic import BaseModel
+from config.model_registry import model_registry
 from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
-repo_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(repo_dir)
-
 
 
 class Section(BaseModel):
@@ -65,28 +65,38 @@ class EduResearchCrew:
     agents: List[Any]  # Type hint for the agents list
     tasks: List[Any]  # Type hint for the tasks list
     llm: LLM
-    sambanova_key: str
+    llm_api_key: str
     serper_key: str
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, serper_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        serper_key: str = None,
+        user_id: str = None,
+        run_id: str = None,
+        verbose: bool = True,
+    ) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
         self.tasks_config = {}
         self.agents = []
         self.tasks = []
-        self.sambanova_key = sambanova_key
+        self.llm_api_key = llm_api_key
         self.serper_key = serper_key
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
-            temperature=0.01,
-            max_tokens=4096,
-            api_key=self.sambanova_key
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
+            temperature=0.00,
+            max_tokens=8192,
+            api_key=self.llm_api_key,
         )
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
 
     @agent
     def researcher(self) -> Agent:
@@ -100,13 +110,20 @@ class EduResearchCrew:
         os.environ["SERPER_API_KEY"] = self.serper_key
         tool = SerperDevTool()
 
-        researcher_logger = RedisConversationLogger(
+        researcher = Agent(
+            config=self.agents_config["researcher"],
+            llm=self.llm,
+            verbose=self.verbose,
+            tools=[tool],
+        )
+        researcher.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Researcher Agent"
+            agent_name="Researcher Agent",
+            workflow_name="Research",
+            llm_name=researcher.llm.model,
         )
-           
-        return Agent(config=self.agents_config['researcher'], llm=self.llm, verbose=True, tools=[tool],step_callback=researcher_logger)
+        return researcher
 
     @agent
     def planner(self) -> Agent:
@@ -116,12 +133,19 @@ class EduResearchCrew:
         Returns:
             Agent: A configured planning agent
         """
-        planner_logger = RedisConversationLogger(
+        planner = Agent(
+            config=self.agents_config["planner"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        planner.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Planner Agent"
+            agent_name="Planner Agent",
+            workflow_name="Research",
+            llm_name=planner.llm.model,
         )
-        return Agent(config=self.agents_config['planner'], llm=self.llm, verbose=True,step_callback=planner_logger)
+        return planner
 
     @task
     def research_task(self) -> Task:
@@ -132,7 +156,7 @@ class EduResearchCrew:
             Task: A configured research task
         """
         return Task(
-            config=self.tasks_config['research_task'],
+            config=self.tasks_config["research_task"],
         )
 
     @task
@@ -143,7 +167,9 @@ class EduResearchCrew:
         Returns:
             Task: A configured planning task with EducationalPlan output
         """
-        return Task(config=self.tasks_config['planning_task'], output_pydantic=EducationalPlan)
+        return Task(
+            config=self.tasks_config["planning_task"], output_pydantic=EducationalPlan
+        )
 
     @crew
     def crew(self) -> Crew:
@@ -157,5 +183,5 @@ class EduResearchCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
         )

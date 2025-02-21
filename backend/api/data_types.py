@@ -1,32 +1,36 @@
-from pydantic import BaseModel, model_validator
+########## data_types.py (FULL, UNCHANGED EXCEPT NEW FIELDS) ##########
+from pydantic import BaseModel, model_validator, Field
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union, Dict
 from datetime import date
 from agent.financial_analysis.financial_analysis_crew import FinancialAnalysisResult
-from agent.samba_research_flow.crews.edu_research.edu_research_crew import EducationalPlan
+from agent.samba_research_flow.crews.edu_research.edu_research_crew import Section
 from agent.lead_generation_crew import OutreachList
-
 
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
     EducationalContent = "educational_content"
     SalesLeads = "sales_leads"
-    DefaultAgent = "default_agent"
+    Assistant = "assistant"
+    UserProxy = "user_proxy"
+    # NEWLY ADDED AGENT:
+    DeepResearch = "deep_research"  # For advanced research (LangGraph)
 
 class Greeter(BaseModel):
     greeting: str
 
-# Generic Response Wrapper
-class AgentStructuredResponse(BaseModel):
-    agent_type: AgentEnum
-    data: Union[
-        FinancialAnalysisResult,
-        EducationalPlan,
-        OutreachList,
-        Greeter,
-    ]
-    message: Optional[str] = None  # Additional message or notes from the agent
+class DeepResearchUserQuestion(BaseModel):
+    deep_research_question: str
+
+class UserQuestion(BaseModel):
+    agent_question: str
+
+class AssistantMessage(BaseModel):
+    query: str
+
+class AssistantResponse(BaseModel):
+    response: str
 
 # Base class for messages exchanged between agents and users
 class BaseAgentMessage(BaseModel):
@@ -44,87 +48,115 @@ class CoPilotSubTask(BaseModel):
     class Config:
         use_enum_values = True  # To serialize enums as their values
 
-class FinancialAnalysisTask(BaseModel):
-    ticker: str = ""
-    company_name: str = ""
-    query_text: str = ""
-
-class SalesLeadsTask(BaseModel):
-    industry: str = ""
-    company_stage: str = ""
-    geography: str = ""
-    funding_stage: str = ""
-    product: str = ""
-
-class CoPilotPlan(BaseModel):
-    main_task: str
-    subtasks: List[Union[FinancialAnalysisTask, SalesLeadsTask]]
-    is_greeting: bool
-
 class HandoffMessage(BaseAgentMessage):
     content: str
 
-
 class APIKeys(BaseModel):
-    sambanova_key: str
-    serper_key: str 
+    sambanova_key: str = ""
+    fireworks_key: str = ""
+    serper_key: str
     exa_key: str
 
 class FinancialAnalysis(BaseModel):
-    ticker: Optional[str] = None
-    company_name: str
-    query_text: str
+    ticker: Optional[str] = Field(default=None, description="The ticker of the company")
+    company_name: str = Field(default="", description="The name of the company")
+    query_text: str = Field(default="", description="The query text from the user")
 
 class SalesLeads(BaseModel):
-    industry: str
-    company_stage: Optional[str] = None
-    geography: Optional[str] = None
-    funding_stage: Optional[str] = None
-    product: Optional[str] = None
+    industry: str = Field(default="", description="The industry of the company")
+    company_stage: Optional[str] = Field(default=None, description="The stage of the company")
+    geography: Optional[str] = Field(default=None, description="The geography for the sales leads")
+    funding_stage: Optional[str] = Field(default=None, description="The funding stage for the sales leads")
+    product: Optional[str] = Field(default=None, description="The product for the sales leads")
+
+class DeepResearch(BaseModel):
+    deep_research_topic: str = Field(default="", description="The topic of the research")
 
 class EducationalContent(BaseModel):
-    topic: str
-    audience_level: Optional[str] = None
-    focus_areas: Optional[str] = None
+    topic: str = Field(default="", description="The topic of the research, use a single word")
+    audience_level: Optional[str] = Field(default=None, description="What level of audience is the research for")
+    focus_areas: Optional[str] = Field(default=None, description="The focus areas of the research")
 
-    # Convert list to string for backwards compatibility
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def convert_focus_areas_list(cls, data):
-        if isinstance(data, dict) and 'focus_areas' in data:
-            if isinstance(data['focus_areas'], list):
-                data['focus_areas'] = ', '.join(str(area) for area in data['focus_areas'])
+        if isinstance(data, dict) and "focus_areas" in data:
+            if isinstance(data["focus_areas"], list):
+                data["focus_areas"] = ", ".join(str(area) for area in data["focus_areas"])
         return data
 
 class EndUserMessage(BaseAgentMessage):
     content: str
-    api_keys: APIKeys
     use_planner: bool = False
     document_ids: Optional[List[str]] = None
-
+    provider: str
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
-    parameters: Union[FinancialAnalysis, SalesLeads, EducationalContent]
+    parameters: Union[
+        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion, DeepResearch
+    ]
     query: str
-    api_keys: APIKeys
     document_ids: Optional[List[str]] = None
+    provider: str
 
-    @model_validator(mode='after')
-    def validate_parameters_type(self) -> 'AgentRequest':
+    @model_validator(mode="after")
+    def validate_parameters_type(self) -> "AgentRequest":
         expected_type = {
             AgentEnum.FinancialAnalysis: FinancialAnalysis,
             AgentEnum.SalesLeads: SalesLeads,
             AgentEnum.EducationalContent: EducationalContent,
+            AgentEnum.Assistant: AssistantMessage,
+            AgentEnum.UserProxy: UserQuestion,
+            AgentEnum.DeepResearch: DeepResearch,
         }[self.agent_type]
-        
-        # If parameters is already the correct type, return as is
+
         if isinstance(self.parameters, expected_type):
             return self
-            
-        # If it's a dict, try to convert it to the expected type
         if isinstance(self.parameters, dict):
             self.parameters = expected_type.model_validate(self.parameters)
         else:
-            raise ValueError(f"Parameters must be of type {expected_type.__name__} for agent_type {self.agent_type}")
-        
+            raise ValueError(
+                f"Parameters must be of type {expected_type.__name__} for agent_type {self.agent_type}"
+            )
         return self
+
+class ExtendedSection(Section):
+    generated_content: str
+
+class EducationalPlanResult(BaseModel):
+    sections: List[ExtendedSection] = []
+
+# A single citation data structure
+class DeepCitation(BaseModel):
+    title: str = Field(default="", description="The descriptive title")
+    url: str = Field(default="", description="The link URL")
+
+class DeepResearchSection(BaseModel):
+    name: str
+    description: str
+    content: str
+    citations: List[Dict[str, str]] = Field(default_factory=list)
+
+class DeepResearchReport(BaseModel):
+    """
+    A structured object that collects the final multi-section deep research report,
+    plus the raw final text if needed, plus a list of all citations.
+    """
+    sections: List[DeepResearchSection]
+    final_report: str
+    citations: List[DeepCitation] = Field(default_factory=list)
+
+class AgentStructuredResponse(BaseModel):
+    agent_type: AgentEnum
+    data: Union[
+        FinancialAnalysisResult,
+        EducationalPlanResult,
+        OutreachList,
+        Greeter,
+        AssistantResponse,
+        UserQuestion,
+        DeepResearchUserQuestion,
+        DeepResearchReport,
+    ]
+    metadata: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None  # Additional message or notes from the agent

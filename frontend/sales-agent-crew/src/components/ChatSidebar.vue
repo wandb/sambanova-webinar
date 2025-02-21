@@ -1,15 +1,15 @@
 <!-- src/components/chat/ChatSidebar.vue -->
 <template>
-  <div class="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+  <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  flex flex-col">
     <!-- Header -->
     <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
-      <h2 class="font-semibold text-gray-900">Conversations</h2>
+      
       <button
-        class="p-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
+        class="p-2 border w-full border-primary-brandBorder text-primary-brandColor rounded  text-sm"
         @click="createNewChat"
         :disabled="missingKeys.length > 0"
       >
-        + New
+        + New Chat
       </button>
     </div>
 
@@ -20,29 +20,35 @@
 
     <!-- Conversation list -->
     <div class="flex-1 overflow-y-auto">
-      <div 
-        v-for="conv in conversations" 
-        :key="conv.conversation_id"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-        @click="selectConversation(conv)"
-      >
-        <div class="font-medium text-gray-800 truncate">
-          {{ conv.title }}
-        </div>
-        <div class="text-xs text-gray-500">
-          {{ formatDateTime(conv.created_at) }}
-        </div>
+     
+    <ChatList
+      :conversations="conversations"
+      :preselectedChat="preselectedChat"
+      @select-conversation="onSelectConversation"
+      @delete-chat="onDeleteChat"
+      @share-chat="onShareChat"
+      @download-chat="onDownloadChat"
+    />
+    
       </div>
-    </div>
+     
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '@/utils/encryption'   // adapt path if needed
+import { useRoute, useRouter } from 'vue-router'
+import SILogo from '@/components/icons/SILogo.vue'  
 
+import ChatList from '@/components/ChatMain/ChatList.vue'
+
+
+import axios from 'axios'
+const router = useRouter()
+const route = useRoute() 
 /**
  * We'll store in localStorage under key "my_conversations_<userId>"
  * an array of { conversation_id, title, created_at }
@@ -58,14 +64,52 @@ const exaKey = ref(null)
 
 const conversations = ref([])
 
+// Event handler functions for events emitted from ChatList/ChatItem.
+function onSelectConversation(conversation) {
+
+  
+  console.log('Parent: Selected conversation', conversation)
+  preselectedChat.value = conversation.conversation_id
+  router.push(`/${conversation.conversation_id}`)
+}
+
 /** 
  * On mounted => load local conversation list + decrypt keys 
  */
 onMounted(() => {
-  loadConversations()
+  // loadConversations()
+  loadChats()
   loadKeys()
+let cId=route.params.id
+  if(cId)
+  preselectedChat.value=cId
+  
+  
 })
 
+
+async function deleteChat( conversationId) {
+  const url = `${import.meta.env.VITE_API_URL}/chat/${userId.value}/${conversationId}`;
+  try {
+    const response = await axios.delete(url, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    // console.log('Chat deleted successfully:', response.data);
+
+    loadChats()
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+
+
+    throw error;
+  }
+}
+
+let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
+let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
 async function loadKeys() {
   try {
     const uid = userId.value || 'anonymous'
@@ -88,6 +132,30 @@ const missingKeys = computed(() => {
   if (!exaKey.value) missing.push('Exa')
   return missing
 })
+defineExpose({loadChats})
+
+async function loadChats() {
+  try {
+    
+    // if (missingKeys.value.length > 0) {
+    //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+    //   return
+    // }
+
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/list/${uid}`,   
+    )
+   
+   console.log(resp)
+
+   conversations.value = resp.data?.chats;
+
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
 
 function loadConversations() {
   try {
@@ -118,40 +186,58 @@ async function createNewChat() {
 
     const uid = userId.value || 'anonymous'
     const resp = await axios.post(
-      `${import.meta.env.VITE_API_URL}/newsletter_chat/init`, 
+      `${import.meta.env.VITE_API_URL}/chat/init`, 
       {}, 
       {
         headers: {
-          'x-sambanova-key': sambanovaKey.value || '',
-          'x-serper-key': serperKey.value || '',
-          'x-exa-key': exaKey.value || '',
+          // 'x-sambanova-key': sambanovaKey.value || '',
+          // 'x-serper-key': serperKey.value || '',
+          // 'x-exa-key': exaKey.value || '',
           'x-user-id': uid
         }
       }
     )
     const cid = resp.data.conversation_id
-    const assistantMsg = resp.data.assistant_message || "New Conversation"
-    const shortTitle = assistantMsg.substring(0, 30).replace(/\n/g,' ').trim() || "New Chat"
 
-    const convMeta = {
-      conversation_id: cid,
-      title: shortTitle,
-      created_at: Date.now()
+    preselectedChat.value=cid
+   
+    loadChats()
+    router.push(`/${cid}`)
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
+}
+async function loadOldConversations() {
+  try {
+    if (missingKeys.value.length > 0) {
+      alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
+      return
     }
-    // Prepend
-    conversations.value.unshift(convMeta)
-    saveConversations()
 
-    selectConversation(convMeta)
+    const uid = userId.value || 'anonymous'
+    const resp = await axios.get(
+      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
+      {}, 
+      
+    )
+    console.log(resp)
+    
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')
   }
 }
 
+const preselectedChat=ref('')
+
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {
   emit('selectConversation', conv)
+
+  preselectedChat.value=conv.conversation_id
+  // alert(conv.conversation_id)
+  router.push(`/${conv.conversation_id}`)
 }
 
 function formatDateTime(ts) {
@@ -159,4 +245,23 @@ function formatDateTime(ts) {
   const d = new Date(ts)
   return d.toLocaleString()
 }
+// Updated delete handler calls deleteChat().
+async function onDeleteChat(conversationId) {
+  console.log('Parent: Delete conversation', conversationId)
+  try {
+    await deleteChat(conversationId)
+  } catch (error) {
+    console.error('Delete action failed:', error)
+  }
+}
+
+function onShareChat(conversationId) {
+  console.log('Parent: Share conversation', conversationId)
+}
+
+function onDownloadChat(conversationId) {
+  console.log('Parent: Download conversation', conversationId)
+}
+
+
 </script>

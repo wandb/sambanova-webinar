@@ -1,0 +1,308 @@
+<template>
+  
+  <div 
+    class="group relative flex p-2">
+    <!-- Icon Container (always visible; timeline line is part of this container) -->
+    <div v-for="(value, key) in parsedResponse" :key="key" class="mb-6">
+      <h3 class="text-xl font-bold mb-2">{{ key }}</h3>
+      <RecursiveDisplay :value="value"   />
+    </div>
+    <div class="p-4">
+    <!-- Loop over each key in the parsedResponse object -->
+    <div v-for="(value, key) in parsedResponse" :key="key" class="mb-6">
+      <h3 class="text-xl font-bold mb-2">{{ key }}</h3>
+      <!-- If value is an object (and not an array), render a table -->
+      <div v-if="isObject(value) && !Array.isArray(value)">
+        <table class="min-w-full border divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Key</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="(val, k) in value" :key="k">
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ k }}</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                <!-- If nested object, display JSON stringified -->
+                <span v-if="isObject(val)">{{ JSON.stringify(val, null, 2) }}</span>
+                <span v-else>{{ val }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- If value is an array, render as bullet list -->
+      <div v-else-if="Array.isArray(value)">
+        <ul class="list-disc ml-6 space-y-1">
+          <li v-for="(item, index) in value" :key="index">
+            <span v-if="isObject(item)">{{ JSON.stringify(item, null, 2) }}</span>
+            <span v-else>{{ item }}</span>
+          </li>
+        </ul>
+      </div>
+      <!-- Otherwise, render as simple text -->
+      <div v-else>
+        <p class="text-sm">{{ value }}</p>
+      </div>
+    </div>
+  </div>
+    
+    <div  class="grow pb-2 group-last:pb-0 min-w-0">
+      <!-- Always show period -->
+      <h3 :class="collapsed?'justify-center':''" class="mb-1 p-1 truncate text-md  text-primary-brandTextPrimary  flex items-center">
+        <div :class="iconContainerClasses" class="color-primary-brandGray flex items-center">
+      <component :is="iconComponent"  />
+    </div> 
+    <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
+      </h3>
+      <!-- Only show the rest if not collapsed -->
+      <div class="ml-2 my-1"    v-for="(section, index) in sections" :key="index" v-if="!collapsed">
+        <TimelineCollapsibleContent :data="section" />
+      
+      </div>
+   
+    </div>
+    <!-- End Right Content -->
+  </div>
+</template>
+
+<script setup>
+import { computed, ref, h, defineComponent, watch } from 'vue'
+import CorrectIcon from '@/components/icons/CorrectIcon.vue'
+import TimelineCollapsibleContent from '@/components/ChatMain/TimelineCollapsibleContent.vue'
+import SearchIcon from '@/components/icons/SearchIcon.vue'
+import TechIcon from '@/components/icons/TechIcon.vue'
+import SpecialistIcon from '@/components/icons/SpecialistIcon.vue'
+import CompetitorIcon from '@/components/icons/CompetitorIcon.vue'
+import NewsIcon from '@/components/icons/NewsIcon.vue'
+import DataIcon from '@/components/icons/DataIcon.vue'
+import RiskIcon from '@/components/icons/RiskIcon.vue'
+import TrendsIcon from '@/components/icons/TrendsIcon.vue'
+import DefaultIcon from '@/components/icons/DefaultIcon.vue'
+import FundamentalIcon from '@/components/icons/FundamentalIcon.vue'
+import FinanceIcon from '@/components/icons/FinanceIcon.vue'
+import RecursiveDisplay from './RecursiveDisplay.vue'
+
+import { marked } from 'marked'
+
+
+// State for accordion toggle (single toggle used for all sections in this example)
+const isOpen = ref(false);
+
+// Define props for TimelineItem
+const props = defineProps({
+  data: {
+    type: Object,
+    required: true
+  },
+  collapsed: {
+    type: Boolean,
+    default: false
+  },
+  isLast: {
+    type: Boolean,
+    default: false
+  }
+})
+
+// -------------------------------------------------------------------
+// Timeline UI - Icon Container Classes
+// -------------------------------------------------------------------
+const iconContainerClasses = computed(() => {
+  let base =
+    "relative after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
+  if (props.isLast) {
+    base += " after:hidden"
+  }
+  return base
+})
+
+function isObject(val) {
+  return val !== null && typeof val === 'object';
+}
+// -------------------------------------------------------------------
+// Helper Function: Return a Random Icon Based on Agent Name
+// -------------------------------------------------------------------
+function getAgentIcon(agentName) {
+  console.log("getAgentIcon called for agentName:", agentName)
+  const agentIcons = {
+    'Competitor Analysis Agent': CompetitorIcon,
+   
+    'Financial Analysis Agent': FinanceIcon,
+    ' Enhanced Competitor Finder Agent': SearchIcon,
+    'Aggregator Search Agent': SearchIcon,
+    'Fundamental Agent': FundamentalIcon,
+    'News Agent': NewsIcon,
+    'Technical Agent': TechIcon,
+    'Financial Analysis Agent': SearchIcon,
+    'Research Agent': SearchIcon,
+    'Risk Agent': RiskIcon,
+    'Outreach Specialist':  SpecialistIcon,
+    'Data Extraction Agent': DataIcon,
+    'Market Trends Analyst': TrendsIcon,
+  }
+  const icon = agentIcons[agentName] || DefaultIcon
+  
+  console.log("Selected icon:", icon.name)
+  return icon
+}
+
+// Compute the icon component for this timeline item based on data.agent_name
+const iconComponent = computed(() => getAgentIcon(props.data.agent_name))
+
+// -------------------------------------------------------------------
+// Text Parsing Helpers
+// -------------------------------------------------------------------
+
+/**
+ * Checks if a heading is primary.
+ * For this example, only "Thought" and "Final Answer" (case-insensitive) are primary.
+ */
+function isPrimaryHeading(title) {
+  if (!title) return false
+  const lower = title.toLowerCase()
+  return lower === 'thought' || lower === 'final answer'
+}
+
+/**
+ * Process section content.
+ * Replace newline characters with <br> tags.
+ */
+function formatContent(content) {
+  return content.replace(/\n/g, '<br/>')
+}
+
+/**
+ * Parse props.data.text into sections.
+ * Only lines starting with "Thought:" or "Final Answer:" (case-insensitive) start new sections.
+ * All subsequent lines are appended to that section's content.
+ */
+const sections = computed(() => {
+  const lines = props.data.text.split('\n')
+  const parsed = []
+  let currentSection = null
+
+  for (let line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    // Check for primary heading pattern
+    const match = trimmed.match(/^(Thought|Final Answer|Action Input|Action):\s*(.*)$/i)
+    if (match) {
+      if (currentSection) {
+        currentSection.content = currentSection.content.trim()
+        parsed.push(currentSection)
+      }
+      currentSection = {
+        title: match[1].trim(),
+        content: match[2] ? match[2].trim() + "\n" : "\n"
+      }
+    } else {
+      if (currentSection) {
+        currentSection.content += trimmed + "\n"
+      } else {
+        // If there's no current section, create one with an empty title
+        currentSection = { title: '', content: trimmed + "\n" }
+      }
+    }
+  }
+  if (currentSection) {
+    currentSection.content = currentSection.content.trim()
+    parsed.push(currentSection)
+  }
+  return parsed
+})
+
+
+
+
+/**
+ * Attempts to parse a string as JSON if it looks like a JSON block.
+ * Otherwise, returns the original string.
+ */
+ function tryParseJSON(content) {
+  if (typeof content !== 'string') return content;
+  const trimmed = content.trim();
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      console.warn("Could not parse JSON:", e);
+      return content;
+    }
+  }
+  return content;
+}
+
+/**
+ * Parses the response text into sections.
+ * It looks for lines that start with one of the keywords followed by a colon,
+ * and then collects all subsequent lines until the next such heading.
+ * If a key appears multiple times, its values are stored in an array.
+ */
+function parseResponseText(text) {
+  const lines = text.split('\n');
+  const keys = ["Thought", "Final Answer", "Action", "Action Input", "Observation"];
+  const result = {};
+  let currentKey = null;
+  let buffer = [];
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    // Match a line that starts with one of the keys followed by a colon.
+    const match = trimmed.match(/^(\w[\w\s]*):\s*(.*)$/);
+    if (match && keys.includes(match[1].trim())) {
+      if (currentKey) {
+        const content = buffer.join('\n').trim();
+        const parsedContent = tryParseJSON(content);
+        if (result[currentKey]) {
+          if (Array.isArray(result[currentKey])) {
+            result[currentKey].push(parsedContent);
+          } else {
+            result[currentKey] = [result[currentKey], parsedContent];
+          }
+        } else {
+          result[currentKey] = parsedContent;
+        }
+      }
+      currentKey = match[1].trim();
+      buffer = [];
+      if (match[2]) {
+        buffer.push(match[2]);
+      }
+    } else if (currentKey) {
+      buffer.push(line);
+    }
+  });
+
+  if (currentKey) {
+    const content = buffer.join('\n').trim();
+    const parsedContent = tryParseJSON(content);
+    if (result[currentKey]) {
+      if (Array.isArray(result[currentKey])) {
+        result[currentKey].push(parsedContent);
+      } else {
+        result[currentKey] = [result[currentKey], parsedContent];
+      }
+    } else {
+      result[currentKey] = parsedContent;
+    }
+  }
+  return result;
+}
+
+const parsedResponse = computed(() => parseResponseText(props.data.text));
+
+
+</script>
+
+<style scoped>
+/* Adjust styles as needed */
+.timeline-item {
+  background-color: #fff;
+}
+
+
+
+</style>

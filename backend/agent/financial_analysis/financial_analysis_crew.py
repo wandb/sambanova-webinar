@@ -2,7 +2,7 @@ import os
 import sys
 import uuid
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import yfinance as yf
 
@@ -28,6 +28,7 @@ from tools.competitor_analysis_tool import competitor_analysis_tool
 from tools.fundamental_analysis_tool import fundamental_analysis_tool
 from tools.technical_analysis_tool import yf_tech_analysis
 from tools.risk_assessment_tool import risk_assessment_tool
+from config.model_registry import model_registry
 
 
 ###################### NEWS MODELS & (SERPER) WRAPPER ######################
@@ -165,25 +166,37 @@ class FinancialAnalysisCrew:
     Using partial concurrency to speed up tasks that do not depend on each other.
     """
 
-    def __init__(self, sambanova_key: str, exa_key: str, serper_key: str, user_id: str = "", run_id: str = "", docs_included: bool = False):
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        exa_key: str,
+        serper_key: str,
+        user_id: str = "",
+        run_id: str = "",
+        docs_included: bool = False,
+        verbose: bool = True
+    ):
+        model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-8B-Instruct",
-            temperature=0.0,
-            max_tokens=4096,
-            api_key=sambanova_key
-        )
-        self.aggregator_llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.0,
             max_tokens=8192,
-            api_key=sambanova_key
+            api_key=llm_api_key,
         )
-        self.sambanova_key = sambanova_key
+        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
+        self.aggregator_llm = LLM(
+            model=aggregator_model_info["crewai_prefix"] + "/" + aggregator_model_info["model"],
+            temperature=0.0,
+            max_tokens=8192,
+            api_key=llm_api_key,
+        )
         self.exa_key = exa_key
         self.serper_key = serper_key
         self.user_id = user_id
         self.run_id = run_id
         self.docs_included = docs_included
+        self.verbose = verbose
         self._init_agents()
         self._init_tasks()
 
@@ -195,7 +208,7 @@ class FinancialAnalysisCrew:
             backstory="Expert in analyzing sector, fallback to LLM guess if yfinance fails. No extraneous calls needed.",
             llm=self.llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 2) competitor analysis
@@ -206,7 +219,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[competitor_analysis_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 3) fundamental
@@ -217,7 +230,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[fundamental_analysis_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 4) technical
@@ -228,7 +241,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[yf_tech_analysis],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 5) risk
@@ -239,7 +252,7 @@ class FinancialAnalysisCrew:
             llm=self.llm,
             tools=[risk_assessment_tool],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
 
         # 6) news
@@ -251,7 +264,7 @@ class FinancialAnalysisCrew:
             llm=self.aggregator_llm,
             tools=[SerperDevTool()],
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
             max_iter=2
         )
 
@@ -263,7 +276,7 @@ class FinancialAnalysisCrew:
                 backstory="Expert at distilling complex financial documents into actionable insights. Focuses on material information that could impact investment decisions.",
                 llm=self.aggregator_llm,
                 allow_delegation=False,
-                verbose=True,
+                verbose=self.verbose,
                 max_iter=1,
             )
 
@@ -276,30 +289,68 @@ class FinancialAnalysisCrew:
             backstory="One-pass aggregator. Minimizes tokens by being succinct. Output must match FinancialAnalysisResult pydantic exactly.",
             llm=self.aggregator_llm,
             allow_delegation=False,
-            verbose=True,
+            verbose=self.verbose,
         )
-
-        enhanced_competitor_logger = RedisConversationLogger(self.user_id, self.run_id, "Enhanced Competitor Finder Agent")
-        competitor_analysis_logger = RedisConversationLogger(self.user_id, self.run_id, "Competitor Analysis Agent")
-        fundamental_logger = RedisConversationLogger(self.user_id, self.run_id, "Fundamental Agent")
-        technical_logger = RedisConversationLogger(self.user_id, self.run_id, "Technical Agent")
-        risk_logger = RedisConversationLogger(self.user_id, self.run_id, "Risk Agent")
-        news_logger = RedisConversationLogger(self.user_id, self.run_id, "News Agent")
-        if self.docs_included:
-            document_summarizer_logger = RedisConversationLogger(self.user_id, self.run_id, "Document Summarizer Agent")
-        aggregator_logger = RedisConversationLogger(self.user_id, self.run_id, "Aggregator Agent")
 
         # Redis logs
 
-        self.enhanced_competitor_agent.step_callback = enhanced_competitor_logger
-        self.competitor_analysis_agent.step_callback = competitor_analysis_logger
-        self.fundamental_agent.step_callback = fundamental_logger
-        self.technical_agent.step_callback = technical_logger
-        self.risk_agent.step_callback = risk_logger
-        self.news_agent.step_callback = news_logger
+        self.enhanced_competitor_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Enhanced Competitor Finder Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.enhanced_competitor_agent.llm.model,
+        )
+        self.competitor_analysis_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Competitor Analysis Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.competitor_analysis_agent.llm.model,
+        )
+        self.fundamental_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Fundamental Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.fundamental_agent.llm.model,
+        )
+        self.technical_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Technical Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.technical_agent.llm.model,
+        )
+        self.risk_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Risk Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.risk_agent.llm.model,
+        )
+        self.news_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="News Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.news_agent.llm.model,
+        )
         if self.docs_included:
-            self.document_summarizer_agent.step_callback = document_summarizer_logger
-        self.aggregator_agent.step_callback = aggregator_logger
+            self.document_summarizer_agent.step_callback = RedisConversationLogger(
+                user_id=self.user_id,
+                run_id=self.run_id,
+                agent_name="Document Summarizer Agent",
+                workflow_name="Financial Analysis",
+                llm_name=self.document_summarizer_agent.llm.model,
+            )
+        self.aggregator_agent.step_callback = RedisConversationLogger(
+            user_id=self.user_id,
+            run_id=self.run_id,
+            agent_name="Aggregator Agent",
+            workflow_name="Financial Analysis",
+            llm_name=self.aggregator_agent.llm.model,
+        )
 
     def _init_tasks(self):
         # 1) competitor tasks => sequential
@@ -374,7 +425,7 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult
         )
 
-    def execute_financial_analysis(self, inputs: Dict[str,Any]) -> str:
+    def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential
         2) Fundamentals + Technical + Risk + News => parallel
@@ -407,10 +458,10 @@ class FinancialAnalysisCrew:
             # aggregator last
             [self.aggregator_task],
             process=Process.sequential,  # now we use parallel for tasks, aggregator last
-            verbose=True,
+            verbose=self.verbose,
         )
         final = crew.kickoff(inputs=inputs)
-        return final.pydantic.model_dump_json()
+        return final.pydantic.model_dump_json(), dict(final.token_usage)
 
 ########## EXAMPLE MAIN ##############
 def main():

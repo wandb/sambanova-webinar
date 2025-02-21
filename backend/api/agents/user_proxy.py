@@ -1,7 +1,8 @@
-
-import asyncio
+from datetime import datetime
 import json
-from typing import Dict, List, Any
+import time
+from typing import Dict, List, Any, Optional
+import asyncio
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -10,26 +11,33 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
-from autogen_core.models import LLMMessage, SystemMessage, UserMessage
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.models import AssistantMessage
+from fastapi import WebSocket
+import redis
 
-from api.websocket_manager import WebSocketConnectionManager
+from api.session_state import SessionStateManager
 
 from ..data_types import (
     AgentStructuredResponse,
     EndUserMessage,
+    AgentRequest,
 )
-from ..otlp_tracing import logger
+from utils.logging import logger
+
 
 # User Proxy Agent
 class UserProxyAgent(RoutedAgent):
     """
     Acts as a proxy between the user and the routing agent.
     """
-    connection_manager: WebSocketConnectionManager = None  # Will be set by LeadGenerationAPI
 
-    def __init__(self) -> None:
+    def __init__(self, session_manager: SessionStateManager, websocket: WebSocket, redis_client: redis.Redis) -> None:
         super().__init__("UserProxyAgent")
+        logger.info(logger.format_message(None, f"Initializing UserProxyAgent with ID: {self.id} and WebSocket connection"))
+        self.session_manager = session_manager
+        self.websocket = websocket
+        self.redis_client = redis_client
+        self.message_timings = {}  # Store message processing times
 
     @message_handler
     async def handle_agent_response(
@@ -38,26 +46,81 @@ class UserProxyAgent(RoutedAgent):
         ctx: MessageContext,
     ) -> None:
         """
-        Sends the agent's response back to the user via WebSocket.
-
-        Args:
-            message (AgentStructuredResponse): The agent's response message.
-            ctx (MessageContext): The message context.
+        Handle responses from other agents.
         """
-        logger.info(f"UserProxyAgent received agent response: {message}")
-        # ctx.topic_id.source is already in format "user_id:conversation_id"
         try:
-            websocket = self.connection_manager.connections.get(ctx.topic_id.source)
-            user_id, conversation_id = ctx.topic_id.source.split(":")
-            if websocket:
-                await websocket.send_text(json.dumps({
-                    "event": "completion", 
-                    "data": message.model_dump_json(),
-                    "user_id": user_id,
-                    "conversation_id": conversation_id
-                }))
+            # Extract conversation info from context
+            source_parts = ctx.topic_id.source.split(":")
+            if len(source_parts) != 2:
+                logger.error(f"Invalid topic source format: {ctx.topic_id.source}")
+                return
+            user_id, conversation_id = source_parts
+
+            # Calculate processing time
+            start_time = self.message_timings.get(ctx.topic_id.source)
+            if start_time is None:
+                logger.error(f"No start time found for message {ctx.topic_id.source}. Processing time calculation skipped.")
+                processing_time = None
+            else:
+                processing_time = time.time() - start_time
+
+            message_data = message.model_dump()
+            # Initialize metadata if None or add duration to existing metadata
+            if message_data.get("metadata") is None:
+                message_data["metadata"] = {}
+            message_data["metadata"]["duration"] = processing_time
+
+            # Prepare message data
+            message_data = {
+                "event": "completion",
+                "data": json.dumps(message_data),
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            if self.websocket:
+                # Create tasks for Redis operation and WebSocket send
+                message_key = f"messages:{user_id}:{conversation_id}"
+                tasks = [
+                    asyncio.create_task(asyncio.to_thread(
+                        self.redis_client.rpush,
+                        message_key,
+                        json.dumps(message_data)
+                    )),
+                    asyncio.create_task(self.websocket.send_text(json.dumps(message_data)))
+                ]
+
+                # Wait for all tasks to complete
+                await asyncio.gather(*tasks)
+
+                log_message = "Stored message in Redis and sent via WebSocket"
+                if processing_time is not None:
+                    log_message += f". Processing time: {processing_time:.2f} seconds"
+                
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    log_message
+                ))
+
+                # Update conversation history
+                self.session_manager.add_to_history(
+                    conversation_id,
+                    AssistantMessage(
+                        content=message.data.model_dump_json(), 
+                        source=ctx.sender.type
+                    ),
+                )
+
+                # Clear timing data after completion
+                if ctx.topic_id.source in self.message_timings:
+                    del self.message_timings[ctx.topic_id.source]
+
         except Exception as e:
-            logger.error(f"Failed to send message to session {ctx.topic_id.source}: {str(e)}")
+            logger.error(logger.format_message(
+                ctx.topic_id.source,
+                f"Failed to send message: {str(e)}"
+            ), exc_info=True)
 
     @message_handler
     async def handle_user_message(
@@ -70,9 +133,15 @@ class UserProxyAgent(RoutedAgent):
             message (EndUserMessage): The user's message.
             ctx (MessageContext): The message context.
         """
-
-        logger.info(f"UserProxyAgent received user message: {message.content}")
         
+        # Start timing for this conversation
+        self.message_timings[ctx.topic_id.source] = time.time()
+
+        logger.info(logger.format_message(
+            ctx.topic_id.source,
+            f"Forwarding user message to router: '{message.content[:100]}...'"
+        ))
+
         # Forward the message to the router
         await self.publish_message(
             message,

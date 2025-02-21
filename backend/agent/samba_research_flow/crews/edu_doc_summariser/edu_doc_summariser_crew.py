@@ -6,10 +6,11 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
 from pydantic import BaseModel
+from config.model_registry import model_registry
 from utils.agent_thought import RedisConversationLogger
 
 current_dir = os.getcwd()
-repo_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(repo_dir)
 
 
@@ -26,27 +27,36 @@ class EduDocSummariserCrew:
     agents: List[Any]  # Type hint for the agents list
     tasks: List[Any]  # Type hint for the tasks list
     llm: LLM
-    sambanova_key: str
+    llm_api_key: str
     serper_key: str
     user_id: str
     run_id: str
 
-    def __init__(self, sambanova_key: str = None, user_id: str = None, run_id: str = None) -> None:
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        user_id: str = None,
+        run_id: str = None,
+        verbose: bool = True,
+    ) -> None:
         """Initialize the research crew with API keys."""
         super().__init__()
         self.agents_config = {}
         self.tasks_config = {}
         self.agents = []
         self.tasks = []
-        self.sambanova_key = sambanova_key
+        self.llm_api_key = llm_api_key
+        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
         self.llm = LLM(
-            model="sambanova/Meta-Llama-3.1-70B-Instruct",
-            temperature=0.01,
-            max_tokens=4096,
-            api_key=self.sambanova_key
+            model=model_info["crewai_prefix"] + "/" + model_info["model"],
+            temperature=0.00,
+            max_tokens=8192,
+            api_key=self.llm_api_key,
         )
         self.user_id = user_id
         self.run_id = run_id
+        self.verbose = verbose
 
     @agent
     def summariser(self) -> Agent:
@@ -56,12 +66,19 @@ class EduDocSummariserCrew:
         Returns:
             Agent: A configured planning agent
         """
-        summariser_logger = RedisConversationLogger(
+        summariser = Agent(
+            config=self.agents_config["summariser"],
+            llm=self.llm,
+            verbose=self.verbose,
+        )
+        summariser.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Summariser Agent"
+            agent_name="Summariser Agent",
+            workflow_name="Research",
+            llm_name=summariser.llm.model,
         )
-        return Agent(config=self.agents_config['summariser'], llm=self.llm, verbose=True,step_callback=summariser_logger)
+        return summariser
 
     @task
     def summarise_task(self) -> Task:
@@ -72,7 +89,7 @@ class EduDocSummariserCrew:
             Task: A configured research task
         """
         return Task(
-            config=self.tasks_config['summarise_task'],
+            config=self.tasks_config["summarise_task"],
         )
 
     @crew
@@ -87,5 +104,5 @@ class EduDocSummariserCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
+            verbose=self.verbose,
         )

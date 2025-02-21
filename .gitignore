@@ -173,3 +173,5 @@ cython_debug/
 # VSCode settings
 .vscode/**
 *.http
+output/
+backend/output/

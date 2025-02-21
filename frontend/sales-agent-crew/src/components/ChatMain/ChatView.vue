@@ -9,7 +9,9 @@
     </p> -->
 
 <div class="relative h-full flex flex-col overflow-hdden">
-  <div ref="container" class="flex-1  overflow-y-auto">
+  <div 
+  :class="messagesData.length==0?'flex items-center':''"
+  ref="container" class="flex-1  overflow-y-auto">
     <!-- Title -->
     <div v-if="messagesData.length==0" class="max-w-4xl py-10 lg:py-14  px-4 sm:px-6 lg:px-8 mx-auto text-center">
       <!-- <a class="inline-block mb-4 flex-none focus:outline-none focus:opacity-80" href="/" aria-label="SI Agent">
@@ -17,19 +19,19 @@
        <SILogo/>
       </a> -->
 
-      <h1  class="text-3xl font-bold text-gray-800 sm:text-4xl dark:text-white">
-        Welcome to <span class="bg-clip-text bg-gradient-to-tl from-orange-600 to-orange-100 text-transparent">SI Agents</span>
+      <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl dark:text-white">
+         <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
       </h1>
-      <p class="mt-3 text-gray-600 dark:text-neutral-400">
-        Your AI-powered agent
-      </p>
+      <!-- <p class="mt-3 text-gray-600 dark:text-neutral-400"> -->
+        <!-- Your AI-powered agent
+      </p> -->
     </div>
     <!-- End Title -->
 
     <ul class="mt-16 space-y-5">
       <!-- Chat Bubble -->     
         <ChatBubble
-        metadata="completionMetaData.value?.metadata"
+        :metadata="completionMetaData"
          :workflowData="workflowData"
         v-for="msgItem in messagesData" :plannerText="plannerText" 
         :key="msgItem.conversation_id" :event="msgItem.event" :data="msgItem.data"  />
@@ -405,7 +407,7 @@ watch(
   () => route.params.id,
   (newId, oldId) => {
     if (newId) {
-      
+      completionMetaData.value=null
       isLoading.value=false
       messagesData.value=[]  
    agentThoughtsData.value = []
@@ -664,6 +666,7 @@ onMounted(async () => {
   let newId=route.params.id
   if(newId)
   loadPreviousChat(newId)
+
 })
 
 watch(
@@ -1104,9 +1107,18 @@ function connectWebSocket() {
 
         try {
           if(receivedData.event=="completion"){
-          completionMetaData.value=JSON.parse(receivedData.data)
+          // completionMetaData.value=JSON.parse(receivedData.data)
           console.log("completionMetaData.value=receivedData.data.metadata",completionMetaData.value)
-          emit('metadataChanged', completionMetaData.value?.metadata)
+
+          let metaDataComplettion=JSON.parse(receivedData.data)
+          completionMetaData.value=metaDataComplettion.metadata
+          // completionMetaData.value={
+          //   completion_tokens:1,
+          //   prompt_tokens:2,
+          //   duration:2.12121
+          // }
+
+          emit('metadataChanged', completionMetaData.value)
         }
         } catch (error) {
           console.log("completionMetaData.value",error)

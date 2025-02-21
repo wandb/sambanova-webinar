@@ -6,6 +6,7 @@ import asyncio
 from typing import Optional, Dict
 import redis
 from starlette.websockets import WebSocketState
+import time
 
 from api.data_types import APIKeys, EndUserMessage
 from api.utils import initialize_agent_runtime
@@ -245,39 +246,62 @@ class WebSocketConnectionManager:
         Background task to handle Redis pub/sub messages and forward them to WebSocket.
         """
         message_key = f"messages:{user_id}:{conversation_id}"
+        last_ping_time = 0
+        PING_INTERVAL = 15.0  # Increased ping interval to 15 seconds
+        BATCH_SIZE = 25  # Increased batch size to process more messages at once
         
         try:
             while True:
-                message = pubsub.get_message(timeout=1.0)
-                if message and message["type"] == "message":
-                    data_str = message["data"]
-                    message_data = {
-                        "event": "think",
-                        "data": data_str,
+                # Process multiple messages in one iteration if available
+                messages = []
+                for _ in range(BATCH_SIZE):  # Process up to BATCH_SIZE messages at once
+                    message = pubsub.get_message(timeout=0.05)  # Reduced timeout
+                    if message and message["type"] == "message":
+                        messages.append(message)
+                    if not message:
+                        break
+
+                # Batch process messages
+                if messages:
+                    message_tasks = []
+                    for message in messages:
+                        data_str = message["data"]
+                        message_data = {
+                            "event": "think",
+                            "data": data_str,
+                            "user_id": user_id,
+                            "conversation_id": conversation_id,
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+                        # Create tasks for Redis operation and WebSocket send
+                        message_tasks.extend([
+                            asyncio.create_task(asyncio.to_thread(
+                                self.redis_client.rpush,
+                                message_key,
+                                json.dumps(message_data)
+                            )),
+                            asyncio.create_task(websocket.send_json(message_data))
+                        ])
+
+                    # Wait for all message tasks to complete
+                    if message_tasks:
+                        await asyncio.gather(*message_tasks)
+
+                # Handle ping with rate limiting
+                current_time = time.time()
+                if current_time - last_ping_time >= PING_INTERVAL:
+                    await websocket.send_json({
+                        "event": "ping",
+                        "data": json.dumps({"type": "ping"}),
                         "user_id": user_id,
                         "conversation_id": conversation_id,
                         "timestamp": datetime.now().isoformat()
-                    }
+                    })
+                    last_ping_time = current_time
 
-                    # Launch Redis operation as background task
-                    asyncio.create_task(asyncio.to_thread(
-                        self.redis_client.rpush,
-                        message_key,
-                        json.dumps(message_data)
-                    ))
-
-                    # Send message to websocket (must be awaited to maintain order)
-                    await websocket.send_json(message_data)
-
-                # Send periodic ping (must be awaited to maintain timing)
-                await websocket.send_json({
-                    "event": "ping",
-                    "data": json.dumps({"type": "ping"}),
-                    "user_id": user_id,
-                    "conversation_id": conversation_id,
-                    "timestamp": datetime.now().isoformat()
-                })
-                await asyncio.sleep(0.25)
+                # Slightly longer sleep when no messages to reduce CPU usage
+                await asyncio.sleep(0.2)
 
         except Exception as e:
             logger.error(f"Error in Redis message handler: {str(e)}")

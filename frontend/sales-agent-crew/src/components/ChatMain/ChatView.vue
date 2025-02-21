@@ -618,6 +618,7 @@ const audioChunks = ref([])
 const sambanovaKey = ref(null)
 const exaKey = ref(null)
 const serperKey = ref(null)
+const fireworksKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
 const fileInput = ref(null)
@@ -635,6 +636,7 @@ async function loadKeys() {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
     const encryptedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
     const encryptedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
+    const encryptedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
 
     if (encryptedSambanovaKey) {
       sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
@@ -652,6 +654,12 @@ async function loadKeys() {
       serperKey.value = await decryptKey(encryptedSerperKey)
     } else {
       serperKey.value = null
+    }
+
+    if (encryptedFireworksKey) {
+      fireworksKey.value = await decryptKey(encryptedFireworksKey)
+    } else {
+      fireworksKey.value = null
     }
   } catch (error) {
     console.error('Error loading keys:', error)
@@ -1094,7 +1102,7 @@ async function connectWebSocket() {
         sambanova_key: sambanovaKey.value || '',
         serper_key: serperKey.value || '',
         exa_key: exaKey.value || '',
-        fireworks_key: ''
+        fireworks_key: fireworksKey.value || ''
       }
     );
 

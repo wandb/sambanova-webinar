@@ -29,7 +29,7 @@ class QueryRouterService:
     ):
         self.llm_api_key = llm_api_key
         self.provider = provider
-        self.model_name = "deepseek-r1-distill-llama-70b"
+        self.model_name = "llama-3.1-70b" if provider == "fireworks" else "deepseek-r1-distill-llama-70b"
         self.websocket = websocket
         self.redis_client = redis_client
         self.user_id = user_id
@@ -184,9 +184,6 @@ class QueryRouterService:
                                         stream_data = {
                                             "event": "planner_chunk",
                                             "data": content,
-                                            # "user_id": self.user_id,
-                                            # "conversation_id": self.conversation_id,
-                                            # "timestamp": datetime.now().isoformat(),
                                         }
                                         await self.websocket.send_text(json.dumps(stream_data))
                                 except json.JSONDecodeError:

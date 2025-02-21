@@ -6,6 +6,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend
+    deploy:
+      resources:
+        limits:
+          cpus: '3.5'
+          memory: 10G
+        reservations:
+          cpus: '2.5'
+          memory: 4G
     ports:
       - "8000:8000"
     networks:
@@ -28,6 +36,14 @@ services:
         VITE_API_URL: '/api'
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
     container_name: frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 2G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
     ports:
       - "80:80"
       - "443:443"
@@ -43,6 +59,14 @@ services:
   redis:
     image: "redis:7.0-alpine"
     container_name: redis
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 6G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
     networks:
       - app-network
     ports:

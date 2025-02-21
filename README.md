@@ -1,6 +1,6 @@
 ![Samba Sales Co-Pilot Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
 
-# Samba Co-Pilot
+# SambaNova Agents
 
 An intelligent sales and research assistant powered by SambaNova AI. This application helps sales teams and researchers by automatically:
 

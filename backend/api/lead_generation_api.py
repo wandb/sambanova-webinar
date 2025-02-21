@@ -902,7 +902,8 @@ class LeadGenerationAPI:
                     content={
                         "sambanova_key": stored_keys.get("sambanova_key", ""),
                         "serper_key": stored_keys.get("serper_key", ""),
-                        "exa_key": stored_keys.get("exa_key", "")
+                        "exa_key": stored_keys.get("exa_key", ""),
+                        "fireworks_key": stored_keys.get("fireworks_key", "")
                     }
                 )
                 

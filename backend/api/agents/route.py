@@ -64,7 +64,7 @@ class SemanticRouterAgent(RoutedAgent):
         self._name = name
         self.api_keys = api_keys
 
-        _reasoning_model_name = lambda provider: "llama-3.1-70b" if provider == "fireworks" else "deepseek-r1-distill-llama-70b"
+        _reasoning_model_name = "llama-3.1-70b"
 
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=_reasoning_model_name(provider))["model"],

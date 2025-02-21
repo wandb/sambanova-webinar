@@ -34,7 +34,7 @@
               <a
                 href="#"
                 @click.prevent="selectOption(option)"
-                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-600 hover:text-white transition-colors focus:outline-none active:outline-none"
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-600 hover:text-white transition-colors focus:outline-none active:outline-none"
                 role="menuitem"
               >
                 {{ option.label }}

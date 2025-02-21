@@ -1082,103 +1082,117 @@ function addOrUpdateModel(newData) {
 }
 
 // Function to establish the WebSocket connection.
-function connectWebSocket() {
-
-
-  const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
-  const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
-
-  socket.value = new WebSocket(fullUrl)
-
-  socket.value.onopen = () => {
-    console.log('WebSocket connection opened')
-  }
-
-  socket.value.onmessage = (event) => {
-    try {
-      const receivedData = JSON.parse(event.data)
-
-      // Add new message to messages array
-      
-      if(receivedData.event=="user_message"||receivedData.event=="completion"){
-
-        try {
-          if(receivedData.event=="completion"){
-          completionMetaData.value=JSON.parse(receivedData.data)
-          console.log("completionMetaData.value=receivedData.data.metadata",completionMetaData.value)
-          emit('metadataChanged', completionMetaData.value?.metadata)
-        }
-        } catch (error) {
-          console.log("completionMetaData.value",error)
-        }
-       
-       
-        messagesData.value.push(receivedData)
-        isLoading.value=false
-
-        AutoScrollToBottom()
+async function connectWebSocket() {
+  try {
+    // Set API keys before establishing connection
+    await axios.post(
+      `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`,
+      {
+        sambanova_key: sambanovaKey.value || '',
+        serper_key: serperKey.value || '',
+        exa_key: exaKey.value || '',
+        fireworks_key: ''
       }
-     else if(receivedData.event==="think"){
-      
-      let dataParsed=JSON.parse(receivedData.data)
-        agentThoughtsData.value.push( dataParsed)
-        console.log("Socket on message:think ", dataParsed.agent_name)
-        statusText.value=dataParsed.agent_name
-        emit('agentThoughtsDataChanged', agentThoughtsData.value)
-        try{
-          console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
-          // workflowData.value.push(JSON.parse(receivedData.data).metadata)
+    );
 
-          addOrUpdateModel(JSON.parse(receivedData.data).metadata)
+    const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
+    const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
 
-        }catch(e){
+    socket.value = new WebSocket(fullUrl)
+
+    socket.value.onopen = () => {
+      console.log('WebSocket connection opened')
+    }
+
+    socket.value.onmessage = (event) => {
+      try {
+        const receivedData = JSON.parse(event.data)
+
+        // Add new message to messages array
+        
+        if(receivedData.event=="user_message"||receivedData.event=="completion"){
+
+          try {
+            if(receivedData.event=="completion"){
+            completionMetaData.value=JSON.parse(receivedData.data)
+            console.log("completionMetaData.value=receivedData.data.metadata",completionMetaData.value)
+            emit('metadataChanged', completionMetaData.value?.metadata)
+          }
+          } catch (error) {
+            console.log("completionMetaData.value",error)
+          }
+         
+         
+          messagesData.value.push(receivedData)
+          isLoading.value=false
+
+          AutoScrollToBottom()
+        }
+       else if(receivedData.event==="think"){
+        
+        let dataParsed=JSON.parse(receivedData.data)
+          agentThoughtsData.value.push( dataParsed)
+          console.log("Socket on message:think ", dataParsed.agent_name)
+          statusText.value=dataParsed.agent_name
+          emit('agentThoughtsDataChanged', agentThoughtsData.value)
+          try{
+            console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
+            // workflowData.value.push(JSON.parse(receivedData.data).metadata)
+
+            addOrUpdateModel(JSON.parse(receivedData.data).metadata)
+
+          }catch(e){
+            
+          }
+
+
+
+        }
+        else if(receivedData.event==="planner_chunk"){
+          plannerText.value=`${plannerText.value} ${receivedData.data}`
+        }
+        else if(receivedData.event==="planner"){
+        
+        let dataParsed=JSON.parse(receivedData.data)
+        
+        // workflowData.value.push(dataParsed.metadata)
+
+        addOrUpdateModel(dataParsed.metadata)
+
+        console.log("workflowData:",workflowData)
           
         }
 
 
-
-      }
-      else if(receivedData.event==="planner_chunk"){
-        plannerText.value=`${plannerText.value} ${receivedData.data}`
-      }
-      else if(receivedData.event==="planner"){
-      
-      let dataParsed=JSON.parse(receivedData.data)
-      
-      // workflowData.value.push(dataParsed.metadata)
-
-      addOrUpdateModel(dataParsed.metadata)
-
-      console.log("workflowData:",workflowData)
+        
+        else{
+          console.log("ping event fired: ", receivedData.event)
+        }
+        
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error)
+        isLoading.value=false
         
       }
 
-
-      
-      else{
-        console.log("ping event fired: ", receivedData.event)
-      }
-      
-    } catch (error) {
-      console.error('Error parsing WebSocket message:', error)
-      isLoading.value=false
       
     }
 
-    
-  }
+    socket.value.onerror = (error) => {
+      console.error('WebSocket error:', error)
+      isLoading.value=false
+    }
 
-  socket.value.onerror = (error) => {
-    console.error('WebSocket error:', error)
+    socket.value.onclose = () => {
+      console.log('WebSocket closed, attempting to reconnect...')
+      // setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
+    }
+
+
+  } catch (error) {
+    console.error('WebSocket connection error:', error)
     isLoading.value=false
   }
-
-  socket.value.onclose = () => {
-    console.log('WebSocket closed, attempting to reconnect...')
-    // setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
-  }
-
-
 }
 async function removeDocument(docId) {
   try {

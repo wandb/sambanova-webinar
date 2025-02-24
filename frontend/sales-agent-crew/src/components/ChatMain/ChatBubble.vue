@@ -27,35 +27,36 @@
           <div class="vertical-timeline">
     <!-- Timeline Header -->
     <div class="timeline-header flex items-center justify-start  ">
-      <h2 class="text-md font-semibold text-gray-800">Analysis Concluded (<span class="text-sm"  v-if="!isLoading">{{ formattedDuration(parsedData.metadata?.duration)}}s</span>)</h2>
+      <h2 class="text-md text-primary-brandTextSecondary ">Analysis Concluded (<span class="text-sm"  v-if="!isLoading">{{ formattedDuration(parsedData.metadata?.duration)}}s</span>)</h2>
       <button @click="toggleCollapse" class="toggle-btn flex items-center text-blue-500 hover:text-blue-600 focus:outline-none">
         <!-- <span class="mr-2 text-sm font-medium">{{ collapsed ? 'Expand Timeline' : 'Collapse Timeline' }}</span> -->
 
         
-        <svg
-          v-if="collapsed"
-          class="w-5 h-5 transform"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-        <svg
-          v-else
-          class="w-5 h-5 transform rotate-180"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <svg v-if="collapsed"
+     xmlns="http://www.w3.org/2000/svg"
+     class="h-4 w-4 text-[#667085]"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 9l-7 7-7-7" />
+</svg>
+<svg v-else
+     xmlns="http://www.w3.org/2000/svg"
+     class="h-4 w-4 text-[#667085] transform rotate-180"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 9l-7 7-7-7" />
+</svg>
+
       </button>
     </div>
     <!-- Timeline Body (line starts here) -->
-    <div v-show="!collapsed" class="timeline-body relative pl-12 pt-4 pb-8">
+    <div v-show="!collapsed" class="timeline-body relative pl-[18px] pt-4 pb-8">
       <!-- Vertical line with gradient -->
-      <div class="timeline-line absolute top-0 bottom-0 left-4 w-1 bg-gradient-to-b from-orange-500 to-white-500"></div>
+      <div class="timeline-line absolute top-0 bottom-0 left-0 w-[2px] bg-primary-timeLine"></div>
 
                 <!-- Card Section -->
 <div v-if="workflowData.length>0" class="w-100  mx-auto">

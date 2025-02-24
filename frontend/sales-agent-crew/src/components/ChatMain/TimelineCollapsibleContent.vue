@@ -17,23 +17,24 @@
       <!-- Arrow icon toggles direction based on accordion state -->
       <div  class="transition-all duration-300 flex-shrink-0">
         <svg v-if="!isOpen"
-             xmlns="http://www.w3.org/2000/svg"
-             class="h-4 w-4 text-gray-600"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19 9l-7 7-7-7" />
-        </svg>
-        <svg v-else
-             xmlns="http://www.w3.org/2000/svg"
-             class="h-4 w-4 text-gray-600 transform rotate-180"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19 9l-7 7-7-7" />
-        </svg>
+     xmlns="http://www.w3.org/2000/svg"
+     class="h-4 w-4 text-[#667085]"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 9l-7 7-7-7" />
+</svg>
+<svg v-else
+     xmlns="http://www.w3.org/2000/svg"
+     class="h-4 w-4 text-[#667085] transform rotate-180"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 9l-7 7-7-7" />
+</svg>
+
       </div>
     </div>
     <div class="m-1 p-1 border rounded-md bg-primary-brandGray" v-show="isOpen">

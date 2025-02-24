@@ -64,10 +64,11 @@ class SemanticRouterAgent(RoutedAgent):
         self._name = name
         self.api_keys = api_keys
 
-        self._reasoning_model_name = "llama-3.1-70b"
+        _reasoning_model_name = "llama-3.1-70b"
+
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
-            model=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["model"],
-            base_url=model_registry.get_model_info(provider=provider, model_key=self._reasoning_model_name)["url"],
+            model=model_registry.get_model_info(provider=provider, model_key=_reasoning_model_name)["model"],
+            base_url=model_registry.get_model_info(provider=provider, model_key=_reasoning_model_name)["url"],
             api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
             model_info={
                 "json_output": False,
@@ -304,11 +305,12 @@ class SemanticRouterAgent(RoutedAgent):
         user_id, conversation_id = ctx.topic_id.source.split(":")
         history = self._session_manager.get_history(conversation_id)
 
+        last_content = {}
         if len(history) > 0:
             try:
                 last_content = json.loads(history[-1].content)
             except json.JSONDecodeError:
-                last_content = {}
+                pass
                 
         if "deep_research_question" in last_content:
             logger.info(logger.format_message(
@@ -336,7 +338,7 @@ class SemanticRouterAgent(RoutedAgent):
             planner_response = self._reasoning_model(message.provider).create_stream(
                 [SystemMessage(content=system_message, source="system")]
                 + list(history)
-                + [UserMessage(content=message.content, source="user")],
+                + [UserMessage(content=message.content, source="user")]
             )
 
             self._session_manager.add_to_history(
@@ -373,10 +375,7 @@ class SemanticRouterAgent(RoutedAgent):
                 if isinstance(chunk, str):
                     message_data = {
                         "event": "planner_chunk",
-                        "data": json.dumps({"chunk": chunk}),
-                        "user_id": user_id,
-                        "conversation_id": conversation_id,
-                        "timestamp": datetime.now().isoformat(),
+                        "data": chunk,
                     }
                     await self.websocket.send_text(json.dumps(message_data))
                 elif isinstance(chunk, CreateResult):

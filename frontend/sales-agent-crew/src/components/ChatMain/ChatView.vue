@@ -618,6 +618,7 @@ const audioChunks = ref([])
 const sambanovaKey = ref(null)
 const exaKey = ref(null)
 const serperKey = ref(null)
+const fireworksKey = ref(null)
 const errorMessage = ref('')
 const showErrorModal = ref(false)
 const fileInput = ref(null)
@@ -635,6 +636,7 @@ async function loadKeys() {
     const encryptedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
     const encryptedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
     const encryptedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
+    const encryptedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
 
     if (encryptedSambanovaKey) {
       sambanovaKey.value = await decryptKey(encryptedSambanovaKey)
@@ -652,6 +654,12 @@ async function loadKeys() {
       serperKey.value = await decryptKey(encryptedSerperKey)
     } else {
       serperKey.value = null
+    }
+
+    if (encryptedFireworksKey) {
+      fireworksKey.value = await decryptKey(encryptedFireworksKey)
+    } else {
+      fireworksKey.value = null
     }
   } catch (error) {
     console.error('Error loading keys:', error)
@@ -1085,25 +1093,35 @@ function addOrUpdateModel(newData) {
 }
 
 // Function to establish the WebSocket connection.
-function connectWebSocket() {
+async function connectWebSocket() {
+  try {
+    // Set API keys before establishing connection
+    await axios.post(
+      `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`,
+      {
+        sambanova_key: sambanovaKey.value || '',
+        serper_key: serperKey.value || '',
+        exa_key: exaKey.value || '',
+        fireworks_key: fireworksKey.value || ''
+      }
+    );
 
+    const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
+    const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
 
-  const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
-  const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
+    socket.value = new WebSocket(fullUrl)
 
-  socket.value = new WebSocket(fullUrl)
+    socket.value.onopen = () => {
+      console.log('WebSocket connection opened')
+    }
 
-  socket.value.onopen = () => {
-    console.log('WebSocket connection opened')
-  }
+    socket.value.onmessage = (event) => {
+      try {
+        const receivedData = JSON.parse(event.data)
 
-  socket.value.onmessage = (event) => {
-    try {
-      const receivedData = JSON.parse(event.data)
-
-      // Add new message to messages array
-      
-      if(receivedData.event=="user_message"||receivedData.event=="completion"){
+        // Add new message to messages array
+        
+        if(receivedData.event=="user_message"||receivedData.event=="completion"){
 
         try {
           if(receivedData.event=="completion"){
@@ -1128,69 +1146,73 @@ function connectWebSocket() {
         messagesData.value.push(receivedData)
         isLoading.value=false
 
-        AutoScrollToBottom()
-      }
-     else if(receivedData.event==="think"){
-      
-      let dataParsed=JSON.parse(receivedData.data)
-        agentThoughtsData.value.push( dataParsed)
-        console.log("Socket on message:think ", dataParsed.agent_name)
-        statusText.value=dataParsed.agent_name
-        emit('agentThoughtsDataChanged', agentThoughtsData.value)
-        try{
-          console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
-          // workflowData.value.push(JSON.parse(receivedData.data).metadata)
+          AutoScrollToBottom()
+        }
+       else if(receivedData.event==="think"){
+        
+        let dataParsed=JSON.parse(receivedData.data)
+          agentThoughtsData.value.push( dataParsed)
+          console.log("Socket on message:think ", dataParsed.agent_name)
+          statusText.value=dataParsed.agent_name
+          emit('agentThoughtsDataChanged', agentThoughtsData.value)
+          try{
+            console.log("JSON.parse(receivedData.data).metadata",JSON.parse(receivedData.data).metadata)
+            // workflowData.value.push(JSON.parse(receivedData.data).metadata)
 
-          addOrUpdateModel(JSON.parse(receivedData.data).metadata)
+            addOrUpdateModel(JSON.parse(receivedData.data).metadata)
 
-        }catch(e){
+          }catch(e){
+            
+          }
+
+
+
+        }
+        else if(receivedData.event==="planner_chunk"){
+          plannerText.value=`${plannerText.value} ${receivedData.data}`
+        }
+        else if(receivedData.event==="planner"){
+        
+        let dataParsed=JSON.parse(receivedData.data)
+        
+        // workflowData.value.push(dataParsed.metadata)
+
+        addOrUpdateModel(dataParsed.metadata)
+
+        console.log("workflowData:",workflowData)
           
         }
 
 
-
-      }
-      else if(receivedData.event==="planner_chunk"){
-        plannerText.value=`${plannerText.value} ${receivedData.data}`
-      }
-      else if(receivedData.event==="planner"){
-      
-      let dataParsed=JSON.parse(receivedData.data)
-      
-      // workflowData.value.push(dataParsed.metadata)
-
-      addOrUpdateModel(dataParsed.metadata)
-
-      console.log("workflowData:",workflowData)
+        
+        else{
+          console.log("ping event fired: ", receivedData.event)
+        }
+        
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error)
+        isLoading.value=false
         
       }
 
-
-      
-      else{
-        console.log("ping event fired: ", receivedData.event)
-      }
-      
-    } catch (error) {
-      console.error('Error parsing WebSocket message:', error)
-      isLoading.value=false
       
     }
 
-    
-  }
+    socket.value.onerror = (error) => {
+      console.error('WebSocket error:', error)
+      isLoading.value=false
+    }
 
-  socket.value.onerror = (error) => {
-    console.error('WebSocket error:', error)
+    socket.value.onclose = () => {
+      console.log('WebSocket closed, attempting to reconnect...')
+      // setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
+    }
+
+
+  } catch (error) {
+    console.error('WebSocket connection error:', error)
     isLoading.value=false
   }
-
-  socket.value.onclose = () => {
-    console.log('WebSocket closed, attempting to reconnect...')
-    // setTimeout(connectWebSocket, 5000) // Auto-reconnect after 5 seconds
-  }
-
-
 }
 async function removeDocument(docId) {
   try {

@@ -85,13 +85,22 @@ async def lifespan(app: FastAPI):
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
-    app.state.redis_client = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=0,
-            decode_responses=True
+    
+    # Create a Redis connection pool
+    pool = redis.ConnectionPool(
+        host=redis_host,
+        port=redis_port,
+        db=0,
+        decode_responses=True,
+        max_connections=20  # Adjust based on expected concurrent connections
     )
-    print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port}")
+    
+    # Create Redis client with connection pool
+    app.state.redis_client = redis.Redis(
+        connection_pool=pool,
+        decode_responses=True
+    )
+    print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port} with connection pool")
 
     app.state.manager = WebSocketConnectionManager(
         redis_client=app.state.redis_client
@@ -109,6 +118,10 @@ async def lifespan(app: FastAPI):
             chat_info = json.loads(chat_data)
             # TODO: Add cleanup for chat-specific agent runtime
             app.state.redis_client.delete(key)
+
+    # Close Redis connection pool
+    app.state.redis_client.close()
+    pool.disconnect()
 
     # Cleanup default agent runtime
     await app.state.agent_runtime.close()
@@ -889,7 +902,8 @@ class LeadGenerationAPI:
                     content={
                         "sambanova_key": stored_keys.get("sambanova_key", ""),
                         "serper_key": stored_keys.get("serper_key", ""),
-                        "exa_key": stored_keys.get("exa_key", "")
+                        "exa_key": stored_keys.get("exa_key", ""),
+                        "fireworks_key": stored_keys.get("fireworks_key", "")
                     }
                 )
                 

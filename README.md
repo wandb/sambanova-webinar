@@ -1,6 +1,6 @@
 ![Samba Sales Co-Pilot Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
 
-# Samba Co-Pilot
+# SambaNova Agents
 
 An intelligent sales and research assistant powered by SambaNova AI. This application helps sales teams and researchers by automatically:
 
@@ -10,6 +10,20 @@ An intelligent sales and research assistant powered by SambaNova AI. This applic
 - Supporting voice input for natural interaction
 
 ## Features
+
+### General Assistant
+The application includes a general-purpose AI assistant that can help with:
+- Answering basic questions and queries
+- Providing explanations and clarifications
+- Offering technical support
+- Assisting with general research tasks
+
+Example General Queries:
+- "What's the difference between supervised and unsupervised learning?"
+- "Can you explain how REST APIs work?"
+- "What are the best practices for data visualization?"
+- "How do I optimize database queries?"
+- "Explain the concept of containerization"
 
 ### Intelligent Query Routing
 
@@ -34,7 +48,6 @@ Example Sales Queries:
 - "Which healthcare companies in Boston are working on drug discovery?"
 - "Show me cybersecurity companies in Israel with enterprise clients"
 - "Find sustainable energy startups in Nordic countries"
-- "Which fintech companies received funding in the last 6 months?"
 - "Show me B2B SaaS companies in Singapore with over 100 employees"
 
 ### Research & Content Generation
@@ -95,11 +108,11 @@ Example Financial Queries:
 - Node.js 16 or higher.
 - Yarn.
 - API Keys:
-  - SambaNova API key.
-  - Serper API key (for web search).
-  - Exa API key (for company data).
-  - Perplexity API key ().
-  - Clerk API key (for authentication).
+  - SambaNova API key. get it from https://cloud.sambanova.ai/
+  - Serper API key (for web search). get it from https://serper.dev/
+  - Exa API key (for company data). get it from https://exa.co/
+
+> **Important**: After logging in, click the settings gear icon ⚙️ (located next to your user photo) to configure your API keys. The application requires these keys to function properly.
 
 ### Frontend
 
@@ -151,13 +164,6 @@ For the frontend, go to `/frontend/sales-agent-crew/` and create a `.env` file w
 VITE_API_URL=your_api_url
 ```
 
-And for the backend, go to `/backend/` and create a `.env` file with:
-
-```bash
-PERPLEXITY_API_KEY=your_perplexity_api_key
-OPENAI_API_KEY=your_openai_api_key
-```
-
 ## Running the Application
 
 1. Start the FastAPI backend server:
@@ -195,6 +201,8 @@ Access the settings modal to configure your:
 All keys are encrypted before storaging them in localStorage.
 
 ## Architecture
+
+![Co-Pilot Architecture Diagram](backend/Co-Pilot%20Workflow-2025-02-21-221704.png)
 
 Built with:
 

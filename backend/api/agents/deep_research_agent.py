@@ -68,10 +68,10 @@ class DeepResearchAgent(RoutedAgent):
                     "search_api": "tavily",
                     "user_id": user_id,
                     "conversation_id": conversation_id,
+                    "provider": llm_provider,
                     "callback": create_publish_callback(
                         user_id=user_id,
                         conversation_id=conversation_id,
-                        llm_provider=llm_provider,
                         agent_name="deep_research",
                         workflow_name="deep_research",
                         redis_client=self.redis_client,

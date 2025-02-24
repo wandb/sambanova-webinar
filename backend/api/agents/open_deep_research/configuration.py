@@ -42,7 +42,8 @@ class Configuration:
     search_api: SearchAPI = SearchAPI.TAVILY  # Default to TAVILY
     callback: Optional[Callable] = None  # Callback function for publishing messages
     user_id: Optional[str] = None  # User ID
-    conversation_id: Optional[str] = None  # Conversation ID
+    conversation_id: Optional[str] = None  # Conversation ID    
+    provider: Optional[str] = None  # Provider
 
     @classmethod
     def from_runnable_config(
@@ -64,5 +65,7 @@ class Configuration:
             values["user_id"] = configurable["user_id"]
         if configurable and "conversation_id" in configurable:
             values["conversation_id"] = configurable["conversation_id"]
+        if configurable and "provider" in configurable:
+            values["provider"] = configurable["provider"]
 
         return cls(**{k: v for k, v in values.items() if v})

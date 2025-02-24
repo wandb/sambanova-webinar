@@ -7,12 +7,12 @@
         <div class="flex-shrink-0">
           <img
             src="/logo.svg" 
-            alt="Samba Sales Co-Pilot Logo" 
+            alt="Samba Sales Agents Logo" 
             class="h-6 md:hidden"
           />
           <img 
             src="/logo-icon.svg" 
-            alt="Samba Sales Co-Pilot Logo" 
+            alt="Samba Sales Agents Logo" 
             class="hidden md:h-8 md:block"
           />
         </div>

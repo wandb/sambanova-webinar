@@ -88,9 +88,13 @@ class FinancialAnalysisAgent(RoutedAgent):
                 verbose=False
             )
 
+            parameters = message.parameters.model_dump()
+            if message.docs:
+                parameters["docs"] = message.docs
+
             # Execute analysis
             raw_result, usage_stats = await self.execute_financial(
-                crew, message.parameters.model_dump(), message.provider
+                crew, parameters, message.provider
             )
 
             financial_analysis_result = FinancialAnalysisResult.model_validate(

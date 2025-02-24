@@ -2,7 +2,8 @@
 import os
 from enum import Enum
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional
+from typing import Any, Callable, Optional
+from redis import Redis
 
 from langchain_core.runnables import RunnableConfig
 from typing_extensions import Annotated
@@ -39,6 +40,10 @@ class Configuration:
     number_of_queries: int = 1  # Number of search queries to generate per iteration
     max_search_depth: int = 1 # Maximum number of reflection + search iterations
     search_api: SearchAPI = SearchAPI.TAVILY  # Default to TAVILY
+    callback: Optional[Callable] = None  # Callback function for publishing messages
+    user_id: Optional[str] = None  # User ID
+    conversation_id: Optional[str] = None  # Conversation ID    
+    provider: Optional[str] = None  # Provider
 
     @classmethod
     def from_runnable_config(
@@ -51,6 +56,16 @@ class Configuration:
         values: dict[str, Any] = {
             f.name: os.environ.get(f.name.upper(), configurable.get(f.name))
             for f in fields(cls)
-            if f.init
+            if f.init and f.name != "redis_client"  # Skip redis_client from env vars
         }
+        # Add redis client if present in configurable
+        if configurable and "callback" in configurable:
+            values["callback"] = configurable["callback"]
+        if configurable and "user_id" in configurable:
+            values["user_id"] = configurable["user_id"]
+        if configurable and "conversation_id" in configurable:
+            values["conversation_id"] = configurable["conversation_id"]
+        if configurable and "provider" in configurable:
+            values["provider"] = configurable["provider"]
+
         return cls(**{k: v for k, v in values.items() if v})

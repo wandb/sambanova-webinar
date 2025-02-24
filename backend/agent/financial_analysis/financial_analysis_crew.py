@@ -4,6 +4,7 @@ import uuid
 import json
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+from redis import Redis
 import yfinance as yf
 
 # Ensure our parent directories are in sys.path
@@ -175,6 +176,7 @@ class FinancialAnalysisCrew:
         user_id: str = "",
         run_id: str = "",
         docs_included: bool = False,
+        redis_client: Redis = None,
         verbose: bool = True
     ):
         model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
@@ -197,6 +199,7 @@ class FinancialAnalysisCrew:
         self.run_id = run_id
         self.docs_included = docs_included
         self.verbose = verbose
+        self.redis_client = redis_client
         self._init_agents()
         self._init_tasks()
 
@@ -300,6 +303,7 @@ class FinancialAnalysisCrew:
             agent_name="Enhanced Competitor Finder Agent",
             workflow_name="Financial Analysis",
             llm_name=self.enhanced_competitor_agent.llm.model,
+            redis_client=self.redis_client,
         )
         self.competitor_analysis_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -307,6 +311,7 @@ class FinancialAnalysisCrew:
             agent_name="Competitor Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.competitor_analysis_agent.llm.model,
+            redis_client=self.redis_client,
         )
         self.fundamental_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -314,6 +319,7 @@ class FinancialAnalysisCrew:
             agent_name="Fundamental Agent",
             workflow_name="Financial Analysis",
             llm_name=self.fundamental_agent.llm.model,
+            redis_client=self.redis_client,
         )
         self.technical_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -321,6 +327,7 @@ class FinancialAnalysisCrew:
             agent_name="Technical Agent",
             workflow_name="Financial Analysis",
             llm_name=self.technical_agent.llm.model,
+            redis_client=self.redis_client,
         )
         self.risk_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -328,6 +335,7 @@ class FinancialAnalysisCrew:
             agent_name="Risk Agent",
             workflow_name="Financial Analysis",
             llm_name=self.risk_agent.llm.model,
+            redis_client=self.redis_client,
         )
         self.news_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -335,6 +343,7 @@ class FinancialAnalysisCrew:
             agent_name="News Agent",
             workflow_name="Financial Analysis",
             llm_name=self.news_agent.llm.model,
+            redis_client=self.redis_client,
         )
         if self.docs_included:
             self.document_summarizer_agent.step_callback = RedisConversationLogger(
@@ -343,6 +352,7 @@ class FinancialAnalysisCrew:
                 agent_name="Document Summarizer Agent",
                 workflow_name="Financial Analysis",
                 llm_name=self.document_summarizer_agent.llm.model,
+                redis_client=self.redis_client,
             )
         self.aggregator_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -350,6 +360,7 @@ class FinancialAnalysisCrew:
             agent_name="Aggregator Agent",
             workflow_name="Financial Analysis",
             llm_name=self.aggregator_agent.llm.model,
+            redis_client=self.redis_client,
         )
 
     def _init_tasks(self):

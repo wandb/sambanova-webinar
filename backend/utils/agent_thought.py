@@ -17,18 +17,22 @@ class RedisConversationLogger:
         agent_name="",
         workflow_name="",
         llm_name="",
+        redis_client=None,
     ):
         # Read from env or default
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
 
         try:
-            self.r = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=0,
-                decode_responses=True
-            )
+            if redis_client:
+                self.r = redis_client
+            else:
+                self.r = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=0,
+                    decode_responses=True
+                )
             self.r.ping()
             print(f"[RedisConversationLogger] Connected to Redis at {redis_host}:{redis_port} for {agent_name}")
         except redis.ConnectionError as e:

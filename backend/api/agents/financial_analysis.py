@@ -84,7 +84,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 serper_key=self.api_keys.serper_key,
                 user_id=user_id,
                 run_id=conversation_id,
-                docs_included=False,
+                docs_included=True if message.docs else False,
                 verbose=False
             )
 

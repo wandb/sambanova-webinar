@@ -44,7 +44,7 @@ class EducationalContentAgent(RoutedAgent):
                     serper_key=self.api_keys.serper_key,
                     user_id=user_id,
                     run_id=conversation_id,
-                    docs_included=False,
+                    docs_included=True if message.docs else False,
                     verbose=False
                 )
             edu_inputs = {
@@ -52,6 +52,8 @@ class EducationalContentAgent(RoutedAgent):
                 "audience_level": message.parameters.audience_level if message.parameters.audience_level else "",
                 "additional_context": message.parameters.focus_areas if message.parameters.focus_areas else ""
             }
+            if message.docs:
+                edu_inputs["docs"] = message.docs
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Starting educational content flow with inputs: {edu_inputs}"

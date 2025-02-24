@@ -147,7 +147,7 @@ class SemanticRouterAgent(RoutedAgent):
             {
                 "agent_type": agent_type,
                 "parameters": parameters,
-                "document_ids": message.document_ids,
+                "docs": message.docs,
                 "query": message.content,
                 "provider": message.provider,
             }
@@ -190,6 +190,7 @@ class SemanticRouterAgent(RoutedAgent):
                 parameters=DeepResearch(deep_research_topic=""),
                 query=message.content,
                 provider=message.provider,
+                docs=message.docs,
             )
             await self.publish_message(
                 deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))

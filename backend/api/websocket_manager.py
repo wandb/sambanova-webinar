@@ -185,7 +185,8 @@ class WebSocketConnectionManager:
                     source="User",
                     content=user_message_input["data"], 
                     use_planner=False,
-                    provider=user_message_input["provider"]
+                    provider=user_message_input["provider"],
+                    docs=user_message_input["docs"] if "docs" in user_message_input else None
                 )    
 
                 # This must be awaited as it affects the conversation flow

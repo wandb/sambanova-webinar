@@ -23,7 +23,7 @@
       class="group flex flex-col bg-primary-brandDarkGray border border-primary-brandGray shadow-sm rounded-xl hover:shadow-md focus:outline-none focus:shadow-md transition dark:bg-neutral-900 dark:border-neutral-800" 
       href="#"
     >
-      <div class="p-4 md:p-5">
+      <div class="px-4 py-2 md:px-5">
         <div class="flex gap-x-5">
           <div class="grow">
             <h3 class="text-sm text-priamry-brandPrimaryColor">

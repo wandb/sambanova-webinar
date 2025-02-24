@@ -280,7 +280,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick, onBeforeUnmount, inject, computed } from 'vue'
+import { ref, watch, onMounted, nextTick, onBeforeUnmount,onUnmounted, inject, computed } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -298,9 +298,45 @@ import Popover from '@/components/Common/UIComponents/CustomPopover.vue'
 import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
+import emitterMitt from '@/utils/eventBus.js';
 
 // Inject the shared selectedOption from MainLayout.vue.
 const selectedOption = inject('selectedOption')
+const eventData = ref(null);
+function handleButtonClick(data) {
+  eventData.value = data.message;
+  console.log('Button click received:', data);
+
+  createNewChat()
+
+}
+
+
+async function createNewChat() {
+
+try {
+  
+  const uid = userId.value || 'anonymous'
+  const resp = await axios.post(
+    `${import.meta.env.VITE_API_URL}/chat/init`, 
+    {}, 
+    {
+      headers: {
+        // 'x-sambanova-key': sambanovaKey.value || '',
+        // 'x-serper-key': serperKey.value || '',
+        // 'x-exa-key': exaKey.value || '',
+        'x-user-id': uid
+      }
+    }
+  )
+  const cid = resp.data.conversation_id
+ 
+  router.push(`/${cid}`)
+} catch (err) {
+  console.error('Error creating new chat:', err)
+  alert('Failed to create new conversation. Check keys or console.')
+}
+}
 
 // Watch for changes to the selection and load data accordingly.
 const provider = ref('')
@@ -388,20 +424,20 @@ const messagesContainer = ref(null)
 watch(
   () => route.params.id,
   (newId, oldId) => {
-    if (newId) {
-      completionMetaData.value = null
-      isLoading.value = false
-      messagesData.value = []
-      agentThoughtsData.value = []
-      searchQuery.value = ''
-
-      currentId.value = newId
-      loadPreviousChat(newId)
-      if (socket.value) {
-        socket.value.close()
-      }
-      connectWebSocket()
-    }
+    if (oldId && newId !== oldId) {
+    completionMetaData.value = null;
+    isLoading.value = false;
+    messagesData.value = [];
+    agentThoughtsData.value = [];
+    searchQuery.value = '';
+    loadPreviousChat(newId);
+  }
+  currentId.value = newId;
+  
+  if (socket.value) {
+    socket.value.close();
+  }
+  connectWebSocket();
   }
 )
 
@@ -607,11 +643,18 @@ async function loadKeys() {
 }
 
 onMounted(async () => {
-  await loadKeys()
+  await loadKeys()  
   await loadUserDocuments()
   let newId = route.params.id
   if (newId) loadPreviousChat(newId)
+
+  emitterMitt.on('new-chat', handleButtonClick);
+
 })
+
+onUnmounted(() => {
+  emitterMitt.off('new-chat', handleButtonClick);
+});
 
 watch(
   () => props.keysUpdated,
@@ -908,6 +951,16 @@ function waitForSocketOpen(timeout = 5000) {
 }
 
 const addMessage = async () => {
+
+ 
+    // If no conversation exists, create a new chat first.
+    if (!route.params.id) {
+    await createNewChat();
+    await nextTick();
+    // After createNewChat, the router push should update the conversation id.
+    currentId.value = route.params.id; // update currentId from router params
+  }
+
   completionMetaData.value = null
   plannerText.value = ''
   statusText.value = 'Loading...'
@@ -950,6 +1003,8 @@ const addMessage = async () => {
       console.error("ChatView error", e)
     }
   }
+
+   searchQuery.value = ''
 }
 
 function addOrUpdateModel(newData) {

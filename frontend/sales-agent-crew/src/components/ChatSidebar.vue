@@ -2,7 +2,7 @@
 <template>
   <div class="w-64 h-full  border border-primary-brandFrame bg-white rounded-lg bg-white  flex flex-col">
     <!-- Header -->
-    <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div class="px-4 py-2 flex items-center justify-between">
       
       <button
         class="p-2 border w-full border-primary-brandBorder text-primary-brandColor rounded  text-sm"

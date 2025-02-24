@@ -3,13 +3,13 @@
     <div class="flex justify-between items-center cursor-pointer">
       <div class="flex items-start flex-1 no-wrap">
         <CorrectIcon class="mr-1 flex-shrink-0" />
-        <span v-if="!isNumeric(heading)" class="text-primary-brandTextSecondary font-semibold text-sm">
+        <span v-if="!isNumeric(heading)" class="text-primary-brandTextSecondary  text-sm">
           {{ formatKey(heading) }}: 
           </span>
-          <span v-else-if="isNumeric(heading)&&value.name" class="text-primary-brandTextSecondary font-semibold text-sm"  >
+          <span v-else-if="isNumeric(heading)&&value.name" class="text-primary-brandTextSecondary  text-sm"  >
             {{ value.name ? value.name : value.search }}
           </span>
-          <span v-else-if="isNumeric(heading)" class="text-primary-brandTextSecondary font-semibold text-sm"  >
+          <span v-else-if="isNumeric(heading)" class="text-primary-brandTextSecondary  text-sm"  >
             {{ value?.search_query }}
           </span>
         

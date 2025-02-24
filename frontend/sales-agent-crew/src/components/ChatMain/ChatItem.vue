@@ -38,7 +38,7 @@
           </svg>
           Delete
         </button>
-        <button
+        <!-- <button
           class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
           @click="onShare"
         >
@@ -59,7 +59,7 @@
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           Download
-        </button>
+        </button> -->
       </div>
     
       <!-- Conversation details -->

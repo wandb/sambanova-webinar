@@ -16,7 +16,7 @@ import logging
 from api.agents.user_proxy import UserProxyAgent
 from api.websocket_manager import WebSocketConnectionManager
 
-from api.utils import initialize_agent_runtime
+from api.utils import initialize_agent_runtime, load_documents
 from utils.logging import logger
 from autogen_core import MessageContext
 from config.model_registry import model_registry
@@ -26,12 +26,6 @@ import sys
 import redis
 import uuid
 
-from autogen_core import (
-    DefaultTopicId,
-    RoutedAgent,
-    default_subscription,
-    message_handler,
-)
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage
@@ -72,9 +66,6 @@ class EduContentRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
-def estimate_tokens_regex(text: str) -> int:
-        return len(re.findall(r"\w+|\S", text))
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -85,6 +76,7 @@ async def lifespan(app: FastAPI):
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    app.state.context_length_summariser = 64000
     
     # Create a Redis connection pool
     pool = redis.ConnectionPool(
@@ -103,21 +95,13 @@ async def lifespan(app: FastAPI):
     print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port} with connection pool")
 
     app.state.manager = WebSocketConnectionManager(
-        redis_client=app.state.redis_client
+        redis_client=app.state.redis_client,
+        context_length_summariser=app.state.context_length_summariser
     )
     UserProxyAgent.connection_manager = app.state.manager
     SemanticRouterAgent.connection_manager = app.state.manager
 
     yield  # This separates the startup and shutdown logic
-
-    # Cleanup chat-specific agent runtimes
-    chat_keys = app.state.redis_client.keys("chat_manager:*")
-    for key in chat_keys:
-        chat_data = app.state.redis_client.get(key)
-        if chat_data:
-            chat_info = json.loads(chat_data)
-            # TODO: Add cleanup for chat-specific agent runtime
-            app.state.redis_client.delete(key)
 
     # Close Redis connection pool
     app.state.redis_client.close()
@@ -131,7 +115,6 @@ class LeadGenerationAPI:
         self.app = FastAPI(lifespan=lifespan)
         self.setup_cors()
         self.setup_routes()
-        self.context_length_summariser = 64000
         self.executor = ThreadPoolExecutor(max_workers=2)
 
     def verify_conversation_exists(self, user_id: str, conversation_id: str) -> bool:
@@ -235,36 +218,8 @@ class LeadGenerationAPI:
             try:
                 # Load document chunks if document_ids are provided
                 if "document_ids" in parameters:
-                    doc_ids = parameters["document_ids"]
-                    chunks_text = []
-
-                    for doc_id in doc_ids:
-                        # Verify document exists and belongs to user
-                        user_docs_key = f"user_documents:{user_id}"
-                        if not self.app.state.redis_client.sismember(user_docs_key, doc_id):
-                            continue  # Skip if document doesn't belong to user
-
-                        chunks_key = f"document_chunks:{doc_id}"
-                        chunks_data = self.app.state.redis_client.get(chunks_key)
-
-                        if chunks_data:
-                            chunks = json.loads(chunks_data)
-                            chunks_text.extend([chunk['text'] for chunk in chunks])
-
-                    if chunks_text:
-                        combined_text = "\n".join(chunks_text)
-                        token_count = estimate_tokens_regex(combined_text)
-                        # Check if combined document chunks exceed context length
-                        if (
-                            token_count > self.context_length_summariser
-                        ): 
-                            return JSONResponse(
-                                status_code=400,
-                                content={
-                                    "error": "Combined document length exceeds maximum context window size. Please reduce the number or size of documents."
-                                },
-                            )
-                        parameters["docs"] = combined_text
+                    combined_text = load_documents(user_id, parameters["document_ids"], self.app.state.redis_client, self.app.state.context_length_summariser)
+                    parameters["docs"] = combined_text
 
                 if query_type == "sales_leads":
                     if not exa_key:

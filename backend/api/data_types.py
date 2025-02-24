@@ -87,7 +87,7 @@ class EducationalContent(BaseModel):
 class EndUserMessage(BaseAgentMessage):
     content: str
     use_planner: bool = False
-    docs: Optional[List[str]] = None
+    docs: Optional[str] = None
     provider: str
 
 class AgentRequest(BaseModel):
@@ -96,7 +96,7 @@ class AgentRequest(BaseModel):
         FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion, DeepResearch
     ]
     query: str
-    docs: Optional[List[str]] = None
+    docs: Optional[str] = None
     provider: str
 
     @model_validator(mode="after")

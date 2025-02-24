@@ -1,8 +1,12 @@
 ########## NEW CODE ##########
+import json
 import os
+import re
+from typing import List
 from autogen_core import SingleThreadedAgentRuntime, TypeSubscription
 from autogen_core import DefaultSubscription
 from fastapi import WebSocket
+from fastapi.responses import JSONResponse
 import redis
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
@@ -118,3 +122,38 @@ async def initialize_agent_runtime(
     logger.info("Agent runtime initialized successfully.")
 
     return agent_runtime
+
+def estimate_tokens_regex(text: str) -> int:
+        return len(re.findall(r"\w+|\S", text))
+
+
+def load_documents(user_id: str, document_ids: List[str], redis_client: redis.Redis, context_length_summariser: int) -> str:
+    chunks_text = []
+
+    for doc_id in document_ids:
+        # Verify document exists and belongs to user
+        user_docs_key = f"user_documents:{user_id}"
+        if not redis_client.sismember(user_docs_key, doc_id):
+            continue  # Skip if document doesn't belong to user
+
+        chunks_key = f"document_chunks:{doc_id}"
+        chunks_data = redis_client.get(chunks_key)
+
+        if chunks_data:
+            chunks = json.loads(chunks_data)
+            chunks_text.extend([chunk['text'] for chunk in chunks])
+
+    if chunks_text:
+        combined_text = "\n".join(chunks_text)
+        token_count = estimate_tokens_regex(combined_text)
+        # Check if combined document chunks exceed context length
+        if (
+            token_count > context_length_summariser
+        ): 
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "Combined document length exceeds maximum context window size. Please reduce the number or size of documents."
+                },
+            )
+        return combined_text

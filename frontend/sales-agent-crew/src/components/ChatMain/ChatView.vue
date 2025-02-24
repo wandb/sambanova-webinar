@@ -1072,6 +1072,7 @@ async function connectWebSocket() {
           let dataParsed = JSON.parse(receivedData.data)
           addOrUpdateModel(dataParsed.metadata)
           console.log("workflowData:",workflowData)
+          AutoScrollToBottom()
         }
         else{
           console.log("ping event fired: ", receivedData.event)

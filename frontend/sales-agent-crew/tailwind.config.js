@@ -30,6 +30,8 @@ export default {
          bodyBg:"#f9fafb",
          brandPlaceholder:"#98A2B3",
          brandFrame:"#EAECF0",
+         timeLine:"#D0D5DD",
+        
          
         }
       }

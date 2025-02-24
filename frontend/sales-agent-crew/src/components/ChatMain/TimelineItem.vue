@@ -1,63 +1,53 @@
 <template>
-  
-  <div 
-    class="group relative flex p-2">
-
-    
-    <div  class="grow pb-2 group-last:pb-0 min-w-0">
+  <div class="group relative flex p-2">
+    <div class="grow pb-2 group-last:pb-0 min-w-0">
       <!-- Always show period -->
-      <h3 :class="collapsed?'justify-center':''" class="mb-1 p-1 truncate text-md  text-primary-brandTextPrimary  flex items-center">
+      <h3 :class="collapsed ? 'justify-center' : ''" class="mb-1 p-1 truncate text-md text-primary-brandTextPrimary flex items-center">
         <div :class="iconContainerClasses" class="color-primary-brandGray flex items-center">
-      <component :is="iconComponent"  />
-    </div> 
-    <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
+          <component :is="iconComponent" />
+        </div> 
+        <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
       </h3>
       <!-- Only show the rest if not collapsed -->
-      <div class="ml-2 my-2"  v-for="(value, key) in parsedResponse"  v-if="!collapsed">
-
-        
+      <div class="ml-2 my-2" v-for="(value, key) in parsedResponse" v-if="!collapsed">
         <TimelineCollapsibleContent 
-       :value="value" 
-         :heading="key"
-        :data="value" 
+          :value="value" 
+          :heading="key"
+          :data="value" 
         />
-        
       </div>
-      
-      
-      <div  v-if="!collapsed" class="p-1 text text-right rounded text-xs">
-    <button @click="toggleExpanded" class="mb-0 text-primary-brandTextPrimary focus:outline-none">
-      {{ isExpanded ? '..hide' : 'more...' }}
-    </button>
-    <div v-if="isExpanded" class=" bg-primary-brandGray p-2" name="slide">
-      <table  class="w-full  text-left">
-        <tbody>
-          <tr >
-            <td class="px-1 py-0 font-semibold">Name:</td>
-            <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Task:</td>
-            <td class="px-1 py-0">{{ data.metadata.task }}</td>
-          </tr>
-          <tr>
-            <td class="px-1 py-0 font-semibold">Duration:</td>
-            <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
-          </tr>
-          
-          <tr>
-            <td class="px-1 py-0 font-semibold">Provider:</td>
-            <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-   
+      <div v-if="!collapsed" class="p-1 text text-right rounded text-xs">
+        <button @click="toggleExpanded" class="mb-0 text-primary-brandTextPrimary focus:outline-none">
+          {{ isExpanded ? '..hide' : 'more...' }}
+        </button>
+        <div v-if="isExpanded" class="bg-primary-brandGray p-2" name="slide">
+          <table class="w-full text-left">
+            <tbody>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Name:</td>
+                <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Task:</td>
+                <td class="px-1 py-0">{{ data.metadata.task }}</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Duration:</td>
+                <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Provider:</td>
+                <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <!-- End Right Content -->
   </div>
 </template>
+
 
 <script setup>
 import { computed, ref, h, defineComponent, watch } from 'vue'
@@ -76,18 +66,13 @@ import FundamentalIcon from '@/components/icons/FundamentalIcon.vue'
 import FinanceIcon from '@/components/icons/FinanceIcon.vue'
 import AggregatorIcon from '@/components/icons/AggregatorIcon.vue'
 import EnhancedCompetitorIcon from '@/components/icons/EnhancedCompetitorIcon.vue'
-
 import RecursiveDisplay from './RecursiveDisplay.vue'
-
 import { marked } from 'marked'
 
-
-
-   const formattedDuration=(duration) =>{
-      // Format duration to 2 decimal places
-      return duration.toFixed(2);
-    }
-  
+const formattedDuration = (duration) => {
+  // Format duration to 2 decimal places
+  return duration.toFixed(2);
+}
 
 // State for accordion toggle (single toggle used for all sections in this example)
 const isOpen = ref(false);
@@ -106,20 +91,18 @@ const props = defineProps({
     type: Boolean,
     default: false
   }
-})
+});
 
 // -------------------------------------------------------------------
 // Timeline UI - Icon Container Classes
 // -------------------------------------------------------------------
 const iconContainerClasses = computed(() => {
-  let base =
-    "relative after:content-[''] after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700"
+  let base = "relative after:content-[''] after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700";
   if (props.isLast) {
-    base += " after:hidden"
+    base += " after:hidden";
   }
-  return base
-})
-
+  return base;
+});
 
 function isObject(val) {
   return val !== null && typeof val === 'object';
@@ -128,35 +111,30 @@ function isObject(val) {
 // Helper Function: Return a Random Icon Based on Agent Name
 // -------------------------------------------------------------------
 function getAgentIcon(agentName) {
-  console.log("getAgentIcon called for agentName:", agentName)
+  console.log("getAgentIcon called for agentName:", agentName);
   const agentIcons = {
     'Competitor Analysis Agent': CompetitorIcon,
     'Financial Analysis Agent': FinanceIcon,
     'Enhanced Competitor Finder Agent': EnhancedCompetitorIcon,
-// ' Enhanced Competitor Finder Agent': EnhancedCompetitorIcon,
-    
-    // 'Aggregator Search Agent': SearchIcon,
-        'Aggregator Agent': AggregatorIcon,
-
-'Aggregator Search Agent': AggregatorIcon,
+    'Aggregator Agent': AggregatorIcon,
+    'Aggregator Search Agent': AggregatorIcon,
     'Fundamental Agent': FundamentalIcon,
     'News Agent': NewsIcon,
     'Technical Agent': TechIcon,
     'Financial Analysis Agent': SearchIcon,
     'Research Agent': SearchIcon,
     'Risk Agent': RiskIcon,
-    'Outreach Specialist':  SpecialistIcon,
+    'Outreach Specialist': SpecialistIcon,
     'Data Extraction Agent': DataIcon,
     'Market Trends Analyst': TrendsIcon,
-  }
-  const icon = agentIcons[agentName] || DefaultIcon
-  
-  console.log("Selected icon:", icon.name)
-  return icon
+  };
+  const icon = agentIcons[agentName] || DefaultIcon;
+  console.log("Selected icon:", icon.name);
+  return icon;
 }
 
 // Compute the icon component for this timeline item based on data.agent_name
-const iconComponent = computed(() => getAgentIcon(props.data.agent_name))
+const iconComponent = computed(() => getAgentIcon(props.data.agent_name));
 
 // -------------------------------------------------------------------
 // Text Parsing Helpers
@@ -167,9 +145,9 @@ const iconComponent = computed(() => getAgentIcon(props.data.agent_name))
  * For this example, only "Thought" and "Final Answer" (case-insensitive) are primary.
  */
 function isPrimaryHeading(title) {
-  if (!title) return false
-  const lower = title.toLowerCase()
-  return lower === 'thought' || lower === 'final answer'
+  if (!title) return false;
+  const lower = title.toLowerCase();
+  return lower === 'thought' || lower === 'final answer';
 }
 
 /**
@@ -177,7 +155,7 @@ function isPrimaryHeading(title) {
  * Replace newline characters with <br> tags.
  */
 function formatContent(content) {
-  return content.replace(/\n/g, '<br/>')
+  return content.replace(/\n/g, '<br/>');
 }
 
 /**
@@ -186,69 +164,67 @@ function formatContent(content) {
  * All subsequent lines are appended to that section's content.
  */
 const sections = computed(() => {
-  const lines = props.data.text.split('\n')
-  const parsed = []
-  let currentSection = null
+  // Added check: if props.data.text is an array, join it with newline.
+  let text = props.data.text;
+  if (Array.isArray(text)) {
+    text = text.join('\n');
+  }
+  const lines = text.split('\n');
+  const parsed = [];
+  let currentSection = null;
 
   for (let line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
+    const trimmed = line.trim();
+    if (!trimmed) continue;
     // Check for primary heading pattern
-    const match = trimmed.match(/^(Thought|Final Answer|Action Input|Action):\s*(.*)$/i)
+    const match = trimmed.match(/^(Thought|Final Answer|Action Input|Action):\s*(.*)$/i);
     if (match) {
       if (currentSection) {
-        currentSection.content = currentSection.content.trim()
-        parsed.push(currentSection)
+        currentSection.content = currentSection.content.trim();
+        parsed.push(currentSection);
       }
       currentSection = {
         title: match[1].trim(),
         content: match[2] ? match[2].trim() + "\n" : "\n"
-      }
+      };
     } else {
       if (currentSection) {
-        currentSection.content += trimmed + "\n"
+        currentSection.content += trimmed + "\n";
       } else {
         // If there's no current section, create one with an empty title
-        currentSection = { title: '', content: trimmed + "\n" }
+        currentSection = { title: '', content: trimmed + "\n" };
       }
     }
   }
   if (currentSection) {
-    currentSection.content = currentSection.content.trim()
-    parsed.push(currentSection)
+    currentSection.content = currentSection.content.trim();
+    parsed.push(currentSection);
   }
-  return parsed
-})
-
-
-
+  return parsed;
+});
 
 /**
  * Attempts to parse a string as JSON if it looks like a JSON block.
  * Otherwise, returns the original string.
  */
- function tryParseJSON(content) {
-
-  try{
-
-  
-  if (typeof content !== 'string') return content;
-  const trimmed = content.trim();
-  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-      (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-    try {
-      return JSON.parse(trimmed);
-    } catch (e) {
-      console.warn("Could not parse JSON:", e);
-      return content;
+function tryParseJSON(content) {
+  try {
+    if (typeof content !== 'string') return content;
+    const trimmed = content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+        (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch (e) {
+        console.warn("Could not parse JSON:", e);
+        return content;
+      }
     }
+    return content;
+  } catch (e) {
+    console.log("Error TimelineItem tryParseJSON", e);
+    return content;
   }
-  return content;
-
-}catch(e){
-console.log("Error TimelineItem tryParseJSON" ,e)
-return content;
-}
 }
 
 /**
@@ -257,7 +233,21 @@ return content;
  * and then collects all subsequent lines until the next such heading.
  * If a key appears multiple times, its values are stored in an array.
  */
-function parseResponseText(text) {
+ function parseResponseText(text) {
+  // If text is an array, join it into a string.
+  if (Array.isArray(text)) {
+    text = text.join('\n');
+  } else if (typeof text !== 'string') {
+    // If text is an object and has a sections property, return that.
+    if (text && typeof text === 'object' && Array.isArray(text.sections)) {
+      return text.sections;
+    }
+    if (text && typeof text === 'object' && Array.isArray(text.queries)) {
+      return text.queries;
+    }
+    // Otherwise, convert the text to a string.
+    text = JSON.stringify(text);
+  }
   const lines = text.split('\n');
   const keys = ["Thought", "Final Answer", "Action", "Action Input", "Observation"];
   const result = {};
@@ -308,6 +298,7 @@ function parseResponseText(text) {
   return result;
 }
 
+
 const parsedResponse = computed(() => parseResponseText(props.data.text));
 
 const isExpanded = ref(false);
@@ -315,8 +306,6 @@ const isExpanded = ref(false);
 function toggleExpanded() {
   isExpanded.value = !isExpanded.value;
 }
-
-
 </script>
 
 <style scoped>
@@ -324,7 +313,6 @@ function toggleExpanded() {
 .timeline-item {
   background-color: #fff;
 }
-
 
 .slide-enter-active, .slide-leave-active {
   transition: max-height 0.3s ease, opacity 0.3s ease;
@@ -338,5 +326,4 @@ function toggleExpanded() {
   max-height: 500px; /* adjust max-height as needed */
   opacity: 1;
 }
-
 </style>

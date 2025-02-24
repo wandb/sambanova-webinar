@@ -1,11 +1,12 @@
 <template>
-    
        <li  
-      class=" py-2 px-4  flex gap-x-2 sm:gap-x-4">
+      class="flex py-2 px-4 items-start gap-x-2 sm:gap-x-4">
       <!-- v-else for all other cases -->
       <div class="flex items-start space-x-3">
+        <div class="flex-none ">
         <SILogo />
-        <div class="bg-white border border-primary-brandFrame  rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
+      </div>
+        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
         
           <div v-if="workflowData.length>0" class="w-100  mx-auto">
   <!-- Grid -->

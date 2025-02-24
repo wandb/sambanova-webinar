@@ -7,16 +7,15 @@
         <SILogo />
         <div class="bg-white border border-primary-brandFrame  rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
         
-        <!-- Card Section -->
-<div class="w-full  mx-auto">
+          <div v-if="workflowData.length>0" class="w-100  mx-auto">
   <!-- Grid -->
-
-  
-
-  <!-- Flex container to arrange items horizontally with min-w-max to prevent shrinkage -->
-  <div class="flex w-full my-2">
+    <!-- Card -->
+    <div class="flex my-2">
+      <!-- Flex container to arrange items horizontally without forcing full width -->
+    <div class="flex space-x-4">
    
     <WorkflowDataItem :isLoading="isLoading" :workflowData="workflowData"/>
+  </div>
   </div>
       </div>
      

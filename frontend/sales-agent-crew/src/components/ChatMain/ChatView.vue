@@ -15,7 +15,7 @@
         >
           <h1
             v-if="!isLoading"
-            class="text-3xl font-bold text-gray-800 sm:text-4xl dark:text-white"
+            class="text-3xl font-bold text-gray-800 sm:text-4xl "
           >
             <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
           </h1>
@@ -44,7 +44,7 @@
 
       <!-- Documents Section -->
       <div class="sticky bottom-0 left-0 right-0 bg-transparent p-2">
-        <div class="sticky bottom-0 z-10 dark:bg-neutral-900 dark:border-neutral-700">
+        <div class="sticky bottom-0 z-10 ">
           <!-- Textarea -->
           <div class="max-w-4xl mx-auto lg:px-0">
             <div class="flex items-start mb-3">
@@ -123,7 +123,7 @@
                 type="search"
                 placeholder="Ask me about...companies to target, research topics, or company stocks and financials"
                 :disabled="isLoading"
-                class="p-4 pb-12 block w-full bg-primary-brandFrame border-primary-brandFrame rounded-lg text-sm focus:outline-none active:outline-none border focus:border-primary-brandColor disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                class="p-4 pb-12 block w-full bg-primary-brandFrame border-primary-brandFrame rounded-lg text-sm focus:outline-none active:outline-none border focus:border-primary-brandColor disabled:opacity-50 disabled:pointer-events-none "
               ></textarea>
 
               <!-- Toolbar -->
@@ -202,7 +202,7 @@
                       >
                         <svg
                           v-if="!isRecording"
-                          class="w-6 h-6 text-gray-800 dark:text-white"
+                          class="w-6 h-6 text-gray-800 "
                           aria-hidden="true"
                           xmlns="http://www.w3.org/2000/svg"
                           width="24"
@@ -219,7 +219,7 @@
                         </svg>
                         <svg
                           v-else
-                          class="w-6 h-6 text-gray-800 dark:text-white"
+                          class="w-6 h-6 text-gray-800 "
                           aria-hidden="true"
                           xmlns="http://www.w3.org/2000/svg"
                           width="24"

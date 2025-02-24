@@ -37,7 +37,8 @@
   
   <script setup>
   import { defineProps } from 'vue'
-  
+  import { formattedDuration } from '@/utils/globalFunctions'
+
   const props = defineProps({
     presentMetadata: {
       type: Object,  // Adjust to Array if needed
@@ -45,17 +46,7 @@
     }
   })
   
-  // Format duration: seconds if <60, minutes:seconds if >=60.
-  function formattedDuration(duration) {
-    if (typeof duration !== 'number' || isNaN(duration)) return duration;
-    if (duration < 60) {
-      return duration.toFixed(2) + "s";
-    } else {
-      const minutes = Math.floor(duration / 60);
-      const seconds = duration % 60;
-      return `${minutes}m ${seconds.toFixed(2)}s`;
-    }
-  }
+  
   
   // Format numbers to k notation if necessary.
   function formatNumber(value) {

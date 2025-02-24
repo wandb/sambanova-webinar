@@ -17,10 +17,12 @@
     </li>
     
     <!-- For all other cases -->
-    <li v-else class="max-90 py-2 px-4 flex gap-x-2 sm:gap-x-4">
-      <div class="flex items-start space-x-3">
+    <li v-else class="flex py-2 px-4 items-start gap-x-2 sm:gap-x-4">
+      <div class="flex-none ">
+
         <SILogo />
-        <div class="bg-white border border-primary-brandFrame rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
+        </div>
+        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
        
           <div class="vertical-timeline">
     <!-- Timeline Header -->
@@ -62,26 +64,8 @@
     <div class="flex my-2">
       <!-- Flex container to arrange items horizontally without forcing full width -->
     <div class="flex space-x-4">
-      <a 
-        v-for="(item, index) in workflowData" 
-        :key="index" 
-        class="group flex flex-col bg-primary-brandDarkGray border border-primary-brandGray shadow-sm rounded-xl hover:shadow-md focus:outline-none focus:shadow-md transition dark:bg-neutral-900 dark:border-neutral-800" 
-        href="#"
-      >
-        <div class="p-4 md:p-5">
-          <div class="flex gap-x-5">
-            <div class="grow">
-              <h3 class="group-hover:text-blue-600 text-gray-800 dark:group-hover:text-neutral-400 dark:text-neutral-200">
-                {{ item.llm_name }} ({{ item.count }})
-              </h3>
-              <p class="text-sm text-gray-500 flex justify-between dark:text-neutral-500">
-              <span class="capitalize">{{ item.task }} </span>
-              <span v-if="item?.duration">{{ formattedDuration(item?.duration) }}s</span>
-            </p>
-            </div>
-          </div>
-        </div>
-      </a>
+      <WorkflowDataItem  :workflowData="workflowData"/>
+
     </div>
   </div>
    
@@ -106,7 +90,7 @@
         <component :is="selectedComponent" :parsed="parsedData" />
     </div>
       
-      </div>
+      
     
     </li>
   </template>
@@ -122,8 +106,8 @@
   import UnknownTypeComponent from '@/components/ChatMain/ResponseTypes/UnknownTypeComponent.vue'
   import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
-  import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
 import MetaData from '@/components/ChatMain/MetaData.vue'
+import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
 
 
 

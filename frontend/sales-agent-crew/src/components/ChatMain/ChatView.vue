@@ -36,7 +36,7 @@
         <!-- End Title -->
         <ul 
         
-        class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
+class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
           <!-- Chat Bubble -->
           <ChatBubble
             :metadata="completionMetaData"

@@ -89,13 +89,22 @@ def create_publish_callback(
     agent_name: str,
     workflow_name: str,
     redis_client: Redis,
+    token_usage_callback: Callable[[dict], None] = None,
 ):
    
     def callback(message: str, llm_name: str, task: str, usage: dict, llm_provider: str, duration: float):
-
         response_duration = usage.get("end_time", 0) - usage.get("start_time", 0)
         if response_duration > 0:
             duration = response_duration
+
+        # Track token usage if callback provided
+        if token_usage_callback and usage:
+            token_usage = {
+                "total_tokens": usage.get("total_tokens", 0),
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+            }
+            token_usage_callback(token_usage)
 
         message_data = {
             "user_id": user_id,

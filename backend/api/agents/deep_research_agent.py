@@ -69,22 +69,46 @@ class DeepResearchAgent(RoutedAgent):
                     "user_id": user_id,
                     "conversation_id": conversation_id,
                     "provider": llm_provider,
+                    "token_usage": {
+                        "total_tokens": 0,
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0
+                    },
                     "callback": create_publish_callback(
                         user_id=user_id,
                         conversation_id=conversation_id,
                         agent_name="deep_research",
                         workflow_name="deep_research",
                         redis_client=self.redis_client,
+                        token_usage_callback=self._update_token_usage(session_id)
                     ),
                 }
             }
         return self._session_threads[session_id]
+
+    def _update_token_usage(self, session_id: str):
+        def update(usage: dict):
+            if session_id in self._session_threads:
+                token_usage = self._session_threads[session_id]["configurable"]["token_usage"]
+                token_usage["total_tokens"] += usage.get("total_tokens", 0)
+                token_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
+                token_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+        return update
 
     @message_handler
     async def handle_deep_research_request(self, message: AgentRequest, ctx: MessageContext) -> None:
         logger.info(logger.format_message(ctx.topic_id.source, f"DeepResearchAgent received message: {message}"))
         session_id = ctx.topic_id.source
         user_text = message.query.strip()
+
+        # Reset token usage for new requests (not for feedback/interrupts)
+        if user_text and (not message.parameters.deep_research_topic):
+            if session_id in self._session_threads:
+                self._session_threads[session_id]["configurable"]["token_usage"] = {
+                    "total_tokens": 0,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0
+                }
 
         # Decide if it's feedback or a brand-new request
         if user_text.lower() == "true":
@@ -120,10 +144,12 @@ class DeepResearchAgent(RoutedAgent):
                             f"{interrupt_msg}\n\n"
                             "Type 'true' to approve the plan, or type feedback text to revise it."
                         )
+                        token_usage = self._session_threads[session_id]["configurable"]["token_usage"]
                         response = AgentStructuredResponse(
                             agent_type=AgentEnum.UserProxy,
                             data=DeepResearchUserQuestion(deep_research_question=user_question_str),
-                            message=user_question_str
+                            message=user_question_str,
+                            metadata=token_usage
                         )
                         await self.publish_message(
                             response,
@@ -141,11 +167,14 @@ class DeepResearchAgent(RoutedAgent):
                     "final_report": final_state.values.get("final_report", ""),
                 }
 
+            # Add token usage to the report
+            token_usage = self._session_threads[session_id]["configurable"]["token_usage"]
             structured_report = DeepResearchReport.model_validate(dr_report)
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.DeepResearch,
                 data=structured_report,
-                message="Deep research flow completed."
+                message="Deep research flow completed.",
+                metadata=token_usage,
             )
 
         except Exception as e:
@@ -153,12 +182,14 @@ class DeepResearchAgent(RoutedAgent):
                 logger.format_message(session_id, f"DeepResearch flow error: {str(e)}"),
                 exc_info=True
             )
+            # Add token usage to the report
+            token_usage = self._session_threads[session_id]["configurable"]["token_usage"]
             # fallback empty
             structured_report = DeepResearchReport(sections=[], final_report="")
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.DeepResearch,
                 data=structured_report,
-                message=f"Deep research flow error: {str(e)}"
+                message=f"Deep research flow error: {str(e)}",
             )
 
         await self.publish_message(

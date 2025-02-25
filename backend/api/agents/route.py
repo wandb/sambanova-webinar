@@ -65,7 +65,7 @@ class SemanticRouterAgent(RoutedAgent):
         self._name = name
         self.api_keys = api_keys
 
-        _reasoning_model_name = "llama-3.1-70b"
+        _reasoning_model_name = "llama-3.3-70b"
 
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=_reasoning_model_name)["model"],
@@ -79,7 +79,7 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        self._structure_extraction_model_name = "llama-3.1-70b"
+        self._structure_extraction_model_name = "llama-3.3-70b"
         self._structure_extraction_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["url"],

@@ -142,7 +142,7 @@ class AssistantAgentWrapper(RoutedAgent):
         )
         self.api_keys = api_keys
         self.redis_client = redis_client
-        self._default_model = "llama-3.1-70b"
+        self._default_model = "llama-3.3-70b"
         self._current_provider = None
         self._assistant_instance = None
 

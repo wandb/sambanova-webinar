@@ -405,7 +405,7 @@ class QueryRouterServiceChat:
     ):
         self.llm_api_key = llm_api_key
         self.provider = provider
-        self.model_name = "llama-3.1-70b" if provider == "fireworks" else "deepseek-r1-distill-llama-70b"
+        self.model_name = "deepseek-r1"
         self.websocket = websocket
         self.redis_client = redis_client
         self.user_id = user_id

@@ -416,52 +416,8 @@ class QueryRouterService:
           }}
         }}
 
-        "type": "educational_content"
-        "description": "Handles simpler or legacy educational queries. Possibly replaced by 'deep_research' for advanced multi-step analysis."
-        "examples": "Explain classical Newtonian mechanics in short form, Summarize a simple topic quickly."
-
-        Query: "Prepare a syllabus for a course on flowers"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Prepare a syllabus for a course on flowers",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-
-        Query: "Write me a report on the second world war"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Write me a report on the second world war",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-
-        Query: "Quantum computing and qubits"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "Quantum computing and qubits",
-            "audience_level": "intermediate",
-            "focus_areas": ["foundational principles", "recent advances"]
-          }}
-        }}
-
-        Query: "Explain how memory bandwidth impacts GPU performance"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "memory bandwidth impacts GPU performance",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-
         "type": "deep_research",
-        "description": "Handles advanced educational content queries with a multi-step research flow (LangGraph). For queries that require a more in-depth or structured approach.",
+        "description": "Handles educational content queries with a multi-step research flow. For queries that require a more in-depth or structured approach.",
         "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps.",
 
         Query: Write me a report on the future of AI 
@@ -488,6 +444,30 @@ class QueryRouterService:
           }}
         }}
 
+        Query: "Prepare a syllabus for a course on flowers"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Prepare a syllabus for a course on flowers",
+          }}
+        }}
+
+        Query: "Explain how memory bandwidth impacts GPU performance"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "memory bandwidth impacts GPU performance",
+          }}
+        }}
+
+        Query: "Write me a report on the second world war"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Write me a report on the second world war",
+          }}
+        }}
+
         "type": "user_proxy",
         "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user. If the query is vague or unclear, use this agent.",
         "examples": "What are the best ways to save money?, Write a financial report on my local bank?",
@@ -501,21 +481,17 @@ class QueryRouterService:
         }}
 
         Rules:
-        1. For 'educational_content':
-           - Extract the FULL topic from the query
-           - Do NOT truncate or summarize the topic
-           - If multiple concepts are present, keep them in 'topic'
-        2. For 'sales_leads': 
+        1. For 'sales_leads': 
            - Extract specific industry, location, or other business parameters if any
-        3. For 'financial_analysis': 
+        2. For 'financial_analysis': 
            - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
-        4. For 'deep_research':
+        3. For 'deep_research':
            - Provide 'deep_research_topic' (the users full research query)
-        5. For 'assistant':
+        4. For 'assistant':
            - Provide 'query' (the user's full query)
-        6. For 'user_proxy':
+        5. For 'user_proxy':
            - Provide 'agent_question' (the question that requires a response from the user)
 
         Context summary: "{context_summary}"

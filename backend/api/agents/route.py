@@ -170,6 +170,7 @@ class SemanticRouterAgent(RoutedAgent):
             f"Using query router for message: '{message.content[:100]}...'"
         ))
 
+
         user_id, conversation_id = ctx.topic_id.source.split(":")
         history = self._session_manager.get_history(conversation_id)
 

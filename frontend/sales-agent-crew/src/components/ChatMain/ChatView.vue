@@ -978,7 +978,7 @@ const addMessage = async () => {
   }
 
   if (selectedDocuments.value && selectedDocuments.value.length > 0) {
-    messagePayload.docs = selectedDocuments.value.map(doc => doc.id);
+    messagePayload.document_ids = selectedDocuments.value.map(doc => doc.id);
   } else {
     messagePayload.document_ids = [];
   }

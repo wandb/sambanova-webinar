@@ -139,4 +139,3 @@ class FinancialAnalysisAgent(RoutedAgent):
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
-            return

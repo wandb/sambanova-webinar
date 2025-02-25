@@ -1,13 +1,14 @@
 <template>
-    <div class="assistant-message">
-      
-      <!-- The raw text from data.response -->
-      <div v-html="formattedText"></div>
-      <!-- Possibly parse the nested message if needed -->
-    </div>
-  </template>
-  
-  <script>
+  <div class="assistant-message">
+    <!-- Wrap generated HTML in a container so our styles apply -->
+    <div class="markdown-content" v-html="formattedText(parsed?.data?.response||'')"></div>
+  </div>
+</template>
+
+<script>
+
+import { formattedText } from '@/utils/formatText'
+
 export default {
   props: {
     // Expecting an object with the API response, e.g., { data: { response: "..." } }
@@ -16,66 +17,116 @@ export default {
       required: true,
     },
   },
+  methods: {
+    formattedText,  // Register the imported function here.
+  },
   computed: {
-    formattedText() {
-      // Extract the text from parsed.data?.response, or fallback to an empty string.
+    formattedTextOld() {
+      // Extract the text from parsed.data.response or use an empty string
       const text = this.parsed.data?.response || '';
-      const lines = text.split('\n');
+      const lines = text.split("\n");
+      let html = "";
       let inList = false;
-      let html = '';
-
-      // Process each line in the response
-      lines.forEach((line) => {
+      // Match bullet lines starting with *, +, or -
+      const bulletRegex = /^([*+-])\s+(.*)/;
+      
+      lines.forEach(line => {
         const trimmed = line.trim();
-        // Detect lines that start with a number and a period (e.g., "1. Customization...")
-        const match = trimmed.match(/^(\d+)\.\s+(.*)/);
-        if (match) {
-          // Start a list if not already inside one
+        const bulletMatch = trimmed.match(bulletRegex);
+        if (bulletMatch) {
           if (!inList) {
-            html += '<ul>';
+            html += "<ul class='my-2'>";
             inList = true;
           }
-          // Add the list item with the custom class for colored bullet points
-          html += `<li class="custom-bullet">${match[2]}</li>`;
+          // Each bullet item gets an inline span for the bullet marker
+          html += `<li class="custom-bullet"><span class="bullet-marker">•</span> ${bulletMatch[2]}</li>`;
         } else {
-          // If we exit a list, close it
           if (inList) {
-            html += '</ul>';
+            html += "</ul>";
             inList = false;
           }
-          // Wrap non-empty lines in paragraph tags
           if (trimmed.length > 0) {
-            html += `<p>${trimmed}</p>`;
+            // If the line ends with a colon, treat it as a heading
+            if (trimmed.endsWith(":")) {
+              html += `<h2 class="md-heading text-[16px] font-semibold">${trimmed}</h2>`;
+            } else {
+              html += `<p class="md-paragraph">${trimmed}</p>`;
+            }
           }
         }
       });
-
-      // Close an open list if the response ended while still in a list
+      
       if (inList) {
-        html += '</ul>';
+        html += "</ul>";
       }
-
+      
       return html;
-    },
-  },
+    }
+  }
 };
 </script>
 
-<style scoped>
-.custom-bullet {
-  list-style: none; /* Remove default bullet */
-  position: relative;
-  padding-left: 1.25rem; /* Add space for our custom bullet */
-  margin-bottom: 0.5rem;
+<style >
+/* Styling for headings (lines ending with a colon) */
+.md-heading {
+  color: #101828;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600; /* Semibold */
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0;
+  margin-bottom: 1rem;
+  text-align: left;
 }
 
-.custom-bullet::before {
-  content: '•';
-  color: #f56565; /* Tailwind red-500 color */
+/* Styling for normal paragraphs */
+.md-paragraph {
+  color: #101828;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0;
+  margin-bottom: 1rem;
+}
+
+/* Remove default list styles */
+.markdown-content ul {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+/* Styling for bullet list items */
+.custom-bullet {
+  display: flex;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0;
+  color: #101828;
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-right: 1.5rem; /* Reserve space for the inline bullet marker */
+}
+
+/* Inline bullet marker positioned on the right */
+.bullet-marker {
   position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 1.25rem;
-  line-height: 1;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #101828;
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 24px;
+  letter-spacing: 0;
+  margin-left: 0.5rem;
+}
+
+p{
+  line-height: 24px;
 }
 </style>

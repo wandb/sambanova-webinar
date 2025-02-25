@@ -19,7 +19,7 @@
     </div>
 
     <!-- Conversation list -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden">
      
     <ChatList
       :conversations="conversations"

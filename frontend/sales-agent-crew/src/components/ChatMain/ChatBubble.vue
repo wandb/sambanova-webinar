@@ -2,28 +2,36 @@
     <!-- Check if event is 'user_message' -->
     <li
       v-if="props.event === 'user_message'" 
-      class="py-2 px-4 sm:px-6 lg:px-8 mx-auto flex gap-x-2 sm:gap-x-4"
+      class=" flex  px-4 items-center  gap-x-2 sm:gap-x-4"
     >
-      <div class="grow text-end space-y-3">
+    <UserAvatar :type="user" />
+      <div class="grow text-start space-y-3">
         <!-- Card -->
-        <div class="inline-block bg-primary-bodyBg border-primary-brandFrame border rounded-lg p-4 shadow-sm">
-          <p class="text-sm color-primary-brandGray">
+        <div class="inline-block  ">
+          <p class="text-[16px] color-primary-brandGray">
             {{ props.data }}
           </p>
         </div>
         <!-- End Card -->
       </div>
-      <UserAvatar />
+    
     </li>
     
     <!-- For all other cases -->
-    <li v-else class="flex py-2 px-4 items-start gap-x-2 sm:gap-x-4">
-      <div class="flex-none ">
+    <li v-else class="    px-4 items-start gap-x-2 sm:gap-x-4">
+      {{ props.agent_type }}
+      <div class="w-full flex items-center ">
+      
 
-        <SILogo />
+        <UserAvatar :type="provider" /> 
+        <div class="grow text-start space-y-3">
+        <!-- Card -->
+        <div class="inline-block" >
+       <div class=" p-4 capitalize space-y-3 font-inter font-semibold text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent</div>
+</div>
+</div>
         </div>
-        <div class="flex-1 bg-white  p-4 space-y-3 ">
-       
+        <div class="w-full bg-white  ">
           
           <AnalysisTimeline 
       :isLoading="isLoading" 
@@ -52,8 +60,7 @@
   import UnknownTypeComponent from '@/components/ChatMain/ResponseTypes/UnknownTypeComponent.vue'
   import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
-import MetaData from '@/components/ChatMain/MetaData.vue'
-import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
+
 import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
 
 
@@ -87,6 +94,10 @@ import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
     },
     metadata: {
       type: Object,
+      required: true
+    },
+    provider: {
+      type: String,
       required: true
     },
   workflowData: {

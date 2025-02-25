@@ -1,5 +1,5 @@
 <template>
-    <div class="chat-list">
+    <div class="chat-list overflow-hidden">
       <div v-for="group in groupedChats" :key="group.label" class="chat-group">
         <!-- Sticky Group Header -->
         <div class="sticky-header text-xs text-primary-brandTextSecondary">

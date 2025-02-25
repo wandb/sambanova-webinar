@@ -2,8 +2,12 @@
     <div class="vertical-timeline">
       <!-- Timeline Header -->
       <div class="timeline-header flex items-center justify-start">
-        <h2 class="text-md text-primary-brandTextSecondary">
-          Analysis Concluded (<span class="text-sm" v-if="!isLoading">{{ formattedDuration(parsedData?.metadata?.duration) }}s</span>)
+        <StatusText :text="statusText" />
+        <h2 v-if="!isLoading" class="text-md text-primary-brandTextSecondary">
+          Analysis Concluded (<span class="text-sm">{{ formattedDuration(parsedData?.metadata?.duration) }}s</span>)
+        </h2>
+        <h2 v-if="isLoading" class="text-md text-primary-brandTextSecondary">
+          <StatusText :text="statusText" />
         </h2>
         <button @click="toggleCollapse" class="toggle-btn flex items-center text-blue-500 hover:text-blue-600 focus:outline-none">
           <svg v-if="collapsed"
@@ -28,23 +32,21 @@
       </div>
       <!-- Timeline Body -->
       <div v-show="!collapsed" class="timeline-body relative pl-[18px] pt-4 pb-8">
-        <!-- Vertical line with gradient -->
-        <div class="timeline-line absolute top-0 bottom-0 left-0 w-[2px] bg-primary-timeLine"></div>
+        <!-- Animated Vertical Line -->
+        <div :key="plannerText" class="timeline-line absolute top-0 left-0 h-full w-[2px] bg-primary-timeLine"></div>
+        
         <!-- Card Section -->
         <div v-if="workflowData && workflowData.length > 0" class="w-100 mx-auto">
           <div class="flex my-2">
             <div class="flex space-x-4">
-              <!-- This component is assumed to render each workflow data item -->
-              <WorkflowDataItem :workflowData="workflowData"/>
+              <WorkflowDataItem :workflowData="workflowData" />
             </div>
           </div>
         </div>
         <!-- Inline metadata items -->
-        <MetaData v-if="presentMetadata" :presentMetadata="presentMetadata"/>
+        <MetaData v-if="presentMetadata" :presentMetadata="presentMetadata" />
         <!-- Planner text -->
-        <div>
-          {{ plannerText }}
-        </div>
+        <div class="markdown-content text-[#667085]" v-html="formattedText(plannerText)"></div>
       </div>
     </div>
   </template>
@@ -53,24 +55,23 @@
   import { ref } from 'vue'
   import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
   import MetaData from '@/components/ChatMain/MetaData.vue'
+  import StatusText from '@/components/Common/StatusText.vue'
+  import { formattedText } from '@/utils/formatText'
   
-  // Define the props that the timeline will accept.
   const props = defineProps({
     isLoading: { type: Boolean, default: false },
     parsedData: { type: Object, default: () => ({}) },
     workflowData: { type: Array, default: () => [] },
     presentMetadata: { type: [Object, Array], default: null },
-    plannerText: { type: String, default: '' }
+    plannerText: { type: String, default: '' },
+    statusText: { type: String, default: '' },
+    defaultCollapsed: { type: Boolean, default: true }
   });
   
-  // Internal state for collapsing the timeline.
-  const collapsed = ref(true);
-  
+  const collapsed = ref(props.defaultCollapsed || false);
   function toggleCollapse() {
     collapsed.value = !collapsed.value;
   }
-  
-  // Simple duration formatter.
   function formattedDuration(duration) {
     if (typeof duration !== 'number' || isNaN(duration)) return duration;
     return duration.toFixed(2);
@@ -79,26 +80,38 @@
   
   <style scoped>
   .vertical-timeline {
-  /* border: 1px solid #e5e7eb; */
-  border-radius: 0.5rem;
-  overflow: hidden;
-  /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); */
-  /* background-color: #fff; */
-}
-
-.timeline-header {
-  /* background-color: #f9fafb; */
-}
-
-.toggle-btn {
-  transition: color 0.3s ease;
-}
-
-.timeline-body {
-  transition: all 0.3s ease;
-}
-.timeline-item:last-child {
-  padding-bottom: 0;
-}
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  .timeline-header { }
+  .toggle-btn {
+    transition: color 0.3s ease;
+  }
+  .timeline-body {
+    transition: all 0.3s ease;
+  }
+  
+  /* Animate the vertical line with a bounce effect */
+  .timeline-line {
+    transform-origin: top;
+    transform: scaleY(0);
+    /* Animate over 1s with a bounce effect */
+    animation: growLine 1s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+  }
+  
+  @keyframes growLine {
+    0% {
+      transform: scaleY(0);
+    }
+    60% {
+      transform: scaleY(1.1);
+    }
+    80% {
+      transform: scaleY(0.95);
+    }
+    100% {
+      transform: scaleY(1);
+    }
+  }
   </style>
   

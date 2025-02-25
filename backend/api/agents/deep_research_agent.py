@@ -114,14 +114,13 @@ class DeepResearchAgent(RoutedAgent):
         session_id = ctx.topic_id.source
         user_text = message.query.strip()
 
-        # Reset token usage for new requests (not for feedback/interrupts)
-        if user_text and (not message.parameters.deep_research_topic):
-            if session_id in self._session_threads:
-                self._session_threads[session_id]["configurable"]["token_usage"] = {
-                    "total_tokens": 0,
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                }
+        # Reset token usage for new requests
+        if session_id in self._session_threads:
+            self._session_threads[session_id]["configurable"]["token_usage"] = {
+                "total_tokens": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+            }
 
         # Decide if it's feedback or a brand-new request
         if user_text.lower() == "true":

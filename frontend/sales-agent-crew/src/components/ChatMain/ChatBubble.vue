@@ -60,8 +60,10 @@
   import UnknownTypeComponent from '@/components/ChatMain/ResponseTypes/UnknownTypeComponent.vue'
   import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
-
-import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
+  import ErrorComponent from '@/components/ChatMain/ResponseTypes/ErrorComponent.vue'
+  import MetaData from '@/components/ChatMain/MetaData.vue'
+  import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
+  import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
 
 
 
@@ -140,8 +142,10 @@ import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
         return SalesLeadComponent
       case 'financial_analysis':
         return FinancialAnalysisComponent
-        case 'deep_research':
+      case 'deep_research':
         return DeepResearchComponent
+      case 'error':
+        return ErrorComponent
       default:
         return UnknownTypeComponent
     }

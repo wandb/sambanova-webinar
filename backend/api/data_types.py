@@ -10,13 +10,11 @@ from agent.lead_generation_crew import OutreachList
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
-    EducationalContent = "educational_content"
     SalesLeads = "sales_leads"
     Assistant = "assistant"
     UserProxy = "user_proxy"
-    # NEWLY ADDED AGENT:
     DeepResearch = "deep_research"  # For advanced research (LangGraph)
-
+    Error = "error"
 class Greeter(BaseModel):
     greeting: str
 
@@ -31,6 +29,9 @@ class AssistantMessage(BaseModel):
 
 class AssistantResponse(BaseModel):
     response: str
+
+class ErrorResponse(BaseModel):
+    error: str
 
 # Base class for messages exchanged between agents and users
 class BaseAgentMessage(BaseModel):
@@ -93,7 +94,7 @@ class EndUserMessage(BaseAgentMessage):
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
     parameters: Union[
-        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion, DeepResearch
+        FinancialAnalysis, SalesLeads, AssistantMessage, UserQuestion, DeepResearch
     ]
     query: str
     docs: Optional[str] = None
@@ -104,7 +105,6 @@ class AgentRequest(BaseModel):
         expected_type = {
             AgentEnum.FinancialAnalysis: FinancialAnalysis,
             AgentEnum.SalesLeads: SalesLeads,
-            AgentEnum.EducationalContent: EducationalContent,
             AgentEnum.Assistant: AssistantMessage,
             AgentEnum.UserProxy: UserQuestion,
             AgentEnum.DeepResearch: DeepResearch,
@@ -157,6 +157,7 @@ class AgentStructuredResponse(BaseModel):
         UserQuestion,
         DeepResearchUserQuestion,
         DeepResearchReport,
+        ErrorResponse,
     ]
     metadata: Optional[Dict[str, Any]] = None
     message: Optional[str] = None  # Additional message or notes from the agent

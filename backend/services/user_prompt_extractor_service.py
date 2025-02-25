@@ -62,7 +62,7 @@ class UserPromptExtractor:
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
-            "temperature": 0.7
+            "temperature": 0.0
         }
 
         headers = {

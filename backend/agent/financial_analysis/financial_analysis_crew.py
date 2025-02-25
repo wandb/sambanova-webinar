@@ -142,6 +142,15 @@ class WeeklyPriceData(BaseModel):
     close: str
     volume: str
 
+
+class NewsItem(BaseModel):
+    title: str
+    link: str
+
+class News(BaseModel):
+    news_items: List[NewsItem] = []
+    summary: str = ""
+
 class FinancialAnalysisResult(BaseModel):
     ticker: str
     company_name: str
@@ -149,6 +158,7 @@ class FinancialAnalysisResult(BaseModel):
     fundamental: FundamentalData
     risk: RiskData
     stock_price_data: List[WeeklyPriceData] = []
+    news: News
     comprehensive_summary: str = ""
 
 ########################### The Main Crew Class ###########################
@@ -421,7 +431,7 @@ class FinancialAnalysisCrew:
         # 3) aggregator => sequential
         self.aggregator_task = Task(
             description=(
-                "Aggregate all previous steps => final JSON with fields: ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary. Comprehensive Summary should be ~700 words referencing everything. Must match FinancialAnalysisResult exactly. You MUST focus on recent news and events that may affect the stock price or metrics of {ticker} not just financial data. Name entities that are mentioned in the news."
+                "Aggregate all previous steps => final JSON with fields: ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary. Comprehensive Summary should be ~700 words referencing everything. For the news section, you must include the title, the link and the summary of the news. Must match FinancialAnalysisResult exactly. You MUST focus on recent news and events that may affect the stock price or metrics of {ticker} not just financial data. Name entities that are mentioned in the news."
             ),
             agent=self.aggregator_agent,
             context=[
@@ -431,7 +441,7 @@ class FinancialAnalysisCrew:
                 self.risk_task, 
                 self.news_task,
             ] + ([self.document_summarizer_task] if self.docs_included else []),
-            expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary",
+            expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, news, comprehensive_summary",
             max_iterations=1,
             output_pydantic=FinancialAnalysisResult
         )

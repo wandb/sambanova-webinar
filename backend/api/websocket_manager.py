@@ -288,7 +288,7 @@ class WebSocketConnectionManager:
                 # Process multiple messages in one iteration if available
                 messages = []
                 for _ in range(BATCH_SIZE):  # Process up to BATCH_SIZE messages at once
-                    message = pubsub.get_message(timeout=0.05)  # Reduced timeout
+                    message = pubsub.get_message(timeout=0.05)
                     if message and message["type"] == "message":
                         messages.append(message)
                     if not message:

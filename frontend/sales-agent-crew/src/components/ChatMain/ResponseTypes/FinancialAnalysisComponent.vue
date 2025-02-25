@@ -443,6 +443,47 @@
       </div>
     </section>
 
+    <!-- NEWS SECTION -->
+    <hr v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="my-4" />
+    <section v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="pdf-section">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
+        <GlobeAmericasIcon class="w-5 h-5 text-blue-600" />
+        <span>Recent News</span>
+      </h3>
+      
+      <!-- News Summary -->
+      <div v-if="newsSummaryHtml" class="mb-4 p-3 border rounded-md bg-white shadow-sm">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center space-x-2">
+          <DocumentTextIcon class="w-4 h-4 text-blue-600" />
+          <span>News Summary</span>
+        </h4>
+        <div class="text-sm text-gray-700 prose max-w-none">
+          <div v-html="newsSummaryHtml"></div>
+        </div>
+      </div>
+      
+      <!-- News Items -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div 
+          v-for="(newsItem, index) in uniqueNewsItems" 
+          :key="index" 
+          class="p-1.5 border rounded-md bg-white shadow-sm hover:bg-gray-50 transition-colors"
+        >
+          <a 
+            :href="newsItem.link" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="text-xs font-medium text-blue-600 hover:underline flex items-center justify-between"
+          >
+            <span class="truncate mr-2">{{ newsItem.title }}</span>
+            <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- COMPREHENSIVE SUMMARY -->
     <hr class="my-4" />
     <section class="pdf-section">
@@ -553,8 +594,27 @@ function breakLargeBlocks(text) {
 }
 
 const comprehensiveSummaryHtml = computed(() => {
-  const raw = props.parsed.data.comprehensive_summary || ''
-  const splitted = breakLargeBlocks(raw)
+  let raw = props.parsed.data?.comprehensive_summary || ''
+  let splitted = breakLargeBlocks(raw)
+  return DOMPurify.sanitize(marked(splitted))
+})
+
+const uniqueNewsItems = computed(() => {
+  if (!props.parsed.data?.news?.news_items) return []
+  
+  const seen = new Set()
+  return props.parsed.data.news.news_items.filter(item => {
+    if (seen.has(item.link)) return false
+    seen.add(item.link)
+    return true
+  })
+})
+
+const newsSummaryHtml = computed(() => {
+  let raw = props.parsed.data?.news?.summary || ''
+  if (!raw) return ''
+  
+  let splitted = breakLargeBlocks(raw)
   return DOMPurify.sanitize(marked(splitted))
 })
 
@@ -847,6 +907,7 @@ async function downloadPDF() {
 const error = computed(() => {
   return props.parsed.data?.error || ''
 })
+
 </script>
 
 <style scoped>

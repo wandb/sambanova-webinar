@@ -189,8 +189,8 @@ class LeadGenerationAPI:
                     content={"error": "Missing required SambaNova API key"}
                 )
             try:
-                router = QueryRouterService(sambanova_key, "sambanova")
-                route_result = await router.route_query(query_request.query)
+                router = QueryRouterService(sambanova_key)
+                route_result = router.route_query(query_request.query)
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -251,14 +251,14 @@ class LeadGenerationAPI:
                         user_id=user_id,
                         run_id=run_id,
                         provider="sambanova",
-                        docs_included="docs" in parameters
+                        docs_included="docs" in parameters and parameters["docs"] is not None
                     )
                     edu_inputs = {
                         "topic": parameters["topic"] if query_type == "educational_content" else parameters["deep_research_topic"],
                         "audience_level": parameters.get("audience_level", "intermediate"),
                         "additional_context": ", ".join(parameters.get("focus_areas", []))
                     }
-                    if "docs" in parameters:
+                    if "docs" in parameters and parameters["docs"] is not None:
                         edu_inputs["docs"] = parameters["docs"]
                     edu_flow.input_variables = edu_inputs
                     loop = asyncio.get_running_loop()
@@ -284,7 +284,7 @@ class LeadGenerationAPI:
                         user_id=user_id,
                         run_id=run_id,
                         provider="sambanova",
-                        docs_included="docs" in parameters
+                        docs_included="docs" in parameters and parameters["docs"] is not None
                     )
                     raw_result = await self.execute_financial(crew, parameters, "sambanova")
                     parsed_fin = json.loads(raw_result)

@@ -129,7 +129,6 @@ class FinancialAnalysisAgent(RoutedAgent):
                 ctx.topic_id.source,
                 f"Failed to process financial analysis request: {str(e)}"
             ), exc_info=True)
-            # Send response back
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to assist with financial analysis, try again later."),

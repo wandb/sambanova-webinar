@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Dict
 from autogen_core import DefaultTopicId, RoutedAgent, message_handler, type_subscription
 from autogen_core import MessageContext
-from api.data_types import AgentRequest, AgentStructuredResponse, SalesLeads, APIKeys
+from api.data_types import AgentEnum, AgentRequest, AgentStructuredResponse, ErrorResponse, SalesLeads, APIKeys
 from agent.lead_generation_crew import OutreachList, ResearchCrew
 from config.model_registry import model_registry
 from services.user_prompt_extractor_service import UserPromptExtractor
@@ -48,14 +48,6 @@ class SalesLeadsAgent(RoutedAgent):
             ))
             outreach_list = OutreachList.model_validate_json(raw_result)
 
-        except Exception as e:
-            logger.error(logger.format_message(
-                ctx.topic_id.source,
-                f"Failed to process sales leads request: {str(e)}"
-            ), exc_info=True)
-            outreach_list = OutreachList()
-
-        try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
@@ -74,7 +66,14 @@ class SalesLeadsAgent(RoutedAgent):
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
-                f"Failed to publish response: {str(e)}"
+                f"Error processing sales leads request: {str(e)}"
             ), exc_info=True)
-
-
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with sales leads, try again later."),
+                message=f"Error processing sales leads request: {str(e)}",
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )

@@ -14,11 +14,13 @@ from agent.samba_research_flow.crews.edu_research.edu_research_crew import Educa
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 from config.model_registry import model_registry
 
-from ..data_types import (
+from api.data_types import (
+    AgentEnum,
     AgentRequest,
     AgentStructuredResponse,
     EducationalPlanResult,
     APIKeys,
+    ErrorResponse,
 )
 from utils.logging import logger
 
@@ -82,14 +84,6 @@ class EducationalContentAgent(RoutedAgent):
             ))
             sections_with_content = EducationalPlanResult.model_validate({"sections": result})
             
-        except Exception as e:
-            logger.error(logger.format_message(
-                ctx.topic_id.source,
-                f"Failed to process educational content request: {str(e)}"
-            ), exc_info=True)
-            sections_with_content = EducationalPlanResult()
-
-        try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
@@ -108,5 +102,14 @@ class EducationalContentAgent(RoutedAgent):
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
-                f"Failed to publish response: {str(e)}"
+                f"Failed to process educational content request: {str(e)}"
             ), exc_info=True)
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with research content, try again later."),
+                message=f"Error processing research content request: {str(e)}",
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )

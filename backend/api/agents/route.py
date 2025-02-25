@@ -236,7 +236,7 @@ class SemanticRouterAgent(RoutedAgent):
                 f"Successfully published request to {request_obj.agent_type.value}"
             ))
 
-        except ValueError as e:
+        except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Error processing request: {str(e)}"

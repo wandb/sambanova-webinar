@@ -10,11 +10,9 @@ from agent.lead_generation_crew import OutreachList
 # Enum to Define Agent Types
 class AgentEnum(str, Enum):
     FinancialAnalysis = "financial_analysis"
-    EducationalContent = "educational_content"
     SalesLeads = "sales_leads"
     Assistant = "assistant"
     UserProxy = "user_proxy"
-    # NEWLY ADDED AGENT:
     DeepResearch = "deep_research"  # For advanced research (LangGraph)
 
 class Greeter(BaseModel):
@@ -93,7 +91,7 @@ class EndUserMessage(BaseAgentMessage):
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
     parameters: Union[
-        FinancialAnalysis, SalesLeads, EducationalContent, AssistantMessage, UserQuestion, DeepResearch
+        FinancialAnalysis, SalesLeads, AssistantMessage, UserQuestion, DeepResearch
     ]
     query: str
     docs: Optional[str] = None
@@ -104,7 +102,6 @@ class AgentRequest(BaseModel):
         expected_type = {
             AgentEnum.FinancialAnalysis: FinancialAnalysis,
             AgentEnum.SalesLeads: SalesLeads,
-            AgentEnum.EducationalContent: EducationalContent,
             AgentEnum.Assistant: AssistantMessage,
             AgentEnum.UserProxy: UserQuestion,
             AgentEnum.DeepResearch: DeepResearch,

@@ -20,9 +20,11 @@ import redis
 import requests
 from api.data_types import (
     APIKeys,
+    AgentEnum,
     AgentRequest,
     AgentStructuredResponse,
     AssistantResponse,
+    ErrorResponse,
 )
 from exa_py import Exa
 
@@ -276,17 +278,6 @@ class AssistantAgentWrapper(RoutedAgent):
             await self.reset_model_usage(self.get_assistant(message.provider))
 
 
-        except Exception as e:
-            logger.error(
-                logger.format_message(
-                    ctx.topic_id.source, f"Failed to process request: {str(e)}"
-                ),
-                exc_info=True,
-            )
-            await self.get_assistant(message.provider)._model_context.clear()
-            response_content = "Unable to assist with this request."
-
-        try:
             # Send response back
             structured_response = AgentStructuredResponse(
                 agent_type=self.id.type,
@@ -306,10 +297,20 @@ class AssistantAgentWrapper(RoutedAgent):
         except Exception as e:
             logger.error(
                 logger.format_message(
-                    ctx.topic_id.source, f"Failed to publish response: {str(e)}"
+                    ctx.topic_id.source, f"Error processing assistant request: {str(e)}"
                 ),
                 exc_info=True,
             )
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with this request, try again later."),
+                message=f"Error processing assistant request: {str(e)}",
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )
+            
 
     async def reset_model_usage(self, assistant: AssistantAgent) -> None:
         """Reset the model usage statistics for the assistant.

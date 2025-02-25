@@ -220,8 +220,6 @@ class DeepResearchAgent(RoutedAgent):
                 logger.format_message(session_id, f"DeepResearch flow error: {str(e)}"),
                 exc_info=True,
             )
-
-            # Send response back
             response = AgentStructuredResponse(
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(

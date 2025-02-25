@@ -14,7 +14,7 @@ class AgentEnum(str, Enum):
     Assistant = "assistant"
     UserProxy = "user_proxy"
     DeepResearch = "deep_research"  # For advanced research (LangGraph)
-
+    Error = "error"
 class Greeter(BaseModel):
     greeting: str
 
@@ -29,6 +29,9 @@ class AssistantMessage(BaseModel):
 
 class AssistantResponse(BaseModel):
     response: str
+
+class ErrorResponse(BaseModel):
+    error: str
 
 # Base class for messages exchanged between agents and users
 class BaseAgentMessage(BaseModel):
@@ -154,6 +157,7 @@ class AgentStructuredResponse(BaseModel):
         UserQuestion,
         DeepResearchUserQuestion,
         DeepResearchReport,
+        ErrorResponse,
     ]
     metadata: Optional[Dict[str, Any]] = None
     message: Optional[str] = None  # Additional message or notes from the agent

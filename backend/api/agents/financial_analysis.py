@@ -20,9 +20,12 @@ from config.model_registry import model_registry
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
+    AgentEnum,
     AgentRequest,
     AgentStructuredResponse,
     APIKeys,
+    AssistantResponse,
+    ErrorResponse,
 )
 from utils.logging import logger
 
@@ -105,14 +108,6 @@ class FinancialAnalysisAgent(RoutedAgent):
                 "Successfully parsed financial analysis result"
             ))
 
-        except Exception as e:
-            logger.error(logger.format_message(
-                ctx.topic_id.source,
-                f"Failed to process financial analysis request: {str(e)}"
-            ), exc_info=True)
-            financial_analysis_result = FinancialAnalysisResult()
-
-        try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
@@ -128,8 +123,19 @@ class FinancialAnalysisAgent(RoutedAgent):
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
+
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
-                f"Failed to publish response: {str(e)}"
+                f"Failed to process financial analysis request: {str(e)}"
             ), exc_info=True)
+            # Send response back
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with financial analysis, try again later."),
+                message=f"Error processing financial analysis request: {str(e)}",
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )

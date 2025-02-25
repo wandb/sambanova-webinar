@@ -13,6 +13,8 @@ from autogen_core import (
 )
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.base import Response
+
 from fastapi import WebSocket
 import redis
 import requests
@@ -126,7 +128,6 @@ class AssistantAgentWrapper(RoutedAgent):
 
     def __init__(
         self,
-        websocket: WebSocket,
         api_keys: APIKeys,
         redis_client: redis.Redis,
     ) -> None:
@@ -138,7 +139,6 @@ class AssistantAgentWrapper(RoutedAgent):
             )
         )
         self.api_keys = api_keys
-        self.websocket = websocket
         self.redis_client = redis_client
         self._default_model = "llama-3.1-70b"
         self._current_provider = None
@@ -215,7 +215,6 @@ class AssistantAgentWrapper(RoutedAgent):
             response = await self.get_assistant(message.provider).on_messages(
                 [agent_message], ctx.cancellation_token
             )
-            await self.get_assistant(message.provider)._model_context.clear()
             logger.info(
                 logger.format_message(
                     ctx.topic_id.source, "Generated response successfully"
@@ -223,15 +222,28 @@ class AssistantAgentWrapper(RoutedAgent):
             )
 
             # Handle the response content based on its type
-            response_content = (
-                response.chat_message.content
-                if hasattr(response, "chat_message")
-                else (
-                    response.response
-                    if isinstance(response, AssistantResponse)
-                    else "Unable to assist with this request."
-                )
-            )
+            response_content = None
+            models_usage = []
+
+            if isinstance(response, Response):
+                response_content = response.chat_message.content
+                if hasattr(response, "chat_message"):
+                    if hasattr(response.chat_message, "models_usage") and response.chat_message.models_usage:
+                        models_usage.append(response.chat_message.models_usage)
+                if hasattr(response, "inner_messages"):
+                    for inner_message in response.inner_messages:
+                        if hasattr(inner_message, "models_usage") and inner_message.models_usage:
+                            models_usage.append(inner_message.models_usage)
+            else:
+                response_content = "Unable to assist with this request. Please try again."
+            if models_usage:
+                total_prompt_tokens = sum(usage.prompt_tokens for usage in models_usage)
+                total_completion_tokens = sum(usage.completion_tokens for usage in models_usage)
+                total_tokens = total_prompt_tokens + total_completion_tokens
+            else:
+                total_prompt_tokens = 0
+                total_completion_tokens = 0
+                total_tokens = 0
 
             end_time = time.time()
             processing_time = end_time - start_time
@@ -242,27 +254,27 @@ class AssistantAgentWrapper(RoutedAgent):
                 "duration": processing_time,
                 "llm_name": self.get_assistant(message.provider)._model_client._resolved_model,
                 "llm_provider": message.provider,
-                "workflow": "General Assistant",
+                "workflow_name": "General Assistant",
                 "agent_name": "General Assistant",
                 "task": "assistant",
+                "total_tokens": total_tokens,
+                "total_prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
             }
-            assistant_event = {
-                "event": "think",
-                "data": json.dumps(
-                    {
-                        "user_id": user_id,
-                        "run_id": conversation_id,
-                        "agent_name": "General Assistant",
-                        "text": response_content,
-                        "metadata": assistant_metadata,
-                    }
-                ),
+            assistant_message = {
                 "user_id": user_id,
-                "conversation_id": conversation_id,
-                "timestamp": datetime.now().isoformat(),
+                "run_id": conversation_id,
+                "agent_name": "General Assistant",
+                "text": response_content,
+                "timestamp": time.time(),
+                "metadata": assistant_metadata,
             }
-            await self.websocket.send_text(json.dumps(assistant_event))
-            self.redis_client.rpush(f"messages:{user_id}:{conversation_id}", json.dumps(assistant_event))
+            channel = f"agent_thoughts:{user_id}:{conversation_id}"
+            self.redis_client.publish(channel, json.dumps(assistant_message))
+            
+            # Reset model usage after collecting statistics
+            await self.reset_model_usage(self.get_assistant(message.provider))
+
 
         except Exception as e:
             logger.error(
@@ -280,6 +292,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 agent_type=self.id.type,
                 data=AssistantResponse(response=response_content),
                 message=message.parameters.model_dump_json(),
+                metadata=assistant_metadata,
             )
             logger.info(
                 logger.format_message(
@@ -297,3 +310,27 @@ class AssistantAgentWrapper(RoutedAgent):
                 ),
                 exc_info=True,
             )
+
+    async def reset_model_usage(self, assistant: AssistantAgent) -> None:
+        """Reset the model usage statistics for the assistant.
+        
+        Args:
+            assistant: The AssistantAgent instance to reset
+        """
+        try:
+            # Clear model context
+            await assistant._model_context.clear()
+            
+            # Reset models_usage in the model client if it exists
+            if hasattr(assistant._model_client, "models_usage"):
+                assistant._model_client.models_usage = []
+                
+            # Reset usage in any response objects if they exist
+            if hasattr(assistant, "_last_response") and assistant._last_response:
+                if hasattr(assistant._last_response, "chat_message") and assistant._last_response.chat_message:
+                    if hasattr(assistant._last_response.chat_message, "models_usage"):
+                        assistant._last_response.chat_message.models_usage = []
+                        
+            logger.info(logger.format_message(None, "Reset model usage for assistant"))
+        except Exception as e:
+            logger.error(f"Failed to reset model usage: {str(e)}", exc_info=True)

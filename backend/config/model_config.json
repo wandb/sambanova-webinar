@@ -25,6 +25,12 @@
                     "crewai_prefix": "sambanova",
                     "url": "https://api.sambanova.ai/v1",
                     "long_url": "https://api.sambanova.ai/v1/chat/completions"
+                },
+                "deepseek-r1": {
+                    "model": "DeepSeek-R1",
+                    "crewai_prefix": "sambanova",
+                    "url": "https://api.sambanova.ai/v1",
+                    "long_url": "https://api.sambanova.ai/v1/chat/completions"
                 }
             },
             "api_key_env": "sambanova_key"
@@ -51,6 +57,12 @@
                 },
                 "deepseek-r1-distill-llama-70b": {
                     "model": "accounts/fireworks/models/deepseek-r1-distill-llama-70b",
+                    "crewai_prefix": "fireworks_ai",
+                    "url": "https://api.fireworks.ai/inference/v1",
+                    "long_url": "https://api.fireworks.ai/inference/v1/chat/completions"
+                },
+                "deepseek-r1": {
+                    "model": "accounts/fireworks/models/deepseek-r1",
                     "crewai_prefix": "fireworks_ai",
                     "url": "https://api.fireworks.ai/inference/v1",
                     "long_url": "https://api.fireworks.ai/inference/v1/chat/completions"

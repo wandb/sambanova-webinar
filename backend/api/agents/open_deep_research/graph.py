@@ -668,7 +668,7 @@ def get_graph(api_key: str, provider: str):
     planner_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
         "model"
     ] 
-    model_name = "llama-3.1-70b"
+    model_name = "llama-3.3-70b"
     writer_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
         "model"
     ] 

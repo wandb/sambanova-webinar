@@ -179,7 +179,6 @@ class AssistantAgentWrapper(RoutedAgent):
                     base_url=model_info["url"],
                     api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=provider)),
                     temperature=0.0,
-                    seed=42,
                     model_info={
                         "json_output": False,
                         "function_calling": True,

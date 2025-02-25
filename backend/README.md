@@ -31,7 +31,7 @@ With HTTPS:
 
 ```bash
 git clone https://github.com/sambanova/samba-co-pilot.git
-cd samba-co-pilot
+cd samba-co-pilot/backend
 ```
 
 With SSH:

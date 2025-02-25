@@ -9,7 +9,7 @@ from starlette.websockets import WebSocketState
 import time
 
 from api.data_types import APIKeys, EndUserMessage
-from api.utils import initialize_agent_runtime
+from api.utils import initialize_agent_runtime, load_documents
 
 from .otlp_tracing import logger
 
@@ -19,10 +19,11 @@ class WebSocketConnectionManager:
     Manages WebSocket connections for user sessions.
     """
 
-    def __init__(self, redis_client: redis.Redis):
+    def __init__(self, redis_client: redis.Redis, context_length_summariser: int):
         # Use user_id:conversation_id as the key
         self.connections: Dict[str, WebSocket] = {}
         self.redis_client = redis_client
+        self.context_length_summariser = context_length_summariser
 
     def add_connection(self, websocket: WebSocket, user_id: str, conversation_id: str) -> None:
         """
@@ -160,6 +161,20 @@ class WebSocketConnectionManager:
                     }))
                     continue
 
+                # Check provider and validate corresponding API key
+                provider = user_message_input["provider"]
+                if provider == "sambanova":
+                    if api_keys.sambanova_key == "":
+                        await websocket.close(code=4007, reason="SambaNova API key required but not found")
+                        return
+                elif provider == "fireworks":
+                    if api_keys.fireworks_key == "":
+                        await websocket.close(code=4008, reason="Fireworks API key required but not found") 
+                        return
+                else:
+                    await websocket.close(code=4009, reason="Invalid or missing provider")
+                    return
+
                 # Create message data once
                 message_data = {
                     "event": "user_message", 
@@ -169,15 +184,32 @@ class WebSocketConnectionManager:
                     "timestamp": user_message_input["timestamp"]
                 }
 
-                # Launch Redis operations as background tasks
-                asyncio.create_task(self._update_metadata(meta_key, user_message_input["data"]))
-                asyncio.create_task(asyncio.to_thread(
-                    self.redis_client.rpush,
-                    message_key,
-                    json.dumps(message_data)
-                ))
+                # Prepare tasks for parallel execution
+                tasks = [
+                    self._update_metadata(meta_key, user_message_input["data"]),
+                    asyncio.to_thread(
+                        self.redis_client.rpush,
+                        message_key,
+                        json.dumps(message_data)
+                    )
+                ]
 
-                # Log message receipt (non-blocking)
+                # Add document loading to parallel tasks if present
+                document_content = None
+                if "document_ids" in user_message_input and user_message_input["document_ids"]:
+                    tasks.append(asyncio.to_thread(
+                        load_documents,
+                        user_id,
+                        user_message_input["document_ids"],
+                        self.redis_client,
+                        self.context_length_summariser,
+                    ))
+
+                # Execute all tasks in parallel
+                results = await asyncio.gather(*tasks)
+                if "document_ids" in user_message_input and user_message_input["document_ids"]:
+                    document_content = results[2]
+
                 logger.info(f"Received message from user: {user_id} in conversation: {conversation_id}")
 
                 # Create and publish user message
@@ -186,8 +218,8 @@ class WebSocketConnectionManager:
                     content=user_message_input["data"], 
                     use_planner=False,
                     provider=user_message_input["provider"],
-                    docs=user_message_input["docs"] if "docs" in user_message_input else None
-                )    
+                    docs=document_content if "document_ids" in user_message_input and user_message_input["document_ids"] else None
+                )
 
                 # This must be awaited as it affects the conversation flow
                 await agent_runtime.publish_message(

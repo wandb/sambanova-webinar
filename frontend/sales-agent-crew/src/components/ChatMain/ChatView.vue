@@ -978,9 +978,9 @@ const addMessage = async () => {
   }
 
   if (uploadedDocuments.value && uploadedDocuments.value.length > 0) {
-    messagePayload.docs = uploadedDocuments.value.map(doc => doc.id);
+    messagePayload.document_ids = uploadedDocuments.value.map(doc => doc.id);
   } else {
-    messagePayload.docs = [];
+    messagePayload.document_ids = [];
   }
   messagesData.value.push(messagePayload)
   if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {

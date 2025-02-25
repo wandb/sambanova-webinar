@@ -22,71 +22,17 @@
 
         <SILogo />
         </div>
-        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
+        <div class="flex-1 bg-white  p-4 space-y-3 ">
        
-          <div class="vertical-timeline">
-    <!-- Timeline Header -->
-    <div class="timeline-header flex items-center justify-start  ">
-      <h2 class="text-md font-semibold text-gray-800">Analysis Concluded (<span class="text-sm"  v-if="!isLoading">{{ formattedDuration(parsedData.metadata?.duration)}}s</span>)</h2>
-      <button @click="toggleCollapse" class="toggle-btn flex items-center text-blue-500 hover:text-blue-600 focus:outline-none">
-        <!-- <span class="mr-2 text-sm font-medium">{{ collapsed ? 'Expand Timeline' : 'Collapse Timeline' }}</span> -->
-
-        
-        <svg
-          v-if="collapsed"
-          class="w-5 h-5 transform"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-        <svg
-          v-else
-          class="w-5 h-5 transform rotate-180"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-    </div>
-    <!-- Timeline Body (line starts here) -->
-    <div v-show="!collapsed" class="timeline-body relative pl-12 pt-4 pb-8">
-      <!-- Vertical line with gradient -->
-      <div class="timeline-line absolute top-0 bottom-0 left-4 w-1 bg-gradient-to-b from-orange-500 to-white-500"></div>
-
-                <!-- Card Section -->
-<div v-if="workflowData.length>0" class="w-100  mx-auto">
-  <!-- Grid -->
-    <!-- Card -->
-    <div class="flex my-2">
-      <!-- Flex container to arrange items horizontally without forcing full width -->
-    <div class="flex space-x-4">
-      <WorkflowDataItem  :workflowData="workflowData"/>
-
-    </div>
-  </div>
+          
+          <AnalysisTimeline 
+      :isLoading="isLoading" 
+      :parsedData="parsedData" 
+      :workflowData="workflowData" 
+      :presentMetadata="presentMetadata" 
+      :plannerText="plannerText" 
+    />
    
-</div>
-
- <!-- Inline metadata items with rocket icon -->
-<MetaData v-if="presentMetadata" :presentMetadata="presentMetadata"/>
-      <!-- Render only available metadata fields -->
-     
-<!-- End Card Section -->
-          
-            
-       
-          
-           <!-- Corrected directive: v-if not v:if -->
-           <div >  
-            {{ plannerText }}
-          
-        </div>
-      </div>
-    </div>
         <component :is="selectedComponent" :parsed="parsedData" />
     </div>
       
@@ -108,6 +54,7 @@
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
 import MetaData from '@/components/ChatMain/MetaData.vue'
 import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
+import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
 
 
 
@@ -197,26 +144,5 @@ function toggleCollapse() {
 }
   </script>
   <style>
-.vertical-timeline {
-  /* border: 1px solid #e5e7eb; */
-  border-radius: 0.5rem;
-  overflow: hidden;
-  /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); */
-  /* background-color: #fff; */
-}
 
-.timeline-header {
-  /* background-color: #f9fafb; */
-}
-
-.toggle-btn {
-  transition: color 0.3s ease;
-}
-
-.timeline-body {
-  transition: all 0.3s ease;
-}
-.timeline-item:last-child {
-  padding-bottom: 0;
-}
 </style>

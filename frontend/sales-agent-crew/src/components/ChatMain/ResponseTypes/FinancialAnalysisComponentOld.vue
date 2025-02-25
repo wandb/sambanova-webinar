@@ -2,20 +2,20 @@
   <!-- The root container for your chat-based financial report -->
   <div 
     id="financial-analysis-report-root"
-    class="bg-white my-4 p-0 pdf-report-container w-full"
+    class="bg-white  p-6 pdf-report-container w-full"
   >
     <!-- HEADER -->
     <div class="flex items-center space-x-3 mb-4 pdf-section">
       <PresentationChartLineIcon class="w-6 h-6 text-purple-600" />
-      <h2  class="text-[20px] text-[#101828] font-bold ">
+      <h2 class="text-xl font-bold text-gray-800">
         Financial Analysis: {{ parsed.data.company_name }}
       </h2>
     </div>
 
     <!-- OVERVIEW -->
-    <!-- <hr class="my-4" /> -->
+    <hr class="my-4" />
     <section class="pdf-section">
-      <h3 class="text-[16px] font-semibold text-[#101828] mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <GlobeAmericasIcon class="w-5 h-5 text-blue-500" />
         <span>Overview</span>
       </h3>
@@ -31,7 +31,7 @@
     <!-- COMPETITOR ANALYSIS -->
     <hr class="my-4" />
     <section v-if="parsed.data.competitor" class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <UsersIcon class="w-5 h-5 text-green-500" />
         <span>Competitor Analysis</span>
       </h3>
@@ -54,7 +54,7 @@
           class="p-4 border rounded-lg shadow-sm bg-white"
         >
           <div class="mb-2">
-            <h4 class="font-semibold text-primary-brandTextPrimary">
+            <h4 class="font-semibold text-gray-800">
               {{ comp.ticker }} - {{ comp.name }}
             </h4>
             <p class="text-xs text-gray-500">
@@ -126,7 +126,7 @@
     <!-- FUNDAMENTALS -->
     <hr class="my-4" />
     <section v-if="parsed.data.fundamental" class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <Bars3Icon class="w-5 h-5 text-purple-500" />
         <span>Fundamentals</span>
       </h3>
@@ -331,8 +331,8 @@
             :key="key"
             class="p-2 border rounded-md bg-white shadow-sm text-sm"
           >
-            <strong class="text-primary-brandTextPrimary">{{ key }}: </strong>
-            <span class="text-primary-brandTextPrimary">{{ val }}</span>
+            <strong class="text-gray-700">{{ key }}: </strong>
+            <span class="text-gray-800">{{ val }}</span>
           </div>
         </div>
         <!-- dividend_history as a table -->
@@ -365,7 +365,7 @@
     <!-- RISK & AVG MONTHLY RETURNS -->
     <hr class="my-4" />
     <section v-if="parsed.data.risk" class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <ShieldCheckIcon class="w-5 h-5 text-pink-600" />
         <span>Risk & Avg Monthly Returns</span>
       </h3>
@@ -432,7 +432,7 @@
     <!-- 6-MONTH WEEKLY STOCK PRICE -->
     <hr class="my-4" />
     <section v-if="parsed.data.stock_price_data" class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <CursorArrowRaysIcon class="w-5 h-5 text-green-600" />
         <span>Stock Price (6-Month Weekly)</span>
       </h3>
@@ -443,55 +443,14 @@
       </div>
     </section>
 
-    <!-- NEWS SECTION -->
-    <hr v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="my-4" />
-    <section v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="pdf-section">
-      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
-        <GlobeAmericasIcon class="w-5 h-5 text-blue-600" />
-        <span>Recent News</span>
-      </h3>
-      
-      <!-- News Summary -->
-      <div v-if="newsSummaryHtml" class="mb-4 p-3 border rounded-md bg-white shadow-sm">
-        <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center space-x-2">
-          <DocumentTextIcon class="w-4 h-4 text-blue-600" />
-          <span>News Summary</span>
-        </h4>
-        <div class="text-sm text-gray-700 prose max-w-none">
-          <div v-html="newsSummaryHtml"></div>
-        </div>
-      </div>
-      
-      <!-- News Items -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div 
-          v-for="(newsItem, index) in uniqueNewsItems" 
-          :key="index" 
-          class="p-1.5 border rounded-md bg-white shadow-sm hover:bg-gray-50 transition-colors"
-        >
-          <a 
-            :href="newsItem.link" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            class="text-xs font-medium text-blue-600 hover:underline flex items-center justify-between"
-          >
-            <span class="truncate mr-2">{{ newsItem.title }}</span>
-            <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
-        </div>
-      </div>
-    </section>
-
     <!-- COMPREHENSIVE SUMMARY -->
     <hr class="my-4" />
     <section class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <DocumentTextIcon class="w-5 h-5 text-purple-600" />
         <span>Comprehensive Summary</span>
       </h3>
-      <div class="text-sm text-primary-brandTextPrimary prose max-w-none">
+      <div class="text-sm text-gray-700 prose max-w-none">
         <div v-html="comprehensiveSummaryHtml"></div>
       </div>
     </section>
@@ -594,27 +553,8 @@ function breakLargeBlocks(text) {
 }
 
 const comprehensiveSummaryHtml = computed(() => {
-  let raw = props.parsed.data?.comprehensive_summary || ''
-  let splitted = breakLargeBlocks(raw)
-  return DOMPurify.sanitize(marked(splitted))
-})
-
-const uniqueNewsItems = computed(() => {
-  if (!props.parsed.data?.news?.news_items) return []
-  
-  const seen = new Set()
-  return props.parsed.data.news.news_items.filter(item => {
-    if (seen.has(item.link)) return false
-    seen.add(item.link)
-    return true
-  })
-})
-
-const newsSummaryHtml = computed(() => {
-  let raw = props.parsed.data?.news?.summary || ''
-  if (!raw) return ''
-  
-  let splitted = breakLargeBlocks(raw)
+  const raw = props.parsed.data.comprehensive_summary || ''
+  const splitted = breakLargeBlocks(raw)
   return DOMPurify.sanitize(marked(splitted))
 })
 
@@ -907,7 +847,6 @@ async function downloadPDF() {
 const error = computed(() => {
   return props.parsed.data?.error || ''
 })
-
 </script>
 
 <style scoped>
@@ -935,7 +874,6 @@ const error = computed(() => {
 /* Paragraph styling in summary. */
 .prose p {
   margin-bottom: 1rem;
-  /* line-height: 24px!important; */
+  line-height: 1.5;
 }
-
 </style>

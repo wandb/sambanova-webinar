@@ -1,38 +1,29 @@
 <template>
        <li  
-      class="flex py-2 px-4 items-start gap-x-2 sm:gap-x-4">
+      class="flex py-2 max-w-4xl px-4 items-start gap-x-2 sm:gap-x-4">
       <!-- v-else for all other cases -->
       <div class="flex items-start space-x-3">
         <div class="flex-none ">
-        <SILogo />
+          <UserAvatar :type="provider" />
+
       </div>
         <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 ">
         
 
-          <!-- <AnalysisTimeline 
+          <AnalysisTimeline 
       :isLoading="isLoading" 
-      :parsedData="parsedData" 
       :workflowData="workflowData" 
-      :presentMetadata="presentMetadata" 
       :plannerText="plannerText" 
-    /> -->
-          
-          <div v-if="workflowData.length>0" class="w-100  mx-auto">
-  <!-- Grid -->
-    <!-- Card -->
-    <div class="flex my-2">
-      <!-- Flex container to arrange items horizontally without forcing full width -->
-    <div class="flex space-x-4">
-   
-    <WorkflowDataItem :isLoading="isLoading" :workflowData="workflowData"/>
-  </div>
-  </div>
-      </div>
+      :statusText="statusText"
+       :defaultCollapsed="false"
+      isOpen="'true'"
+    />
+     
      
 <!-- End Card Section -->
-          <StatusText   :text="statusText"  /> 
+          <!-- <StatusText   :text="statusText"  /> 
           
-          <div v:if="isOpen">  {{plannerText}}</div>
+          <div v:if="isOpen">  {{plannerText}}</div> -->
         
      
 
@@ -45,35 +36,36 @@
   
   <script setup>
 
-  import SILogo from '@/components/icons/SILogo.vue'
-  import StatusText from '@/components/Common/StatusText.vue'
-  import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
-  import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
+import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
+
+  import UserAvatar from '@/components/Common/UIComponents/UserAvtar.vue'
 
 
   // Define props
   const props = defineProps({
     plannerText: {
     type: String,
-    required: true // Ensure it's always provided
+    required: false // Ensure it's always provided
   },
   statusText: {
     type: String,
-    required: true // Ensure it's always provided
-  },
-  
-  isOpen: {
-    type: Boolean,
-    required: true // Ensure it's always provided
-  },
-    
-  workflowData: {
-    type: [],
     required: false // Ensure it's always provided
   },
   
-
-  
+  isLoading: {
+    type: Boolean,
+    required: false // Ensure it's always provided
+  },
+   
+  workflowData: {
+    type: Array,
+    required: false // Ensure it's always provided
+  },
+  provider: {
+      type: String,
+      required: false
+    },
+ 
   })
   
   

@@ -144,7 +144,7 @@
       'Market Trends Analyst': TrendsIcon,
     };
     const icon = agentIcons[agentName] || DefaultIcon;
-    console.log("Selected icon:", icon.name);
+    console.log("Selected icon:", agentName, icon);
     return icon;
   }
 

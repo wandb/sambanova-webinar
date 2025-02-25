@@ -1,6 +1,6 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
+  <div v-if="agentThoughtsData.length"  class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
    border border-primary-brandFrame bg-white rounded-lg h-full border-l 
     transition-all duration-300 "
   :class="collapsed ? 'w-[64px]  ' : 'w-80'">

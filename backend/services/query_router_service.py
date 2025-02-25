@@ -130,7 +130,7 @@ class QueryRouterService:
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
-            "temperature": 0.01,
+            "temperature": 0.0,
             "stream": False
         }
 
@@ -518,7 +518,7 @@ class QueryRouterServiceChat:
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message}
             ],
-            "temperature": 0.01,
+            "temperature": 0.0,
             "stream": bool(self.websocket)  # Enable streaming if websocket exists
         }
 

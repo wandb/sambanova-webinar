@@ -84,6 +84,7 @@ class SemanticRouterAgent(RoutedAgent):
             model=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["url"],
             api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
+            temperature=0.0,
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -97,6 +98,7 @@ class SemanticRouterAgent(RoutedAgent):
             model=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["url"],
             api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
+            temperature=0.0,
             model_info={
                 "json_output": False,
                 "function_calling": True,

@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-2" @click="isOpen = !isOpen">
+  <div class="mx-2 mb-2" @click="isOpen = !isOpen">
     <div class="flex justify-between items-center cursor-pointer">
       <div class="flex items-start flex-1 no-wrap">
         <CorrectIcon class="mr-1 flex-shrink-0" />

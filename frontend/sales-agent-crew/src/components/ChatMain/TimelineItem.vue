@@ -1,51 +1,63 @@
   <template>
-    <div class="group relative flex p-2">
-      <div class="grow pb-2 group-last:pb-0 min-w-0">
-        <!-- Always show period -->
-        <h3 :class="collapsed ? 'justify-center' : ''" class="mb-1 p-1 truncate text-md text-primary-brandTextPrimary flex items-center">
-          <div :class="iconContainerClasses" class="color-primary-brandGray flex items-center">
-            <component :is="iconComponent" />
-          </div> 
-          <span v-if="!collapsed" class="ml-1"> {{ data?.agent_name }}</span>
-        </h3>
-        <!-- Only show the rest if not collapsed -->
-        <div class="ml-2 my-2" v-for="(value, key) in parsedResponse" v-if="!collapsed">
-          <TimelineCollapsibleContent 
-            :value="value" 
-            :heading="key"
-            :data="value" 
-          />
-        </div>
-        <div v-if="!collapsed" class="p-1 text text-right rounded text-xs">
-          <button @click="toggleExpanded" class="mb-0 text-primary-brandTextPrimary focus:outline-none">
-            {{ isExpanded ? '..hide' : 'more...' }}
-          </button>
-          <div v-if="isExpanded" class="bg-primary-brandGray p-2" name="slide">
-            <table class="w-full text-left">
-              <tbody>
-                <tr>
-                  <td class="px-1 py-0 font-semibold">Name:</td>
-                  <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
-                </tr>
-                <tr>
-                  <td class="px-1 py-0 font-semibold">Task:</td>
-                  <td class="px-1 py-0">{{ data.metadata.task }}</td>
-                </tr>
-                <tr>
-                  <td class="px-1 py-0 font-semibold">Duration:</td>
-                  <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
-                </tr>
-                <tr>
-                  <td class="px-1 py-0 font-semibold">Provider:</td>
-                  <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+
+  <!-- <div class="absolute left-3 top-0 h-full border-l-2 border-gray-200"></div> -->
+                
+  <li class=" py-2 relative color-primary-brandGray">    
+    <div
+      v-if="!isLast"
+      class="absolute left-0 top-0 h-full border-l-2 border-[#EAECF0]"
+    ></div>
+        
+    <span  class="absolute flex items-center justify-center w-6 h-6 bg-white rounded-full -start-3 ring-8 ring-white">
+      <component  :is="iconComponent"  />
+    </span>
+
+    <h3  :class="collapsed?'invisible':''" class="flex ml-6 items-center mb-1 text-primary-brandTextPrimary text-[14px]">
+      {{ formatKey(data?.agent_name) }} 
+      <!-- <span class="bg-blue-100 text-blue-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm ms-3">Latest</span> -->
+    </h3>
+    
+    <!-- <time class="block mb-2 text-sm font-normal leading-none text-gray-400">Released on January 13th, 2022</time> -->
+    <div class=" text-base font-normal text-gray-500">
+      <div class="mx-2 " v-for="(value, key) in parsedResponse" v-if="!collapsed">
+        <TimelineCollapsibleContent 
+          :value="value" 
+          :heading="key"
+          :data="value" 
+        />
+      </div>
+      <div v-if="!collapsed" class="p-1 text text-right rounded text-xs">
+        <button @click="toggleExpanded" class="m-0 p-0 text-primary-brandTextPrimary focus:outline-none">
+          {{ isExpanded ? '..hide' : 'more...' }}
+        </button>
+        <div v-if="isExpanded" class="bg-primary-brandGray p-2" name="slide">
+          <table class="w-full text-left">
+            <tbody>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Name:</td>
+                <td class="px-1 py-0">{{ data.metadata.llm_name }}</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Task:</td>
+                <td class="px-1 py-0">{{ data.metadata.task }}</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Duration:</td>
+                <td class="px-1 py-0">{{ formattedDuration(data.metadata.duration) }} s</td>
+              </tr>
+              <tr>
+                <td class="px-1 py-0 font-semibold">Provider:</td>
+                <td class="px-1 py-0">{{ data.metadata.llm_provider }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <!-- End Right Content -->
     </div>
+  </li>
+
+
+
   </template>
 
 
@@ -74,6 +86,9 @@
     return duration.toFixed(2);
   }
 
+  function formatKey(key) {
+    return key.replace(/_/g, ' ');
+  }
   // State for accordion toggle (single toggle used for all sections in this example)
   const isOpen = ref(false);
 
@@ -97,7 +112,7 @@
   // Timeline UI - Icon Container Classes
   // -------------------------------------------------------------------
   const iconContainerClasses = computed(() => {
-    let base = "relative after:content-[''] after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 dark:after:bg-neutral-700";
+    let base = "relative after:content-[''] after:absolute after:top-8 after:bottom-2 after:start-3 after:w-px after:-translate-x-[0.5px] after:bg-gray-200 ";
     if (props.isLast) {
       base += " after:hidden";
     }

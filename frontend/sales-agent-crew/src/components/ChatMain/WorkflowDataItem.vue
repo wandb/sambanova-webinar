@@ -2,7 +2,7 @@
     <div 
       v-for="(item, index) in workflowData" 
       :key="index" 
-      class="group flex flex-col bg-primary-brandDarkGray border border-primary-brandGray shadow-sm rounded-xl hover:shadow-md focus:outline-none focus:shadow-md transition dark:bg-neutral-900 dark:border-neutral-800"
+      class="group flex flex-col bg-primary-brandDarkGray border border-primary-brandGray shadow-sm rounded-xl hover:shadow-md focus:outline-none focus:shadow-md transition "
     >
       <div class="px-4 py-2 md:px-5">
         <div class="flex items-start relative justify-between">
@@ -16,7 +16,7 @@
                 ({{ item.count }})
               </span>
             </h3>
-            <p class="text-sm text-gray-500 flex justify-between dark:text-neutral-500">
+            <p class="text-sm text-gray-500 flex justify-between ">
               <span class="capitalize">{{ item.task }}</span>
               <span v-if="item.duration">{{ formattedDuration(item.duration) }}</span>
             </p>
@@ -32,8 +32,8 @@
           </div>
         </div>
       </div>
-      <div v-if="isLoading" class="mt-1 w-full h-1 bg-gray-300 dark:bg-gray-700 overflow-hidden relative">
-        <div class="absolute top-0 left-0 h-full bg-primary-brandPrimaryColor dark:bg-blue-400 animate-loader"></div>
+      <div v-if="isLoading" class="mt-1 w-full h-1 bg-gray-300  overflow-hidden relative">
+        <div class="absolute top-0 left-0 h-full bg-primary-brandPrimaryColor  animate-loader"></div>
       </div>
     </div>
   </template>

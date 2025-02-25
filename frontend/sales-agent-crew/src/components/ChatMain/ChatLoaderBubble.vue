@@ -6,8 +6,17 @@
         <div class="flex-none ">
         <SILogo />
       </div>
-        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-neutral-900 dark:border-neutral-700">
+        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 ">
         
+
+          <!-- <AnalysisTimeline 
+      :isLoading="isLoading" 
+      :parsedData="parsedData" 
+      :workflowData="workflowData" 
+      :presentMetadata="presentMetadata" 
+      :plannerText="plannerText" 
+    /> -->
+          
           <div v-if="workflowData.length>0" class="w-100  mx-auto">
   <!-- Grid -->
     <!-- Card -->

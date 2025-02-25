@@ -1,6 +1,8 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-1 overflow-y-auto overflow-x-hidden  border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
+  <div class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
+   border border-primary-brandFrame bg-white rounded-lg h-full border-l 
+    transition-all duration-300 "
   :class="collapsed ? 'w-[64px]  ' : 'w-80'">
       <!-- Collapse/Expand Button -->
       <button
@@ -39,13 +41,13 @@
    
   </div>
  
-     <div class="mx-1">
-
-
-
+   <div class="mx-1">
+    <ol class="relative pl-3">  
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
+      :key="index"
       :data="thought"
+      :isLast="index === agentThoughtsData.length - 1"
     period="Researcher"
     title="Search the internet with Exa Search the internet with Exa"
     description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
@@ -61,7 +63,7 @@
     }"
     />
 
-
+</ol>
 
     <template v-if="metadata&&!collapsed">
  

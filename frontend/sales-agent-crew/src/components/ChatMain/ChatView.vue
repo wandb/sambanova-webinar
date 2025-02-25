@@ -2,7 +2,7 @@
 <template>
   <div class="relative h-full w-full ">
     <!-- Content -->
-    <div class="relative h-full flex flex-col overflow-hdden">
+    <div class="relative  h-full flex flex-col overflow-hdden">
       <div
         :class="messagesData.length==0?'flex items-center':''"
         ref="container"
@@ -977,8 +977,8 @@ const addMessage = async () => {
     provider: provider.value
   }
 
-  if (uploadedDocuments.value && uploadedDocuments.value.length > 0) {
-    messagePayload.docs = uploadedDocuments.value.map(doc => doc.id);
+  if (selectedDocuments.value && selectedDocuments.value.length > 0) {
+    messagePayload.docs = selectedDocuments.value.map(doc => doc.id);
   } else {
     messagePayload.docs = [];
   }

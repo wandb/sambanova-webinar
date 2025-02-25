@@ -39,13 +39,15 @@ With SSH:
 
 ```bash
 git clone git@github.com:sambanova/samba-co-pilot.git
-cd samba-co-pilot
+cd samba-co-pilot/frontend/sales-agent-crew
 ```
 
-2. Create a .env file in `/frontend/sales-agent-crew/` and add the Vite API URL:
+2. Create a .env file and add the Vite API URL:
 
 ```bash
-VITE_API_URL=your_api_url
+CLERK_SECRET_KEY=your_clerk_secret_key
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_API_URL=/api
 ```
 
 3. Install Vue dependencies:
@@ -59,7 +61,13 @@ yarn install
 1. Start the Vue development server:
 
 ```bash
-# From the project root
-cd frontend/sales-agent-crew/
 yarn dev
 ```
+
+or
+
+```bash
+npm run dev
+```
+
+2. Open your browser and navigate to `http://localhost:5173` to access the application.

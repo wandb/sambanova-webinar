@@ -38,21 +38,26 @@ With SSH:
 
 ```bash
 git clone git@github.com:sambanova/samba-co-pilot.git
-cd samba-co-pilot
+cd samba-co-pilot/backend
 ```
 
-2. Create a .env file in the project root and add your API keys:
+2. Create a .env file and add your API keys:
 
 ```bash
-PERPLEXITY_API_KEY=your_perplexity_api_key
-OPENAI_API_KEY=your_openai_api_key
+TAVILY_API_KEY=your_tavily_api_key
+LANGTRACE_API_KEY=your_langtrace_api_key
 ```
 
 3. Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+```
+
+4. Start Redis:
+
+```bash
+docker run --name test-redis -p 6379:6379 redis:7.0-alpine
 ```
 
 ## Running the Application
@@ -60,7 +65,5 @@ python -m spacy download en_core_web_sm
 1. Start the FastAPI server:
 
 ```bash
-# From the project root
-cd backend
-uvicorn api.lead_generation_api:create_app --reload
+uvicorn api.lead_generation_api:create_app --reload --env-file .env
 ```

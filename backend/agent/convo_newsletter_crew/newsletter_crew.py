@@ -43,7 +43,7 @@ class ConvoNewsletterCrew:
         # Initialize your LLM with the SambaNova key
         self.llm = LLM(
             model="sambanova/Meta-Llama-3.1-70B-Instruct",
-            temperature=0.01,
+            temperature=0.0,
             max_tokens=8192,
             api_key=sambanova_key
         )

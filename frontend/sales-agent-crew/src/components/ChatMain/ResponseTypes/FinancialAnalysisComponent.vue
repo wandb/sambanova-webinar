@@ -444,12 +444,25 @@
     </section>
 
     <!-- NEWS SECTION -->
-    <hr v-if="parsed.data?.news && parsed.data.news.length > 0" class="my-4" />
-    <section v-if="parsed.data?.news && parsed.data.news.length > 0" class="pdf-section">
+    <hr v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="my-4" />
+    <section v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <GlobeAmericasIcon class="w-5 h-5 text-blue-600" />
         <span>Recent News</span>
       </h3>
+      
+      <!-- News Summary -->
+      <div v-if="newsSummaryHtml" class="mb-4 p-3 border rounded-md bg-white shadow-sm">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center space-x-2">
+          <DocumentTextIcon class="w-4 h-4 text-blue-600" />
+          <span>News Summary</span>
+        </h4>
+        <div class="text-sm text-gray-700 prose max-w-none">
+          <div v-html="newsSummaryHtml"></div>
+        </div>
+      </div>
+      
+      <!-- News Items -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div 
           v-for="(newsItem, index) in uniqueNewsItems" 
@@ -582,6 +595,25 @@ function breakLargeBlocks(text) {
 
 const comprehensiveSummaryHtml = computed(() => {
   let raw = props.parsed.data?.comprehensive_summary || ''
+  let splitted = breakLargeBlocks(raw)
+  return DOMPurify.sanitize(marked(splitted))
+})
+
+const uniqueNewsItems = computed(() => {
+  if (!props.parsed.data?.news?.news_items) return []
+  
+  const seen = new Set()
+  return props.parsed.data.news.news_items.filter(item => {
+    if (seen.has(item.link)) return false
+    seen.add(item.link)
+    return true
+  })
+})
+
+const newsSummaryHtml = computed(() => {
+  let raw = props.parsed.data?.news?.summary || ''
+  if (!raw) return ''
+  
   let splitted = breakLargeBlocks(raw)
   return DOMPurify.sanitize(marked(splitted))
 })
@@ -876,19 +908,6 @@ const error = computed(() => {
   return props.parsed.data?.error || ''
 })
 
-/* --------------------------------------
- * Unique News Items
- * -------------------------------------- */
-const uniqueNewsItems = computed(() => {
-  if (!props.parsed.data?.news) return []
-  const seen = new Set()
-  return props.parsed.data.news.filter(item => {
-    const key = item.link
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-})
 </script>
 
 <style scoped>

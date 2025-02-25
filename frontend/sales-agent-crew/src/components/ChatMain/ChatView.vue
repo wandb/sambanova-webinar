@@ -2,26 +2,41 @@
 <template>
   <div class="relative h-full w-full ">
     <!-- Content -->
-    <div class="relative  h-full flex flex-col overflow-hdden">
+    <div  ref="container" class="relative   h-full flex flex-col overflow-x-hidden overflow-y-auto">
+      <!-- Sticky Top Component -->
+  <div v-if="chatName" class="sticky h-[62px] top-0 z-10 bg-white p-4 shadow">
+    <div class="flex items-center justify-between">
+  <!-- Left text -->
+  <div  class="text-[16px] font-medium text-gray-800">
+    {{ chatName }}
+  </div>
+  <!-- Right buttons -->
+  <div class="flex hidden space-x-2">
+    <button class=" text-sm h-[30px] py-1 px-2.5 bg-[#EE7624] text-white rounded">
+      View full report
+    </button>
+    <button class=" text-sm h-[30px] py-1 px-2.5 bg-[#EAECF0] text-[#344054] rounded">
+      Download PDF
+    </button>
+  </div>
+</div>
+  </div>
       <div
-        :class="messagesData.length==0?'flex items-center':''"
-        ref="container"
-        class="flex-1 overflow-y-auto"
+        
+       
+        class="flex-1  w-full  flex mx-auto "
+        :class="messagesData.length == 0?'justify-center align-center flex-col':''"
       >
         <!-- Title -->
-        <div
-          v-if="messagesData.length==0"
-          class="max-w-4xl py-10 lg:py-14 px-4 sm:px-6 lg:px-8 mx-auto text-center"
-        >
-          <h1
-            v-if="!isLoading"
-            class="text-3xl font-bold text-gray-800 sm:text-4xl "
-          >
-            <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
-          </h1>
-        </div>
+        <div v-if="messagesData.length == 0" class="w-full text-center">
+  <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl">
+    <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
+  </h1>
+</div>
         <!-- End Title -->
-        <ul class="mt-16 space-y-5">
+        <ul 
+        
+class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
           <!-- Chat Bubble -->
           <ChatBubble
             :metadata="completionMetaData"
@@ -31,19 +46,22 @@
             :key="msgItem.conversation_id"
             :event="msgItem.event"
             :data="msgItem.data"
+            :provider=provider
           />
           <ChatLoaderBubble
             :workflowData="workflowData"
             v-if="isLoading"
+            :isLoading="isLoading"
             :statusText="'Planning...'"
             :plannerText="plannerText"
+            :provider=provider
           />
           <!-- End Chat Bubble -->
         </ul>
       </div>
 
       <!-- Documents Section -->
-      <div class="sticky bottom-0 left-0 right-0 bg-transparent p-2">
+      <div class="sticky z-1000 bottom-0 left-0 right-0 bg-transparent p-2">
         <div class="sticky bottom-0 z-10 ">
           <!-- Textarea -->
           <div class="max-w-4xl mx-auto lg:px-0">
@@ -131,27 +149,7 @@
                 <div class="flex justify-between items-center">
                   <!-- Button Group -->
                   <div class="flex items-center">
-                    <!-- Mic Button -->
-                    <button
-                      class="inline-flex hidden shrink-0 justify-center items-center size-8 rounded-lg text-gray-500 hover:bg-gray-100 focus:z-1 focus:outline-none focus:bg-gray-100"
-                    >
-                      <svg
-                        class="shrink-0 size-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <rect width="18" height="18" x="3" y="3" rx="2" />
-                        <line x1="9" x2="15" y1="15" y2="9" />
-                      </svg>
-                    </button>
-                    <!-- End Mic Button -->
+                   
                     <!-- Attach Button -->
                     <button
                       @click="$refs.fileInput.click()"
@@ -167,23 +165,48 @@
                         accept=".pdf,.doc,.docx,.csv,.xlsx,.xls"
                       />
                       <svg
-                        class="shrink-0 size-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"
-                        />
-                      </svg>
+                        class="shrink-0 "
+                      width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 10V24H10V10H24ZM24 8H10C8.9 8 8 8.9 8 10V24C8 25.1 8.9 26 10 26H24C25.1 26 26 25.1 26 24V10C26 8.9 25.1 8 24 8ZM19.14 16.86L16.14 20.73L14 18.14L11 22H23L19.14 16.86Z" fill="#667085"/>
+</svg>
+
+                    
                     </button>
                     <!-- End Attach Button -->
+                      <!-- Mic Button -->
+                    <button
+                    type="button"
+                        @click="toggleRecording"
+                        :disabled="isLoading"
+                        :class="{
+                          'text-gray-500': !isRecording,
+                          'text-orange-500': isRecording
+                        }"
+                      class="inline-flex  shrink-0 justify-center items-center size-8 rounded-lg text-gray-500 hover:bg-gray-100 focus:z-1 focus:outline-none focus:bg-gray-100"
+                    >
+
+                    <svg 
+                      v-if="!isRecording"
+                          class="shrink-0"
+                    width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M17 8C12.03 8 8 12.03 8 17V24C8 25.1 8.9 26 10 26H14V18H10V17C10 13.13 13.13 10 17 10C20.87 10 24 13.13 24 17V18H20V26H24C25.1 26 26 25.1 26 24V17C26 12.03 21.97 8 17 8ZM12 20V24H10V20H12ZM24 24H22V20H24V24Z" fill="#667085"/>
+</svg>
+
+                  
+                        <svg
+                          v-else
+                          class="w-6 h-6 text-gray-800 "
+                          aria-hidden="true"
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7Z" />
+                        </svg>
+                    </button>
+                    <!-- End Mic Button -->
                   </div>
                   <!-- End Button Group -->
                   <!-- Button Group -->
@@ -198,7 +221,7 @@
                           'text-gray-500': !isRecording,
                           'text-orange-500': isRecording
                         }"
-                        class="inline-flex shrink-0 justify-center items-center size-8 rounded-lg text-gray-500 hover:bg-gray-100 focus:z-1 focus:outline-none focus:bg-gray-100"
+                        class="inline-flex hidden shrink-0 justify-center items-center size-8 rounded-lg text-gray-500 hover:bg-gray-100 focus:z-1 focus:outline-none focus:bg-gray-100"
                       >
                         <svg
                           v-if="!isRecording"
@@ -307,6 +330,7 @@ function handleButtonClick(data) {
   eventData.value = data.message;
   console.log('Button click received:', data);
 
+  chatName.value=''
   createNewChat()
 
 }
@@ -340,6 +364,7 @@ try {
 
 // Watch for changes to the selection and load data accordingly.
 const provider = ref('')
+const chatName = ref('')
 watch(
   selectedOption,
   (newVal) => {
@@ -506,6 +531,13 @@ async function filterChat(msgData) {
       return acc
     }, [])
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
+
+
+
+  if(messagesData.value[0].data){
+    chatName.value=messagesData.value[0].data
+  }
+
   AutoScrollToBottom()
   await nextTick()
 }
@@ -959,6 +991,10 @@ const addMessage = async () => {
     await nextTick();
     // After createNewChat, the router push should update the conversation id.
     currentId.value = route.params.id; // update currentId from router params
+  }
+
+  if(messagesData.value.length===0){
+    chatName.value=searchQuery.value
   }
 
   completionMetaData.value = null

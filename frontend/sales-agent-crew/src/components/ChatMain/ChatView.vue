@@ -309,6 +309,7 @@ import hljs from 'highlight.js'
 import { useRoute, useRouter } from 'vue-router'
 import SILogo from '@/components/icons/SILogo.vue'
 import axios from 'axios'
+import { v4 as uuidv4 } from 'uuid'
 import ChatBubble from '@/components/ChatMain/ChatBubble.vue'
 import ChatLoaderBubble from '@/components/ChatMain/ChatLoaderBubble.vue'
 const router = useRouter()
@@ -1011,7 +1012,8 @@ const addMessage = async () => {
     data: searchQuery.value,
     timestamp: new Date().toISOString(),
     provider: provider.value,
-    r1_enabled: localStorage.getItem(`r1_enabled_${userId.value}`) === 'true'
+    r1_enabled: localStorage.getItem(`r1_enabled_${userId.value}`) === 'true',
+    message_id: uuidv4()
   }
 
   if (selectedDocuments.value && selectedDocuments.value.length > 0) {

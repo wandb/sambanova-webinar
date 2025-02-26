@@ -34,6 +34,7 @@ class SalesLeadsAgent(RoutedAgent):
                 run_id=conversation_id,
                 verbose=False,
                 provider=message.provider,
+                message_id=message.message_id
             )
             parameters_dict = {k: v if v is not None else "" for k, v in message.parameters.model_dump().items()}
             logger.info(logger.format_message(
@@ -53,7 +54,8 @@ class SalesLeadsAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=outreach_list,
                 message=message.parameters.model_dump_json(),
-                metadata=usage_stats
+                metadata=usage_stats,
+                message_id=message.message_id
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -72,6 +74,7 @@ class SalesLeadsAgent(RoutedAgent):
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to assist with sales leads, try again later."),
                 message=f"Error processing sales leads request: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,

@@ -181,6 +181,7 @@ class WebSocketConnectionManager:
                     "data": user_message_input["data"],
                     "user_id": user_id,
                     "conversation_id": conversation_id,
+                    "message_id": user_message_input["message_id"],
                     "timestamp": user_message_input["timestamp"]
                 }
 
@@ -214,6 +215,7 @@ class WebSocketConnectionManager:
 
                 # Create and publish user message
                 user_message = EndUserMessage(
+                    message_id=user_message_input["message_id"],
                     source="User",
                     content=user_message_input["data"], 
                     use_planner=False,
@@ -300,12 +302,14 @@ class WebSocketConnectionManager:
                     message_tasks = []
                     for message in messages:
                         data_str = message["data"]
+                        data_parsed = json.loads(data_str)
                         message_data = {
                             "event": "think",
                             "data": data_str,
                             "user_id": user_id,
                             "conversation_id": conversation_id,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
+                            "message_id": data_parsed["message_id"]
                         }
 
                         # Create tasks for Redis operation and WebSocket send

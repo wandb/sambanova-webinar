@@ -153,6 +153,7 @@ class SemanticRouterAgent(RoutedAgent):
                 "docs": message.docs,
                 "query": message.content,
                 "provider": message.provider,
+                "message_id": message.message_id,
             }
         )
 
@@ -197,6 +198,7 @@ class SemanticRouterAgent(RoutedAgent):
                     query=message.content,
                     provider=message.provider,
                     docs=message.docs,
+                    message_id=message.message_id,
                 )
                 await self.publish_message(
                     deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
@@ -210,7 +212,8 @@ class SemanticRouterAgent(RoutedAgent):
                 redis_client=self.redis_client,
                 user_id=user_id,
                 conversation_id=conversation_id,
-                r1_enabled=message.r1_enabled
+                r1_enabled=message.r1_enabled,
+                message_id=message.message_id
             )
 
             history = self._session_manager.get_history(conversation_id)
@@ -255,6 +258,7 @@ class SemanticRouterAgent(RoutedAgent):
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to route message, try again later."),
                 message=f"Error processing message routing: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,
@@ -297,6 +301,7 @@ class SemanticRouterAgent(RoutedAgent):
                 agent_type=request_obj.agent_type,
                 data=request_obj.parameters,
                 message=request_obj.parameters.model_dump_json(),
+                message_id=request_obj.message_id
             )
             await self.publish_message(
                 response,
@@ -387,6 +392,7 @@ class SemanticRouterAgent(RoutedAgent):
                 "data": json.dumps({"metadata": planner_metadata}),
                 "user_id": user_id,
                 "conversation_id": conversation_id,
+                "message_id": message.message_id,
                 "timestamp": datetime.now().isoformat(),
             }
 
@@ -398,6 +404,7 @@ class SemanticRouterAgent(RoutedAgent):
                     message_data = {
                         "event": "planner_chunk",
                         "data": chunk,
+                        "message_id": message.message_id,
                     }
                     await self.websocket.send_text(json.dumps(message_data))
                 elif isinstance(chunk, CreateResult):
@@ -415,6 +422,7 @@ class SemanticRouterAgent(RoutedAgent):
                     "data": json.dumps({"response": planner_final_response, "metadata": planner_metadata}),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
+                    "message_id": message.message_id,
                     "timestamp": datetime.now().isoformat(),
                 }
                 self.redis_client.rpush(message_key, json.dumps(final_message_data))

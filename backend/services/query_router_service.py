@@ -399,6 +399,7 @@ class QueryRouterServiceChat:
         llm_api_key: str,
         provider: str,
         r1_enabled: bool,
+        message_id: str,
         websocket: Optional[WebSocket] = None,
         redis_client: Optional[redis.Redis] = None,
         user_id: Optional[str] = None,
@@ -411,6 +412,7 @@ class QueryRouterServiceChat:
         self.redis_client = redis_client
         self.user_id = user_id
         self.conversation_id = conversation_id
+        self.message_id = message_id
 
         # Expanded / refined keywords for educational content (including some "report", "compare", etc.)
         self.edu_keywords = [
@@ -536,6 +538,7 @@ class QueryRouterServiceChat:
                     "data": json.dumps({"metadata": planner_metadata}),
                     "user_id": self.user_id,
                     "conversation_id": self.conversation_id,
+                    "message_id": self.message_id,
                     "timestamp": datetime.now().isoformat(),
                 }
                 await self.websocket.send_text(json.dumps(planner_event))
@@ -561,6 +564,7 @@ class QueryRouterServiceChat:
                                         stream_data = {
                                             "event": "planner_chunk",
                                             "data": content,
+                                            "message_id": self.message_id,
                                         }
                                         await self.websocket.send_text(json.dumps(stream_data))
                                 except json.JSONDecodeError:
@@ -578,6 +582,7 @@ class QueryRouterServiceChat:
                         "data": json.dumps({"response": parsed_content, "metadata": planner_metadata}),
                         "user_id": self.user_id,
                         "conversation_id": self.conversation_id,
+                        "message_id": self.message_id,
                         "timestamp": datetime.now().isoformat(),
                     }
                     message_key = f"messages:{self.user_id}:{self.conversation_id}"

@@ -1010,7 +1010,8 @@ const addMessage = async () => {
     event: "user_message",
     data: searchQuery.value,
     timestamp: new Date().toISOString(),
-    provider: provider.value
+    provider: provider.value,
+    r1_enabled: localStorage.getItem(`r1_enabled_${userId.value}`) === 'true'
   }
 
   if (selectedDocuments.value && selectedDocuments.value.length > 0) {

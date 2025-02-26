@@ -8,7 +8,9 @@ import aiohttp
 from pydantic import BaseModel
 import redis
 import requests
+from fastapi.websockets import WebSocketState
 
+from api.websocket_interface import WebSocketInterface
 from utils.json_utils import extract_json_from_string
 from config.model_registry import model_registry
 
@@ -46,7 +48,7 @@ class QueryRouterService:
             "business", "enterprise", "provider", "supplier", "manufacturer"
         ]
 
-        # Financial keywords - removing generic “analysis” to avoid over-triggering
+        # Financial keywords - removing generic "analysis" to avoid over-triggering
         self.financial_keywords = [
             "stock",
             "fundamental analysis", 
@@ -257,7 +259,7 @@ class QueryRouterService:
         2. For 'sales_leads': 
            - Extract specific industry, location, or other business parameters if any
         3. For 'financial_analysis': 
-           - Provide 'query_text' (the user’s full finance question)
+           - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
 
@@ -400,7 +402,7 @@ class QueryRouterServiceChat:
         provider: str,
         r1_enabled: bool,
         message_id: str,
-        websocket: Optional[WebSocket] = None,
+        websocket_manager: WebSocketInterface,
         redis_client: Optional[redis.Redis] = None,
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
@@ -408,7 +410,7 @@ class QueryRouterServiceChat:
         self.llm_api_key = llm_api_key
         self.provider = provider
         self.model_name = "deepseek-r1" if r1_enabled else "llama-3.3-70b"
-        self.websocket = websocket
+        self.websocket_manager = websocket_manager
         self.redis_client = redis_client
         self.user_id = user_id
         self.conversation_id = conversation_id
@@ -522,120 +524,70 @@ class QueryRouterServiceChat:
                 {"role": "user", "content": user_message}
             ],
             "temperature": 0.0,
-            "stream": bool(self.websocket)  # Enable streaming if websocket exists
+            "stream": True
         }
 
-        try:
-            # If we have a websocket, send the response to the client
-            planner_metadata = {
-                    "llm_name": payload["model"],
-                    "llm_provider": self.provider,
-                    "task": "planning",
-                }   
-            if self.websocket:
-                planner_event = {
+        # If we have a websocket, send the response to the client
+        planner_metadata = {
+                "llm_name": payload["model"],
+                "llm_provider": self.provider,
+                "task": "planning",
+            }   
+        planner_event = {
+            "event": "planner",
+            "data": json.dumps({"metadata": planner_metadata}),
+            "user_id": self.user_id,
+            "conversation_id": self.conversation_id,
+            "message_id": self.message_id,
+            "timestamp": datetime.now().isoformat(),
+        }
+        await self.websocket_manager.send_message(self.user_id, self.conversation_id, planner_event)
+
+        api_url = model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["long_url"]
+
+        async with aiohttp.ClientSession() as session:
+            start_time = time.time()
+            # Streaming mode
+            accumulated_content = ""
+            async with session.post(api_url, headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.content:
+                    line = line.decode('utf-8').strip()
+                    if line.startswith('data: '):
+                        try:
+                            json_response = json.loads(line.removeprefix('data: '))
+                            if json_response.get("choices") and json_response["choices"][0].get("delta", {}).get("content"):
+                                content = json_response["choices"][0]["delta"]["content"]
+                                accumulated_content += content
+                                # Send streaming update
+                                stream_data = {
+                                    "event": "planner_chunk",
+                                    "data": content,
+                                    "message_id": self.message_id,
+                                }
+                                await self.websocket_manager.send_message(self.user_id, self.conversation_id, stream_data)
+                        except json.JSONDecodeError:
+                            continue
+
+                parsed_content = extract_json_from_string(accumulated_content)
+
+                end_time = time.time()
+                processing_time = end_time - start_time
+                planner_metadata["duration"] = processing_time
+
+                # Send final message
+                final_message_data = {
                     "event": "planner",
-                    "data": json.dumps({"metadata": planner_metadata}),
+                    "data": json.dumps({"response": parsed_content, "metadata": planner_metadata}),
                     "user_id": self.user_id,
                     "conversation_id": self.conversation_id,
                     "message_id": self.message_id,
                     "timestamp": datetime.now().isoformat(),
                 }
-                await self.websocket.send_text(json.dumps(planner_event))
-
-            api_url = model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["long_url"]
-
-            async with aiohttp.ClientSession() as session:
-                if self.websocket:
-                    start_time = time.time()
-                    # Streaming mode
-                    accumulated_content = ""
-                    async with session.post(api_url, headers=headers, json=payload) as response:
-                        response.raise_for_status()
-                        async for line in response.content:
-                            line = line.decode('utf-8').strip()
-                            if line.startswith('data: '):
-                                try:
-                                    json_response = json.loads(line.removeprefix('data: '))
-                                    if json_response.get("choices") and json_response["choices"][0].get("delta", {}).get("content"):
-                                        content = json_response["choices"][0]["delta"]["content"]
-                                        accumulated_content += content
-                                        # Send streaming update
-                                        stream_data = {
-                                            "event": "planner_chunk",
-                                            "data": content,
-                                            "message_id": self.message_id,
-                                        }
-                                        await self.websocket.send_text(json.dumps(stream_data))
-                                except json.JSONDecodeError:
-                                    continue
-
-                    parsed_content = extract_json_from_string(accumulated_content)
-
-                    end_time = time.time()
-                    processing_time = end_time - start_time
-                    planner_metadata["duration"] = processing_time
-
-                    # Send final message
-                    final_message_data = {
-                        "event": "planner",
-                        "data": json.dumps({"response": parsed_content, "metadata": planner_metadata}),
-                        "user_id": self.user_id,
-                        "conversation_id": self.conversation_id,
-                        "message_id": self.message_id,
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                    message_key = f"messages:{self.user_id}:{self.conversation_id}"
-                    self.redis_client.rpush(message_key, json.dumps(final_message_data))
-                    await self.websocket.send_text(json.dumps(final_message_data))
-                    return parsed_content
-                else:
-                    # Non-streaming mode
-                    async with session.post(api_url, headers=headers, json=payload) as response:
-                        response.raise_for_status()
-                        json_response = await response.json()
-
-                        if "choices" not in json_response or len(json_response["choices"]) == 0:
-                            return self._get_default_response(self._detect_query_type(user_message))
-
-                        content = json_response["choices"][0]["message"]["content"].strip()
-                        return extract_json_from_string(content)
-
-        except Exception as e:
-            print(f"Error calling LLM: {str(e)}")
-            return self._get_default_response(self._detect_query_type(user_message))
-
-    def _get_default_response(self, detected_type: str) -> str:
-        """Return a default structured JSON string based on the detected type."""
-        if detected_type == "educational_content":
-            return json.dumps({
-                "type": "educational_content",
-                "parameters": {
-                    "topic": "",
-                    "audience_level": "intermediate",
-                    "focus_areas": ["key concepts", "practical applications"]
-                }
-            })
-        elif detected_type == "financial_analysis":
-            return json.dumps({
-                "type": "financial_analysis",
-                "parameters": {
-                    "query_text": "",
-                    "ticker": "",
-                    "company_name": ""
-                }
-            })
-        # else, fallback => sales
-        return json.dumps({
-            "type": "sales_leads",
-            "parameters": {
-                "industry": "",
-                "company_stage": "",
-                "geography": "",
-                "funding_stage": "",
-                "product": ""
-            }
-        })
+                message_key = f"messages:{self.user_id}:{self.conversation_id}"
+                self.redis_client.rpush(message_key, json.dumps(final_message_data))
+                await self.websocket_manager.send_message(self.user_id, self.conversation_id, final_message_data)
+                return parsed_content
 
     def _normalize_educational_params(self, params: Dict) -> Dict:
         """Normalize educational content parameters with safe defaults."""

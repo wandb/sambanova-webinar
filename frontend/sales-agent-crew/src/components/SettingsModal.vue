@@ -272,6 +272,7 @@ const loadKeys = async () => {
     const savedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
     const savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
     const savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
+    const savedR1Enabled = localStorage.getItem(`r1_enabled_${userId.value}`)
 
     sambanovaKey.value = savedSambanovaKey
       ? await decryptKey(savedSambanovaKey)
@@ -285,6 +286,7 @@ const loadKeys = async () => {
     fireworksKey.value = savedFireworksKey
       ? await decryptKey(savedFireworksKey)
       : ''
+    r1Enabled.value = savedR1Enabled === 'true'
   } catch (error) {
     console.error('Failed to load keys:', error)
     errorMessage.value = 'Failed to load saved keys'

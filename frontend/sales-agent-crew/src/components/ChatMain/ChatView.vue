@@ -47,6 +47,7 @@ class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
             :event="msgItem.event"
             :data="msgItem.data"
             :provider=provider
+            :currentMsgId="currentMsgId"
           />
           <ChatLoaderBubble
             :workflowData="workflowData"
@@ -518,7 +519,11 @@ async function filterChat(msgData) {
   messagesData.value = msgData.messages
     .filter(message => message.event === "completion" || message.event === "user_message")
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+
   scrollToBottom()
+
+
   agentThoughtsData.value = msgData.messages
     .filter(message => message.event === "think")
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
@@ -983,6 +988,7 @@ function waitForSocketOpen(timeout = 5000) {
   })
 }
 
+const  currentMsgId=ref('')
 const addMessage = async () => {
 
  
@@ -1007,6 +1013,8 @@ const addMessage = async () => {
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
   emit('metadataChanged', completionMetaData.value)
   if (!searchQuery.value.trim()) return
+
+  currentMsgId.value=uuidv4()
   const messagePayload = {
     event: "user_message",
     data: searchQuery.value,
@@ -1051,10 +1059,12 @@ function addOrUpdateModel(newData) {
   if (existingModel) {
     Object.assign(existingModel, newData)
     existingModel.count = (existingModel.count || 1) + 1
+
   } else {
     workflowData.value.push({
       ...newData,
-      count: 1
+      count: 1,
+      message_id:currentMsgId.value
     })
   }
 }

@@ -7,7 +7,7 @@
           <UserAvatar :type="provider" />
 
       </div>
-        <div class="flex-1 bg-white border border-gray-200 rounded-lg p-4 space-y-3 ">
+        <div class="flex-1 bg-white    p-4 space-y-3 ">
         
 
           <AnalysisTimeline 

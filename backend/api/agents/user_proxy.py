@@ -12,15 +12,14 @@ from autogen_core import (
     type_subscription,
 )
 from autogen_core.models import AssistantMessage
-from fastapi import WebSocket
 import redis
 
 from api.session_state import SessionStateManager
+from api.websocket_interface import WebSocketInterface
 
 from ..data_types import (
     AgentStructuredResponse,
     EndUserMessage,
-    AgentRequest,
 )
 from utils.logging import logger
 
@@ -31,11 +30,11 @@ class UserProxyAgent(RoutedAgent):
     Acts as a proxy between the user and the routing agent.
     """
 
-    def __init__(self, session_manager: SessionStateManager, websocket: WebSocket, redis_client: redis.Redis) -> None:
+    def __init__(self, session_manager: SessionStateManager, websocket_manager: WebSocketInterface, redis_client: redis.Redis) -> None:
         super().__init__("UserProxyAgent")
         logger.info(logger.format_message(None, f"Initializing UserProxyAgent with ID: {self.id} and WebSocket connection"))
         self.session_manager = session_manager
-        self.websocket = websocket
+        self.websocket_manager = websocket_manager
         self.redis_client = redis_client
         self.message_timings = {}  # Store message processing times
 
@@ -80,42 +79,41 @@ class UserProxyAgent(RoutedAgent):
                 "timestamp": datetime.now().isoformat()
             }
 
-            if self.websocket:
-                # Create tasks for Redis operation and WebSocket send
-                message_key = f"messages:{user_id}:{conversation_id}"
-                tasks = [
-                    asyncio.create_task(asyncio.to_thread(
-                        self.redis_client.rpush,
-                        message_key,
-                        json.dumps(message_data)
-                    )),
-                    asyncio.create_task(self.websocket.send_text(json.dumps(message_data)))
-                ]
+            # Create tasks for Redis operation and WebSocket send
+            message_key = f"messages:{user_id}:{conversation_id}"
+            tasks = [
+                asyncio.create_task(asyncio.to_thread(
+                    self.redis_client.rpush,
+                    message_key,
+                    json.dumps(message_data)
+                )),
+                asyncio.create_task(self.websocket_manager.send_message(user_id, conversation_id, message_data))
+            ]
 
-                # Wait for all tasks to complete
-                await asyncio.gather(*tasks)
+            # Wait for all tasks to complete
+            await asyncio.gather(*tasks)
 
-                log_message = "Stored message in Redis and sent via WebSocket"
-                if processing_time is not None:
-                    log_message += f". Processing time: {processing_time:.2f} seconds"
-                
-                logger.info(logger.format_message(
-                    ctx.topic_id.source,
-                    log_message
-                ))
+            log_message = "Stored message in Redis and sent via WebSocket"
+            if processing_time is not None:
+                log_message += f". Processing time: {processing_time:.2f} seconds"
+            
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                log_message
+            ))
 
-                # Update conversation history
-                self.session_manager.add_to_history(
-                    conversation_id,
-                    AssistantMessage(
-                        content=message.data.model_dump_json(), 
-                        source=ctx.sender.type
-                    ),
-                )
+            # Update conversation history
+            self.session_manager.add_to_history(
+                conversation_id,
+                AssistantMessage(
+                    content=message.data.model_dump_json(), 
+                    source=ctx.sender.type
+                ),
+            )
 
-                # Clear timing data after completion
-                if ctx.topic_id.source in self.message_timings:
-                    del self.message_timings[ctx.topic_id.source]
+            # Clear timing data after completion
+            if ctx.topic_id.source in self.message_timings:
+                del self.message_timings[ctx.topic_id.source]
 
         except Exception as e:
             logger.error(logger.format_message(

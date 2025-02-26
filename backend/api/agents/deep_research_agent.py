@@ -38,11 +38,10 @@ class DeepResearchAgent(RoutedAgent):
     """
 
     def __init__(
-        self, api_keys: APIKeys, websocket: WebSocket, redis_client: Redis = None
+        self, api_keys: APIKeys, redis_client: Redis = None
     ):
         super().__init__("DeepResearchAgent")
         self.api_keys = api_keys
-        self.websocket = websocket
         self.redis_client = redis_client
         logger.info(
             logger.format_message(

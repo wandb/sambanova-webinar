@@ -15,9 +15,9 @@ from autogen_core import (
 )
 from autogen_core.models import SystemMessage, UserMessage, CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from fastapi import WebSocket
 import redis
 
+from api.websocket_interface import WebSocketInterface
 from config.model_registry import model_registry
 from services.query_router_service import QueryRouterServiceChat, QueryType
 
@@ -29,7 +29,6 @@ from api.data_types import (
     DeepResearch,
     EndUserMessage,
     ErrorResponse,
-    HandoffMessage,
     AgentEnum,
 )
 from api.registry import AgentRegistry
@@ -56,7 +55,7 @@ class SemanticRouterAgent(RoutedAgent):
         self,
         name: str,
         session_manager: SessionStateManager,
-        websocket: WebSocket,
+        websocket_manager: WebSocketInterface,
         redis_client: redis.Redis,
         api_keys: APIKeys,
     ) -> None:
@@ -108,7 +107,7 @@ class SemanticRouterAgent(RoutedAgent):
         )
 
         self._session_manager = session_manager
-        self.websocket = websocket
+        self.websocket_manager = websocket_manager
         self.redis_client = redis_client
 
     @message_handler
@@ -208,7 +207,7 @@ class SemanticRouterAgent(RoutedAgent):
             router = QueryRouterServiceChat(
                 llm_api_key=api_key,
                 provider=message.provider,
-                websocket=self.websocket,
+                websocket_manager=self.websocket_manager,
                 redis_client=self.redis_client,
                 user_id=user_id,
                 conversation_id=conversation_id,

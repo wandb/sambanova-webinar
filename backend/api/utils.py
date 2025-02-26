@@ -17,6 +17,7 @@ from api.agents.sales_leads import SalesLeadsAgent
 from autogen_agentchat.agents import AssistantAgent
 
 from api.otlp_tracing import configure_oltp_tracing
+from api.websocket_interface import WebSocketInterface
 from utils.logging import logger
 from api.session_state import SessionStateManager
 from api.agents.user_proxy import UserProxyAgent
@@ -33,11 +34,11 @@ tracer = configure_oltp_tracing()
 
 
 async def initialize_agent_runtime(
-    websocket: WebSocket,
     redis_client: redis.Redis,
     api_keys: APIKeys,
     user_id: str,
     conversation_id: str,
+    websocket_manager: WebSocketInterface
 ) -> SingleThreadedAgentRuntime:
     """
     Initializes the agent runtime with the required agents and tools.
@@ -65,7 +66,7 @@ async def initialize_agent_runtime(
         lambda: SemanticRouterAgent(
             name="SemanticRouterAgent",
             session_manager=session_state_manager,
-            websocket=websocket,
+            websocket_manager=websocket_manager,
             redis_client=redis_client,
             api_keys=api_keys,
         ),
@@ -100,7 +101,6 @@ async def initialize_agent_runtime(
         "deep_research",
         lambda: DeepResearchAgent(
             api_keys=api_keys,
-            websocket=websocket,
             redis_client=redis_client,
         ),
     )
@@ -111,7 +111,7 @@ async def initialize_agent_runtime(
         "user_proxy",
         lambda: UserProxyAgent(
             session_manager=session_state_manager,
-            websocket=websocket,
+            websocket_manager=websocket_manager,
             redis_client=redis_client,
         ),
     )

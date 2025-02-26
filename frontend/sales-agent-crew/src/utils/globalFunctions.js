@@ -10,4 +10,6 @@ export function formattedDuration(duration) {
     }
   }
   
-  
+  export function isNumeric(val) {
+    return !isNaN(Number(val));
+  }

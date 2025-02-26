@@ -39,40 +39,32 @@
       </div>
     </div>
     <div class="m-1 p-1 border rounded-md bg-primary-brandGray" v-show="isOpen">
-      <!-- If value is an object that looks like a schema -->
-      <div v-if="isObject(value) && !Array.isArray(value) && hasSchema(value)">
-        <table class="w-full border divide-y divide-gray-200">
-          <tbody class="divide-y divide-gray-200">
-            <tr>
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">Type:</td>
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">{{ value.type }}</td>
-            </tr>
-            <tr>
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">Description:</td>
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">{{ value.description }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- If value is an object (and not an array), render all keys -->
+      <div v-if="isObject(value) && !Array.isArray(value)">
 
-      <!-- If value is a plain object (non-schema) -->
-      <div v-else-if="isObject(value) && !Array.isArray(value)">
-        <table class="w-full border divide-y divide-gray-200">
-          <tbody class="divide-y divide-gray-200">
-            <tr v-for="(val, key) in value" :key="key">
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">
-                {{ formatKey(key) }}
-              </td>
-              <td class="px-1 py-2 whitespace-nowrap text-xs text-gray-900">
-                <RecursiveDisplay :value="val" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        
+       
+        <div class="w-full">
+    <div
+      v-for="(val, key) in value"
+      :key="key"
+      class="mb-1"
+    >
+      <!-- Key Row: Dark Background -->
+      <div class="px-2 py-1 text-xs text-gray-900 bg-gray-200">
+        {{ formatKey(key) }}
       </div>
+      <!-- Value Row: Light Background -->
+      <div class="px-2 py-1 text-xs text-gray-900 bg-gray-50">
+        <RecursiveDisplay :value="val" :inline="true" />
+      </div>
+    </div>
+  </div>
+</div>
 
       <!-- If value is an array, render as a bullet list -->
       <div v-else-if="Array.isArray(value)">
+        
         <ul class="list-disc ml-6 space-y-1">
           <li v-for="(item, index) in value" :key="index">
             <RecursiveDisplay :value="item" />
@@ -80,14 +72,19 @@
         </ul>
       </div>
 
-      <!-- If heading is numeric and value has a description -->
+      <!-- If heading is numeric and value has a description, display it -->
       <div v-else-if="isNumeric(heading) && value?.description">
+        
         {{ value.description }}
       </div>
 
-      <!-- Otherwise, render as plain text -->
+      <!-- Otherwise, render the value as plain text -->
       <div v-else>
-        <p class="text-sm">{{ value }}</p>
+        
+        <!-- <p class="text-sm">{{ value }}</p> -->
+
+        <div class="markdown-content text-[#667085] text-xs" v-html="formattedText(value)"></div>
+
       </div>
     </div>
   </div>
@@ -97,11 +94,11 @@
 import { ref } from 'vue'
 import CorrectIcon from '@/components/icons/CorrectIcon.vue'
 import RecursiveDisplay from './RecursiveDisplay.vue'
+import { isNumeric } from '@/utils/globalFunctions'
+import { formattedText } from '@/utils/formatText'
 
-// Local state for accordion toggle.
 const isOpen = ref(false);
 
-// Define props.
 const props = defineProps({
   heading: {
     type: String,
@@ -113,19 +110,10 @@ const props = defineProps({
   }
 });
 
-// Checks if a value is numeric.
-function isNumeric(val) {
-  return !isNaN(Number(val));
-}
 
 // Checks if a value is an object.
 function isObject(val) {
   return val !== null && typeof val === 'object';
-}
-
-// Check if the object appears to be a schema (has both "type" and "description").
-function hasSchema(obj) {
-  return obj && Object.prototype.hasOwnProperty.call(obj, 'type') && Object.prototype.hasOwnProperty.call(obj, 'description');
 }
 
 // Format a key: replace underscores with spaces and capitalize each word.

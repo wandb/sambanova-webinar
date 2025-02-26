@@ -61,7 +61,7 @@ class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
       </div>
 
       <!-- Documents Section -->
-      <div class="sticky z-1000 bottom-0 left-0 right-0 bg-transparent p-2">
+      <div class="sticky z-1000 bottom-0 left-0 right-0 bg-white p-2">
         <div class="sticky bottom-0 z-10 ">
           <!-- Textarea -->
           <div class="max-w-4xl mx-auto lg:px-0">

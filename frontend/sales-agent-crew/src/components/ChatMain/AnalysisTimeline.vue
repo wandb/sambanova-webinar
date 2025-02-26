@@ -2,7 +2,7 @@
     <div class="vertical-timeline">
       <!-- Timeline Header -->
       <div class="timeline-header flex items-center justify-start">
-        <StatusText :text="statusText" />
+        
         <h2 v-if="!isLoading" class="text-md text-primary-brandTextSecondary">
           Analysis Concluded (<span class="text-sm">{{ formattedDuration(parsedData?.metadata?.duration) }}s</span>)
         </h2>

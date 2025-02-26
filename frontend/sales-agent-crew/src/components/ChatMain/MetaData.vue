@@ -21,13 +21,13 @@
             class="mx-1 w-2 h-2 bg-gray-400 rounded-full inline-block"
           ></span>
           <!-- Metadata item rendered as inline-block with natural wrapping -->
-          <span class="inline-block whitespace-normal text-sm text-gray-700">
-            <strong class="mx-1" v-if="key === 'duration'">
+          <span class="inline-block whitespace-normal text-sm text-primary-brandTextSecondary">
+            <span class="mx-1 font-semibold text-primary-brandTextPrimary" v-if="key === 'duration'">
               {{ formattedDuration(parseFloat(item)) }}
-            </strong>
-            <strong class="mx-1 text-primary-brandTextSecondary" v-else>
+            </span>
+            <span class="mx-1 font-semibold text-primary-brandTextPrimary" v-else>
               {{ formatNumber(item) }}
-            </strong>
+            </span>
             {{ formatKey(key) }}
           </span>
         </template>

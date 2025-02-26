@@ -192,7 +192,7 @@ class AssistantAgentWrapper(RoutedAgent):
                     yahoo_finance_search,
                     functools.partial(exa_news_search, self.api_keys.exa_key),
                 ],
-                system_message="You are a helpful AI assistant. Use the tools provided to assist the user with their request. Do not ignore the results of the tools.",
+                system_message="You are a helpful AI assistant. You have access to real-time stock data and news information and you should use the company ticker when searching for stock data. Use the tools provided to assist the user with their request regarding current affairs. Do not ignore the results of the tools.",
                 reflect_on_tool_use=True,
             )
             return self._assistant_instance

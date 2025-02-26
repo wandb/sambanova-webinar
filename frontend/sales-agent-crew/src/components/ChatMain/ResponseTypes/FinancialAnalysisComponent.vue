@@ -28,100 +28,7 @@
       </p>
     </section>
 
-    <!-- COMPETITOR ANALYSIS -->
-    <hr class="my-4" />
-    <section v-if="parsed.data.competitor" class="pdf-section">
-      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
-        <UsersIcon class="w-5 h-5 text-green-500" />
-        <span>Competitor Analysis</span>
-      </h3>
 
-      <!-- Chart (optional) -->
-      <div class="border border-gray-200 p-3 rounded-lg chart-container mb-6">
-        <div style="width: 100%; height: 300px;">
-          <canvas ref="competitorCanvasRef"></canvas>
-        </div>
-      </div>
-
-      <!-- Competitor List -->
-      <div 
-        v-if="parsed.data.competitor?.competitor_details?.length"
-        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-      >
-        <div
-          v-for="(comp, idx) in parsed.data.competitor.competitor_details"
-          :key="idx"
-          class="p-4 border rounded-lg shadow-sm bg-white"
-        >
-          <div class="mb-2">
-            <h4 class="font-semibold text-primary-brandTextPrimary">
-              {{ comp.ticker }} - {{ comp.name }}
-            </h4>
-            <p class="text-xs text-gray-500">
-              {{ comp.industry }}, {{ comp.sector }}
-            </p>
-          </div>
-          <div class="space-y-1 text-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <BanknotesIcon class="w-4 h-4 text-blue-500" />
-                <span>Market Cap</span>
-              </div>
-              <strong>{{ formatMetric('market_cap', comp.market_cap) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <ArrowTrendingUpIcon class="w-4 h-4 text-red-500" />
-                <span>PE Ratio</span>
-              </div>
-              <strong>{{ formatMetric('pe_ratio', comp.pe_ratio) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <ArrowTrendingUpIcon class="w-4 h-4 text-red-500" />
-                <span>PS Ratio</span>
-              </div>
-              <strong>{{ formatMetric('ps_ratio', comp.ps_ratio) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <CheckCircleIcon class="w-4 h-4 text-green-500" />
-                <span>Profit Margin</span>
-              </div>
-              <strong>{{ formatPercentage(comp.profit_margins,2) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <CheckCircleIcon class="w-4 h-4 text-green-500" />
-                <span>EBITDA Margin</span>
-              </div>
-              <strong>{{ formatPercentage(comp.ebitda_margins,2) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <LightBulbIcon class="w-4 h-4 text-yellow-500" />
-                <span>Rev Growth</span>
-              </div>
-              <strong>{{ formatPercentage(comp.revenue_growth,2) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <LightBulbIcon class="w-4 h-4 text-yellow-500" />
-                <span>EPS Growth</span>
-              </div>
-              <strong>{{ formatPercentage(comp.earnings_growth,2) }}</strong>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-1">
-                <ExclamationTriangleIcon class="w-4 h-4 text-orange-500" />
-                <span>Short Ratio</span>
-              </div>
-              <strong>{{ formatFloat(comp.short_ratio,2) }}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- FUNDAMENTALS -->
     <hr class="my-4" />
@@ -483,7 +390,100 @@
         </div>
       </div>
     </section>
+    <!-- COMPETITOR ANALYSIS -->
+    <hr class="my-4" />
+    <section v-if="parsed.data.competitor" class="pdf-section">
+      <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
+        <UsersIcon class="w-5 h-5 text-green-500" />
+        <span>Competitor Analysis</span>
+      </h3>
 
+      <!-- Chart (optional) -->
+      <div class="border border-gray-200 p-3 rounded-lg chart-container mb-6">
+        <div style="width: 100%; height: 300px;">
+          <canvas ref="competitorCanvasRef"></canvas>
+        </div>
+      </div>
+
+      <!-- Competitor List -->
+      <div 
+        v-if="parsed.data.competitor?.competitor_details?.length"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+      >
+        <div
+          v-for="(comp, idx) in parsed.data.competitor.competitor_details"
+          :key="idx"
+          class="p-4 border rounded-lg shadow-sm bg-white"
+        >
+          <div class="mb-2">
+            <h4 class="font-semibold text-primary-brandTextPrimary">
+              {{ comp.ticker }} - {{ comp.name }}
+            </h4>
+            <p class="text-xs text-gray-500">
+              {{ comp.industry }}, {{ comp.sector }}
+            </p>
+          </div>
+          <div class="space-y-1 text-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <BanknotesIcon class="w-4 h-4 text-blue-500" />
+                <span>Market Cap</span>
+              </div>
+              <strong>{{ formatMetric('market_cap', comp.market_cap) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-red-500" />
+                <span>PE Ratio</span>
+              </div>
+              <strong>{{ formatMetric('pe_ratio', comp.pe_ratio) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <ArrowTrendingUpIcon class="w-4 h-4 text-red-500" />
+                <span>PS Ratio</span>
+              </div>
+              <strong>{{ formatMetric('ps_ratio', comp.ps_ratio) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <CheckCircleIcon class="w-4 h-4 text-green-500" />
+                <span>Profit Margin</span>
+              </div>
+              <strong>{{ formatPercentage(comp.profit_margins,2) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <CheckCircleIcon class="w-4 h-4 text-green-500" />
+                <span>EBITDA Margin</span>
+              </div>
+              <strong>{{ formatPercentage(comp.ebitda_margins,2) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <LightBulbIcon class="w-4 h-4 text-yellow-500" />
+                <span>Rev Growth</span>
+              </div>
+              <strong>{{ formatPercentage(comp.revenue_growth,2) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <LightBulbIcon class="w-4 h-4 text-yellow-500" />
+                <span>EPS Growth</span>
+              </div>
+              <strong>{{ formatPercentage(comp.earnings_growth,2) }}</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-1">
+                <ExclamationTriangleIcon class="w-4 h-4 text-orange-500" />
+                <span>Short Ratio</span>
+              </div>
+              <strong>{{ formatFloat(comp.short_ratio,2) }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
     <!-- COMPREHENSIVE SUMMARY -->
     <hr class="my-4" />
     <section class="pdf-section">

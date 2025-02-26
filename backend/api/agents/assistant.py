@@ -27,57 +27,54 @@ from api.data_types import (
     ErrorResponse,
 )
 from exa_py import Exa
+from tavily import AsyncTavilyClient
 
 from config.model_registry import model_registry
 from utils.logging import logger
 
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
+import aiohttp
+
+tavily_async_client = AsyncTavilyClient()
 
 
 async def get_current_time() -> str:
     """Get the current time."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-
-def serper_search(api_key: str, query: str, num_results: int = 5):
-    """Performs a Google search using Serper API and returns the top results."""
-    if not api_key:
-        raise ValueError("SERPER_API_KEY environment variable is missing.")
-
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
-    payload = {"q": query, "num": num_results}
-
-    response = requests.post(url, json=payload, headers=headers)
-    response.raise_for_status()
-
-    data = response.json()
-
-    # Extract relevant search results
-    results = []
-    for item in data.get("organic", []):
-        results.append(
-            {
-                "title": item.get("title"),
-                "link": item.get("link"),
-                "snippet": item.get("snippet"),
-            }
+async def tavily_search(search_query: str) -> List[Dict[str, Any]]:
+    """
+    Performs a web search using the Tavily API.
+    """
+    logger.info(f"Using Tavily to search for {search_query}")
+    response = await tavily_async_client.search(
+            search_query,
+            max_results=5,
+            include_raw_content=False,
+            topic="general"
         )
-    return results
+    
+    search_results = []
+    for result in response["results"]:
+        search_results.append({
+            "title": result["title"],
+            "content": result["content"]
+        })
+    
+    return search_results
 
-
-def yahoo_finance_search(symbol: str) -> Dict[str, Any]:
+async def yahoo_finance_search(symbol: str) -> Dict[str, Any]:
     """Get current stock information for a given symbol."""
     try:
+        logger.info(f"Using Yahoo Finance to search for {symbol}")
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                data = await response.json()
         if (
             "chart" in data
             and "result" in data["chart"]
@@ -98,29 +95,28 @@ def yahoo_finance_search(symbol: str) -> Dict[str, Any]:
 
 
 def exa_news_search(
-    api_key: str, query: str, num_results: int = 5
-) -> List[Dict[str, str]]:
-    """Search for news articles using Exa API."""
+    api_key: str, query: str, answer: bool = False) -> List[Dict[str, str]]:
+    """Search for news articles or answer questions using Exa API."""
     if not api_key:
         raise ValueError("EXA_API_KEY is missing.")
-
+    logger.info(f"Using Exa news search to search for {query} with answer: {answer}")
     try:
         exa = Exa(api_key=api_key)
-        exa_response = exa.search_and_contents(
-            query, num_results=num_results, text=True
-        )
-
-        results = []
-        for article in exa_response.results:
-            results.append(
-                {
-                    "title": article.title,
-                    "url": article.url,
-                    "published_date": article.published_date,
-                    "text": article.text,
-                }
-            )
-        return results
+        if answer:
+            exa_response = exa.answer(query)
+            return [{"answer": exa_response.answer}]
+        else:
+            exa_response = exa.search_and_contents(query, num_results=5, text=True)
+            results = []
+            for article in exa_response.results:
+                results.append(
+                    {
+                        "title": article.title,
+                        "published_date": article.published_date,
+                        "text": article.text,
+                    }
+                )
+            return results
     except Exception as e:
         return [{"error": f"Failed to fetch news: {str(e)}"}]
 
@@ -137,7 +133,7 @@ class AssistantAgentWrapper(RoutedAgent):
         logger.info(
             logger.format_message(
                 None,
-                f"Initializing AssistantAgent with ID: {self.id} and tools: [get_current_time, serper_search, yahoo_finance_search, exa_news_search]",
+                f"Initializing AssistantAgent with ID: {self.id} and tools: [get_current_time, tavily_search, yahoo_finance_search, exa_news_search, exa_question_answer]",
             )
         )
         self.api_keys = api_keys
@@ -188,7 +184,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 ),
                 tools=[
                     get_current_time,
-                    functools.partial(serper_search, self.api_keys.serper_key),
+                    tavily_search,
                     yahoo_finance_search,
                     functools.partial(exa_news_search, self.api_keys.exa_key),
                 ],
@@ -275,10 +271,9 @@ class AssistantAgentWrapper(RoutedAgent):
             }
             channel = f"agent_thoughts:{user_id}:{conversation_id}"
             self.redis_client.publish(channel, json.dumps(assistant_message))
-            
+
             # Reset model usage after collecting statistics
             await self.reset_model_usage(self.get_assistant(message.provider))
-
 
             # Send response back
             structured_response = AgentStructuredResponse(
@@ -314,7 +309,6 @@ class AssistantAgentWrapper(RoutedAgent):
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
-            
 
     async def reset_model_usage(self, assistant: AssistantAgent) -> None:
         """Reset the model usage statistics for the assistant.
@@ -325,17 +319,17 @@ class AssistantAgentWrapper(RoutedAgent):
         try:
             # Clear model context
             await assistant._model_context.clear()
-            
+
             # Reset models_usage in the model client if it exists
             if hasattr(assistant._model_client, "models_usage"):
                 assistant._model_client.models_usage = []
-                
+
             # Reset usage in any response objects if they exist
             if hasattr(assistant, "_last_response") and assistant._last_response:
                 if hasattr(assistant._last_response, "chat_message") and assistant._last_response.chat_message:
                     if hasattr(assistant._last_response.chat_message, "models_usage"):
                         assistant._last_response.chat_message.models_usage = []
-                        
+
             logger.info(logger.format_message(None, "Reset model usage for assistant"))
         except Exception as e:
             logger.error(f"Failed to reset model usage: {str(e)}", exc_info=True)

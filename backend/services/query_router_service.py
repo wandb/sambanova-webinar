@@ -637,7 +637,7 @@ class QueryRouterServiceChat:
         return {
             "agent_question": params.get("agent_question", "")
         }
-    
+
     def _normalize_assistant_params(self, params: Dict) -> Dict:
         """Normalize assistant parameters with safe defaults."""
         return {
@@ -671,13 +671,20 @@ class QueryRouterServiceChat:
         system_message = f"""
         You are a query routing expert that categorizes queries and extracts structured information.
         To decide on the route take into account the user's query and the context summary.
-        Always return a valid JSON object with 'type' and 'parameters'.
-     
-        Agents:
+
+        User query: "{query}"
+        
+        Context summary: "{context_summary}"
+
+        Follow these steps:
+        1. Identify what specific information the user is requesting, if the user asked a specific question in the context and the question was not answered, the user is likely to be referring to that question.
+        2. Use the context to resolve any ambiguity in the query. Note that the context might only provide partial information, you can still use it to formulate a specific query.
+        3. Try to formulate a specific query based on the information provided in the context.
+        4. Generate the appropriate JSON response using the following agents:
 
         "type": "assistant",
-        "description": "Handles user queries that do not fit into other specific categories. ALWAYS Route messages here if they are general queries that do not specify a destination or service. If the query is a factual answer or quick information about a company person or product, use this agent. For examlple What is Apple's stock price today or another company can be answered by this agent vs the financial_analysis agent.",
-        "examples": "'What is the weather in Tokyo?', 'What is the capital of France?' What is Tesla's stock price? What is the latest news on Apple? What is the latest news on Elon Musk?",
+        "description": "Handles user queries that do not fit into other specific categories. ALWAYS Route messages here if they are general queries that do not specify a destination or service. If the query is a factual answer or quick information about a company person or product, use this agent. If the user is asking about current affairs, also use this agent.",
+        "examples": "'What is the weather in Tokyo?', 'What is the capital of France?' What is Tesla's stock price today? What is the latest news on Apple?",
 
         Query: "What is the weather in Tokyo?"
         {{
@@ -819,15 +826,11 @@ class QueryRouterServiceChat:
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
         3. For 'deep_research':
-           - Provide 'deep_research_topic' (the users full research query)
+           - Provide 'deep_research_topic' (the user's full research query)
         4. For 'assistant':
            - Provide 'query' (the user's full query)
         5. For 'user_proxy':
            - Provide 'agent_question' (the question that requires a response from the user)
-
-        Context summary: "{context_summary}"
-
-        User query: "{query}"
 
         Return ONLY JSON with 'type' and 'parameters'. Your job depends on it. 
         """

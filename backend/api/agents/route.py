@@ -176,7 +176,6 @@ class SemanticRouterAgent(RoutedAgent):
                 f"Using query router for message: '{message.content[:100]}...'"
             ))
 
-
             user_id, conversation_id = ctx.topic_id.source.split(":")
             history = self._session_manager.get_history(conversation_id)
 
@@ -186,7 +185,7 @@ class SemanticRouterAgent(RoutedAgent):
                     last_content = json.loads(history[-1].content)
                 except json.JSONDecodeError:
                     pass
-                    
+
             if "deep_research_question" in last_content:
                 logger.info(logger.format_message(
                     ctx.topic_id.source,
@@ -203,9 +202,16 @@ class SemanticRouterAgent(RoutedAgent):
                     deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
                 return
 
-
             api_key = getattr(self.api_keys, model_registry.get_api_key_env(message.provider))
-            router = QueryRouterServiceChat(llm_api_key=api_key, provider=message.provider, websocket=self.websocket, redis_client=self.redis_client, user_id=user_id, conversation_id=conversation_id)
+            router = QueryRouterServiceChat(
+                llm_api_key=api_key,
+                provider=message.provider,
+                websocket=self.websocket,
+                redis_client=self.redis_client,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                r1_enabled=message.r1_enabled
+            )
 
             history = self._session_manager.get_history(conversation_id)
 
@@ -280,7 +286,6 @@ class SemanticRouterAgent(RoutedAgent):
         else:
             return [plans[0]]
 
-
     async def _publish_message(
         self, request_obj: AgentRequest, ctx: MessageContext
     ) -> None:
@@ -329,7 +334,7 @@ class SemanticRouterAgent(RoutedAgent):
                 last_content = json.loads(history[-1].content)
             except json.JSONDecodeError:
                 pass
-                
+
         if "deep_research_question" in last_content:
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -372,7 +377,6 @@ class SemanticRouterAgent(RoutedAgent):
                 ))
                 raise ValueError("No WebSocket connection found")
 
-
             planner_metadata = {
                 "llm_name": self._reasoning_model(message.provider)._resolved_model,
                 "llm_provider": message.provider,
@@ -398,7 +402,7 @@ class SemanticRouterAgent(RoutedAgent):
                     await self.websocket.send_text(json.dumps(message_data))
                 elif isinstance(chunk, CreateResult):
                     planner_final_response = chunk.content
-            
+
             end_time = time.time()
             processing_time = end_time - start_time
             planner_metadata["duration"] = processing_time

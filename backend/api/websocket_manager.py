@@ -218,7 +218,8 @@ class WebSocketConnectionManager:
                     content=user_message_input["data"], 
                     use_planner=False,
                     provider=user_message_input["provider"],
-                    docs=document_content if "document_ids" in user_message_input and user_message_input["document_ids"] else None
+                    docs=document_content if "document_ids" in user_message_input and user_message_input["document_ids"] else None,
+                    r1_enabled=user_message_input["r1_enabled"]
                 )
 
                 # This must be awaited as it affects the conversation flow

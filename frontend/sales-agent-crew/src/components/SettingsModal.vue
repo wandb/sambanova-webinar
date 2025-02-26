@@ -188,8 +188,9 @@
               </button>
             </div>
           </div>
-                <!-- Fireworks API Key -->
-                <div>
+
+          <!-- Fireworks API Key -->
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Fireworks API Key
               <a 
@@ -230,6 +231,19 @@
               </button>
             </div>
           </div>
+
+          <!-- R1 Setting -->
+          <div class="mt-6 border-t pt-4">
+            <label class="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                v-model="r1Enabled"
+                @change="handleR1Toggle"
+                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <span class="text-sm font-medium text-gray-700">Enable R1</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -247,6 +261,7 @@ const sambanovaKey = ref('')
 const exaKey = ref('')
 const serperKey = ref('')
 const fireworksKey = ref('')
+const r1Enabled = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -459,6 +474,10 @@ const updateBackendKeys = async () => {
   }
 }
 
+const handleR1Toggle = () => {
+  localStorage.setItem(`r1_enabled_${userId.value}`, r1Enabled.value.toString())
+}
+
 // Expose methods and state
 defineExpose({
   isOpen,
@@ -466,7 +485,8 @@ defineExpose({
     sambanovaKey: sambanovaKey.value,
     exaKey: exaKey.value,
     serperKey: serperKey.value,
-    fireworksKey: fireworksKey.value
+    fireworksKey: fireworksKey.value,
+    r1Enabled: r1Enabled.value
   }),
 })
 </script>

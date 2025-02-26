@@ -398,6 +398,7 @@ class QueryRouterServiceChat:
         self,
         llm_api_key: str,
         provider: str,
+        r1_enabled: bool,
         websocket: Optional[WebSocket] = None,
         redis_client: Optional[redis.Redis] = None,
         user_id: Optional[str] = None,
@@ -405,7 +406,7 @@ class QueryRouterServiceChat:
     ):
         self.llm_api_key = llm_api_key
         self.provider = provider
-        self.model_name = "deepseek-r1"
+        self.model_name = "deepseek-r1" if r1_enabled else "llama-3.3-70b"
         self.websocket = websocket
         self.redis_client = redis_client
         self.user_id = user_id

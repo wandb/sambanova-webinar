@@ -90,6 +90,7 @@ class EndUserMessage(BaseAgentMessage):
     use_planner: bool = False
     docs: Optional[str] = None
     provider: str
+    r1_enabled: bool = False
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum

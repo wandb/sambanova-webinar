@@ -4,17 +4,17 @@
       :key="index" 
       class="group flex flex-col bg-primary-brandDarkGray border border-primary-brandGray shadow-sm rounded-xl hover:shadow-md focus:outline-none focus:shadow-md transition "
     >
-      <div class="px-4 py-2 md:px-5">
+      <div class="px-4 py-2 md:px-5 min-w-[260px]">
         <div class="flex items-start relative justify-between">
           <!-- Left: Text Content -->
           <div class="grow">
             <h3 class="text-sm text-primary-bodyText flex items-center">
-              <span class="inline-block w-[70%] truncate">
-                {{ item.llm_name }}
-              </span>
-              <span class="ml-1">
+              <span class="inline-block w-[80%] truncate">
+                {{ item.llm_name }}  <span class="ml-1">
                 ({{ item.count }})
               </span>
+              </span>
+             
             </h3>
             <p class="text-sm text-gray-500 flex justify-between ">
               <span class="capitalize">{{ item.task }}</span>

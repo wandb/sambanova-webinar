@@ -1,6 +1,8 @@
 export function formattedText(data) {
     // Remove any trailing JSON block starting with "```json"
-    const cleanedData = data.replace(/```json[\s\S]*$/, "").trim();
+    // const cleanedData = data.replace(/```json[\s\S]*$/, "").trim();
+    const cleanedData = data.trim();
+
     const text = cleanedData || "";
     const lines = text.split("\n");
     let html = "";

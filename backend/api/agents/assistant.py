@@ -192,7 +192,7 @@ class AssistantAgentWrapper(RoutedAgent):
                     yahoo_finance_search,
                     functools.partial(exa_news_search, self.api_keys.exa_key),
                 ],
-                system_message="You are a helpful AI assistant. You have access to real-time stock data and news information and you should use the company ticker when searching for stock data. For example, if the user asks for Apple's stock price, you should use the ticker 'AAPL' when searching for stock data.",
+                system_message="You are a helpful AI assistant. Use the tools provided to assist the user with their request. Do not ignore the results of the tools.",
                 reflect_on_tool_use=True,
             )
             return self._assistant_instance
@@ -267,6 +267,7 @@ class AssistantAgentWrapper(RoutedAgent):
             assistant_message = {
                 "user_id": user_id,
                 "run_id": conversation_id,
+                "message_id": message.message_id,
                 "agent_name": "General Assistant",
                 "text": response_content,
                 "timestamp": time.time(),
@@ -285,6 +286,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 data=AssistantResponse(response=response_content),
                 message=message.parameters.model_dump_json(),
                 metadata=assistant_metadata,
+                message_id=message.message_id
             )
             logger.info(
                 logger.format_message(
@@ -306,6 +308,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to assist with this request, try again later."),
                 message=f"Error processing assistant request: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,

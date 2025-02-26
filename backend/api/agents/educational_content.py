@@ -89,7 +89,8 @@ class EducationalContentAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=sections_with_content,
                 message=message.parameters.model_dump_json(),
-                metadata=total_usage
+                metadata=total_usage,
+                message_id=message.message_id
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -108,6 +109,7 @@ class EducationalContentAgent(RoutedAgent):
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to assist with research content, try again later."),
                 message=f"Error processing research content request: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,

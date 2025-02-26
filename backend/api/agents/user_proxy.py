@@ -76,6 +76,7 @@ class UserProxyAgent(RoutedAgent):
                 "data": json.dumps(message_data),
                 "user_id": user_id,
                 "conversation_id": conversation_id,
+                "message_id": message.message_id,
                 "timestamp": datetime.now().isoformat()
             }
 

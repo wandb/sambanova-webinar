@@ -88,7 +88,8 @@ class FinancialAnalysisAgent(RoutedAgent):
                 user_id=user_id,
                 run_id=conversation_id,
                 docs_included=True if message.docs else False,
-                verbose=False
+                verbose=False,
+                message_id=message.message_id
             )
 
             parameters = message.parameters.model_dump()
@@ -113,7 +114,8 @@ class FinancialAnalysisAgent(RoutedAgent):
                 agent_type=self.id.type,
                 data=financial_analysis_result,
                 message=message.parameters.model_dump_json(),
-                metadata=usage_stats
+                metadata=usage_stats,
+                message_id=message.message_id
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -133,6 +135,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 agent_type=AgentEnum.Error,
                 data=ErrorResponse(error=f"Unable to assist with financial analysis, try again later."),
                 message=f"Error processing financial analysis request: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,

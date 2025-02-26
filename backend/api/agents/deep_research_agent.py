@@ -62,6 +62,7 @@ class DeepResearchAgent(RoutedAgent):
         self,
         session_id: str,
         llm_provider: str,
+        message_id: str
     ) -> dict:
         if session_id not in self._session_threads:
             user_id, conversation_id = session_id.split(":")
@@ -79,6 +80,7 @@ class DeepResearchAgent(RoutedAgent):
                         "completion_tokens": 0,
                     },
                     "callback": create_publish_callback(
+                        message_id=message_id,
                         user_id=user_id,
                         conversation_id=conversation_id,
                         agent_name="deep_research",
@@ -143,7 +145,7 @@ class DeepResearchAgent(RoutedAgent):
         )
 
         graph = builder.compile(checkpointer=memory)
-        thread_config = self._get_or_create_thread_config(session_id, message.provider)
+        thread_config = self._get_or_create_thread_config(session_id, message.provider, message.message_id)
 
         try:
             async for event in graph.astream(
@@ -174,6 +176,7 @@ class DeepResearchAgent(RoutedAgent):
                             ),
                             message=user_question_str,
                             metadata=token_usage,
+                            message_id=message.message_id
                         )
                         await self.publish_message(
                             response,
@@ -207,6 +210,7 @@ class DeepResearchAgent(RoutedAgent):
                 data=structured_report,
                 message="Deep research flow completed.",
                 metadata=token_usage,
+                message_id=message.message_id
             )
 
             await self.publish_message(
@@ -225,6 +229,7 @@ class DeepResearchAgent(RoutedAgent):
                     error=f"Unable to assist with deep research, try again later."
                 ),
                 message=f"Error processing deep research request: {str(e)}",
+                message_id=message.message_id
             )
             await self.publish_message(
                 response,

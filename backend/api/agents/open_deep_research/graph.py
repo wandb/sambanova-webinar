@@ -86,6 +86,7 @@ def get_model_name(llm):
 def create_publish_callback(
     user_id: str,
     conversation_id: str,
+    message_id: str,
     agent_name: str,
     workflow_name: str,
     redis_client: Redis,
@@ -109,6 +110,7 @@ def create_publish_callback(
         message_data = {
             "user_id": user_id,
             "run_id": conversation_id,
+            "message_id": message_id,
             "agent_name": agent_name,
             "text": message,
             "timestamp": time.time(),

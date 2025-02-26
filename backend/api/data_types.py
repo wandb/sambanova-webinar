@@ -91,6 +91,7 @@ class EndUserMessage(BaseAgentMessage):
     docs: Optional[str] = None
     provider: str
     r1_enabled: bool = False
+    message_id: str
 
 class AgentRequest(BaseModel):
     agent_type: AgentEnum
@@ -100,7 +101,7 @@ class AgentRequest(BaseModel):
     query: str
     docs: Optional[str] = None
     provider: str
-
+    message_id: str
     @model_validator(mode="after")
     def validate_parameters_type(self) -> "AgentRequest":
         expected_type = {
@@ -161,4 +162,5 @@ class AgentStructuredResponse(BaseModel):
         ErrorResponse,
     ]
     metadata: Optional[Dict[str, Any]] = None
+    message_id: str
     message: Optional[str] = None  # Additional message or notes from the agent

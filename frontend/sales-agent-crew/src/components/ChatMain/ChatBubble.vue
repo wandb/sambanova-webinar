@@ -19,7 +19,7 @@
     
     <!-- For all other cases -->
     <li v-else class="    px-4 items-start gap-x-2 sm:gap-x-4">
-      {{ props.agent_type }}
+      
       <div class="w-full flex items-center ">
       
 
@@ -37,7 +37,7 @@
       :isLoading="isLoading" 
       :parsedData="parsedData" 
       :workflowData="workflowData" 
-      :presentMetadata="presentMetadata" 
+      :presentMetadata="parsedData.metadata" 
       :plannerText="plannerText" 
     />
    
@@ -108,9 +108,15 @@
   },
   
   })
-  
-
   const presentMetadata = computed(() => {
+
+
+if (!parsedData.metadata) return null;
+
+return parsedData.metadata;
+});
+
+  const presentMetadataOld = computed(() => {
 
 
   if (!props.metadata) return null;

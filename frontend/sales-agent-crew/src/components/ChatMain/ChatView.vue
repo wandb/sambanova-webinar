@@ -1094,6 +1094,9 @@ function addOrUpdateModel(newData, message_id) {
 
 async function connectWebSocket() {
   try {
+
+    await loadKeys()
+
     await axios.post(
       `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`,
       {

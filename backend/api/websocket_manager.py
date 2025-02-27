@@ -302,7 +302,7 @@ class WebSocketConnectionManager(WebSocketInterface):
                     use_planner=False,
                     provider=user_message_input["provider"],
                     docs=document_content if "document_ids" in user_message_input and user_message_input["document_ids"] else None,
-                    r1_enabled=user_message_input["r1_enabled"]
+                    planner_model=user_message_input["planner_model"]
                 )
 
                 # This must be awaited as it affects the conversation flow

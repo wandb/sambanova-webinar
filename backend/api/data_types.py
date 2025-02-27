@@ -90,7 +90,7 @@ class EndUserMessage(BaseAgentMessage):
     use_planner: bool = False
     docs: Optional[str] = None
     provider: str
-    r1_enabled: bool = False
+    planner_model: str
     message_id: str
 
 class AgentRequest(BaseModel):

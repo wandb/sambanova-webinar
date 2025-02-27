@@ -232,17 +232,20 @@
             </div>
           </div>
 
-          <!-- R1 Setting -->
+          <!-- Model Selection -->
           <div class="mt-6 border-t pt-4">
-            <label class="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                v-model="r1Enabled"
-                @change="handleR1Toggle"
-                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <span class="text-sm font-medium text-gray-700">Enable R1</span>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Planner Model Selection
             </label>
+            <select
+              v-model="selectedModel"
+              @change="handleModelSelection"
+              class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            >
+              <option value="llama-3.3-70b">Meta-Llama-3.3-70B-Instruct</option>
+              <option value="deepseek-r1">DeepSeek-R1</option>
+              <option value="llama-3.1-tulu-3-405b">Llama-3.1-Tulu-3-405B</option>
+            </select>
           </div>
         </div>
       </div>
@@ -261,7 +264,7 @@ const sambanovaKey = ref('')
 const exaKey = ref('')
 const serperKey = ref('')
 const fireworksKey = ref('')
-const r1Enabled = ref(false)
+const selectedModel = ref('llama-3.3-70b')
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -287,7 +290,7 @@ const loadKeys = async () => {
     const savedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
     const savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
     const savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
-    const savedR1Enabled = localStorage.getItem(`r1_enabled_${userId.value}`)
+    const savedModel = localStorage.getItem(`selected_model_${userId.value}`)
 
     sambanovaKey.value = savedSambanovaKey
       ? await decryptKey(savedSambanovaKey)
@@ -301,7 +304,13 @@ const loadKeys = async () => {
     fireworksKey.value = savedFireworksKey
       ? await decryptKey(savedFireworksKey)
       : ''
-    r1Enabled.value = savedR1Enabled === 'true'
+    
+    // If no model was saved, save the default
+    if (!savedModel) {
+      localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
+    } else {
+      selectedModel.value = savedModel
+    }
   } catch (error) {
     console.error('Failed to load keys:', error)
     errorMessage.value = 'Failed to load saved keys'
@@ -474,8 +483,9 @@ const updateBackendKeys = async () => {
   }
 }
 
-const handleR1Toggle = () => {
-  localStorage.setItem(`r1_enabled_${userId.value}`, r1Enabled.value.toString())
+const handleModelSelection = () => {
+  localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
+  emit('keysUpdated')
 }
 
 // Expose methods and state
@@ -486,7 +496,7 @@ defineExpose({
     exaKey: exaKey.value,
     serperKey: serperKey.value,
     fireworksKey: fireworksKey.value,
-    r1Enabled: r1Enabled.value
+    selectedModel: selectedModel.value
   }),
 })
 </script>

@@ -400,7 +400,7 @@ class QueryRouterServiceChat:
         self,
         llm_api_key: str,
         provider: str,
-        r1_enabled: bool,
+        model_name: str,
         message_id: str,
         websocket_manager: WebSocketInterface,
         redis_client: Optional[redis.Redis] = None,
@@ -409,7 +409,7 @@ class QueryRouterServiceChat:
     ):
         self.llm_api_key = llm_api_key
         self.provider = provider
-        self.model_name = "deepseek-r1" if r1_enabled else "llama-3.3-70b"
+        self.model_name = self._resolve_model_name(model_name, provider)
         self.websocket_manager = websocket_manager
         self.redis_client = redis_client
         self.user_id = user_id
@@ -473,6 +473,15 @@ class QueryRouterServiceChat:
             "goog", "googl", "amzn", "aapl", "tsla", "msft",
             "nflx", "meta", "nvda", "amd", "intc"
         ]
+
+    @staticmethod
+    def _resolve_model_name(model_name: str, provider: str) -> str:
+        """
+        Resolve the model name to the correct model name.
+        """
+        if provider == "fireworks" and model_name == "llama-3.1-tulu-3-405b":
+            return "llama-3.1-405b"
+        return model_name
 
     def _detect_query_type(self, query: str) -> str:
         """

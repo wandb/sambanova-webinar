@@ -10,7 +10,7 @@
         <div class="inline-block  ">
           <p class="text-[16px] color-primary-brandGray">
             {{ props.data }}
-            {{ props.messageId }}  
+            
           </p>
         </div>
         <!-- End Card -->
@@ -30,7 +30,7 @@
         <div class="inline-block" >
        <div class=" p-4 capitalize space-y-3 font-inter font-semibold text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent</div>
 </div>
-{{ props.messageId }}  
+
 </div>
         </div>
         <div class="w-full bg-white  ">

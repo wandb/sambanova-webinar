@@ -207,11 +207,11 @@ class SemanticRouterAgent(RoutedAgent):
             router = QueryRouterServiceChat(
                 llm_api_key=api_key,
                 provider=message.provider,
+                model_name=message.planner_model,
                 websocket_manager=self.websocket_manager,
                 redis_client=self.redis_client,
                 user_id=user_id,
                 conversation_id=conversation_id,
-                r1_enabled=message.r1_enabled,
                 message_id=message.message_id
             )
 

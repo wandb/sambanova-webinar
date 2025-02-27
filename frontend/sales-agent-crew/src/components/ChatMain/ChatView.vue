@@ -1034,7 +1034,7 @@ const addMessage = async () => {
     data: searchQuery.value,
     timestamp: new Date().toISOString(),
     provider: provider.value,
-    r1_enabled: localStorage.getItem(`r1_enabled_${userId.value}`) === 'true',
+    planner_model: localStorage.getItem(`selected_model_${userId.value}`) || '',
     message_id:currentMsgId.value
   }
 

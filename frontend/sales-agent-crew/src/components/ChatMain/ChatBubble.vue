@@ -4,17 +4,18 @@
       v-if="props.event === 'user_message'" 
       class=" flex  px-4 items-center  gap-x-2 sm:gap-x-4"
     >
-    <UserAvatar :type="user" />
-      <div class="grow text-start space-y-3">
+    
+      <div class="grow text-end space-y-3">
         <!-- Card -->
         <div class="inline-block  ">
           <p class="text-[16px] color-primary-brandGray">
             {{ props.data }}
+            {{ props.messageId }}  
           </p>
         </div>
         <!-- End Card -->
       </div>
-    
+      <UserAvatar :type="user" />
     </li>
     
     <!-- For all other cases -->
@@ -29,6 +30,7 @@
         <div class="inline-block" >
        <div class=" p-4 capitalize space-y-3 font-inter font-semibold text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent</div>
 </div>
+{{ props.messageId }}  
 </div>
         </div>
         <div class="w-full bg-white  ">
@@ -102,6 +104,11 @@
       type: String,
       required: true
     },
+    messageId: {
+      type: String,
+      required: true
+    },
+    
   workflowData: {
     type: [],
     required: false // Ensure it's always provided

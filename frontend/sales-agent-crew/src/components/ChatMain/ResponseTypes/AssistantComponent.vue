@@ -87,7 +87,7 @@ export default {
   font-size: 16px;
   line-height: 24px;
   letter-spacing: 0;
-  margin-bottom: 1rem;
+  /* margin-bottom: 1rem; */
 }
 
 /* Remove default list styles */

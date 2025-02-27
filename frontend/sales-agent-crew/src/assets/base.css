@@ -85,6 +85,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 p{
-  line-height: 24px;
+  /* line-height: 24px; */
   color: #101828;
 }

@@ -31,12 +31,12 @@
         </button>
       </div>
       <!-- Timeline Body -->
-      <div v-show="!collapsed" class="timeline-body relative pl-[18px] pt-4 pb-8">
+      <div v-show="!collapsed" class="timeline-body relative pl-[18px] pt-4 pb-4">
         <!-- Animated Vertical Line -->
         <div :key="plannerText" class="timeline-line absolute top-0 left-0 h-full w-[2px] bg-primary-timeLine"></div>
         
         <!-- Card Section -->
-        <div v-if="workflowData && workflowData.length > 0" class="w-100 mx-auto">
+        <div v-if="workflowData && workflowData.length > 0" class="w-100 p-2 mx-auto">
           <div class="flex my-2">
             <div class="flex space-x-4">
               <WorkflowDataItem :workflowData="workflowData" />

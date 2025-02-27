@@ -339,7 +339,7 @@ class FinancialAnalysisCrew:
         self.technical_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Technical Agent",
+            agent_name="Technical Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.technical_agent.llm.model,
             redis_client=self.redis_client,

@@ -533,18 +533,7 @@ class QueryRouterServiceChat:
                 "llm_provider": self.provider,
                 "task": "planning",
             }   
-        planner_event = {
-            "event": "planner",
-            "data": json.dumps({"metadata": planner_metadata}),
-            "user_id": self.user_id,
-            "conversation_id": self.conversation_id,
-            "message_id": self.message_id,
-            "timestamp": datetime.now().isoformat(),
-        }
-        await self.websocket_manager.send_message(self.user_id, self.conversation_id, planner_event)
-
         api_url = model_registry.get_model_info(model_key=self.model_name, provider=self.provider)["long_url"]
-
         async with aiohttp.ClientSession() as session:
             start_time = time.time()
             # Streaming mode

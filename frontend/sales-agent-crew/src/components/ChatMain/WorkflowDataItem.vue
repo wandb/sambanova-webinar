@@ -9,12 +9,12 @@
           <!-- Left: Text Content -->
           <div class="grow">
             <h3 class="text-sm text-primary-bodyText flex items-center">
-              <span class="inline-block w-[80%] truncate">
-                {{ item.llm_name }}  <span class="ml-1">
+              <span class="inline-block w-[75%] truncate">
+                {{ item.llm_name }} 
+              </span>
+              <span class="ml-1 w-[15%]">
                 ({{ item.count }})
               </span>
-              </span>
-             
             </h3>
             <p class="text-sm text-gray-500 flex justify-between ">
               <span class="capitalize">{{ item.task }}</span>

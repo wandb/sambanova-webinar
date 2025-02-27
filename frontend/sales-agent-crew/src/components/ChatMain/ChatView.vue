@@ -22,8 +22,6 @@
 </div>
   </div>
       <div
-        
-       
         class="flex-1  w-full  flex mx-auto "
         :class="messagesData.length == 0?'justify-center align-center flex-col':''"
       >
@@ -39,23 +37,25 @@
 class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
           <!-- Chat Bubble -->
           <ChatBubble
-            :metadata="completionMetaData"
-            :workflowData="workflowData"
             v-for="msgItem in messagesData"
-            :plannerText="plannerText"
+            :metadata="completionMetaData"
+            :workflowData="workflowData.filter(item => item.message_id === msgItem.message_id)"
+            :plannerText="plannerTextData.filter(item => item.message_id === msgItem.message_id)[0]?.data"            
             :key="msgItem.conversation_id"
             :event="msgItem.event"
             :data="msgItem.data"
+            :messageId="msgItem.message_id"
             :provider=provider
             :currentMsgId="currentMsgId"
           />
           <ChatLoaderBubble
-            :workflowData="workflowData"
+            :workflowData="workflowData.filter(item => item.message_id === currentMsgId)"
             v-if="isLoading"
             :isLoading="isLoading"
             :statusText="'Planning...'"
-            :plannerText="plannerText"
+            :plannerText="plannerTextData.filter(item => item.message_id === currentMsgId)[0]?.data"            
             :provider=provider
+             :messageId="currentMsgId"
           />
           <!-- End Chat Bubble -->
         </ul>
@@ -324,6 +324,7 @@ import StatusText from '@/components/Common/StatusText.vue'
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
 import emitterMitt from '@/utils/eventBus.js';
+import { data } from 'autoprefixer'
 
 // Inject the shared selectedOption from MainLayout.vue.
 const selectedOption = inject('selectedOption')
@@ -490,8 +491,7 @@ async function loadFullHistory() {
     messages.value = []
   }
 }
-let userIdStatic = "user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
-let convIdStatic = "db5ff51c-2886-46f6-bbda-6f041ad69a41"
+
 async function loadPreviousChat(convId) {
   try {
     isLoading.value = true
@@ -521,7 +521,21 @@ async function filterChat(msgData) {
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
 
-  scrollToBottom()
+    let plannerData = msgData.messages
+    .filter(message => message.event === "planner")
+    plannerData.forEach(planner => {
+      console.log("planner",planner.message_id,JSON.parse(planner.data))
+      addOrUpdateModel(JSON.parse(planner.data).metadata,planner.message_id)
+});
+let workData = msgData.messages
+    .filter(message => message.event === "think")
+    workData.forEach(work => {
+      console.log("work",work.message_id,JSON.parse(work.data))
+      addOrUpdateModel(JSON.parse(work.data).metadata,work.message_id)
+});
+
+    
+  AutoScrollToBottom()
 
 
   agentThoughtsData.value = msgData.messages
@@ -540,7 +554,7 @@ async function filterChat(msgData) {
 
 
 
-  if(messagesData.value[0].data){
+  if(messagesData?.value[0]?.data){
     chatName.value=messagesData.value[0].data
   }
 
@@ -711,7 +725,7 @@ const missingKeys = computed(() => {
 })
 
 const statusText = ref('Loading...')
-const plannerText = ref('')
+const plannerTextData = ref([])
 async function performSearch() {
   try {
     emit('searchStart', 'routing_query')
@@ -1005,11 +1019,11 @@ const addMessage = async () => {
   }
 
   completionMetaData.value = null
-  plannerText.value = ''
+  // plannerText.value = null
   statusText.value = 'Loading...'
   AutoScrollToBottom()
   agentThoughtsData.value = []
-  workflowData.value = []
+  // workflowData.value = []
   emit('agentThoughtsDataChanged', agentThoughtsData.value)
   emit('metadataChanged', completionMetaData.value)
   if (!searchQuery.value.trim()) return
@@ -1021,7 +1035,7 @@ const addMessage = async () => {
     timestamp: new Date().toISOString(),
     provider: provider.value,
     r1_enabled: localStorage.getItem(`r1_enabled_${userId.value}`) === 'true',
-    message_id: uuidv4()
+    message_id:currentMsgId.value
   }
 
   if (selectedDocuments.value && selectedDocuments.value.length > 0) {
@@ -1054,20 +1068,29 @@ const addMessage = async () => {
    searchQuery.value = ''
 }
 
-function addOrUpdateModel(newData) {
-  const existingModel = workflowData.value.find(item => item.llm_name === newData.llm_name)
-  if (existingModel) {
-    Object.assign(existingModel, newData)
-    existingModel.count = (existingModel.count || 1) + 1
+function addOrUpdateModel(newData, message_id) {
+  // Determine which message_id to use.
+  const idToUse = message_id ? message_id : currentMsgId.value;
 
+  // Find an existing model with matching llm_name and message_id.
+  const existingModel = workflowData.value.find(
+    item => item.llm_name === newData.llm_name && item.message_id === idToUse
+  );
+
+  if (existingModel) {
+    // Update existing model and increment count.
+    Object.assign(existingModel, newData);
+    existingModel.count = (existingModel.count || 1) + 1;
   } else {
+    // Add new model entry with initial count of 1.
     workflowData.value.push({
       ...newData,
       count: 1,
-      message_id:currentMsgId.value
-    })
+      message_id: idToUse
+    });
   }
 }
+
 
 async function connectWebSocket() {
   try {
@@ -1115,7 +1138,12 @@ async function connectWebSocket() {
           } catch(e){}
         }
         else if(receivedData.event==="planner_chunk"){
-          plannerText.value = `${plannerText.value} ${receivedData.data}`
+          // plannerText.value = `${plannerText.value} ${receivedData.data}`
+
+          // plannerTextData.value.push({message_id:currentMsgId,data})
+
+          addOrUpdatePlannerText({message_id:currentMsgId.value,data:receivedData.data})
+
         }
         else if(receivedData.event==="planner"){
           let dataParsed = JSON.parse(receivedData.data)
@@ -1142,6 +1170,25 @@ async function connectWebSocket() {
     console.error('WebSocket connection error:', error)
     isLoading.value = false
   }
+}
+
+
+function addOrUpdatePlannerText(newEntry) {
+  // Find the index of an existing entry with the same message_id
+  const index = plannerTextData.value.findIndex(
+    (entry) => entry.message_id === newEntry.message_id
+  );
+
+  if (index !== -1) {
+    // Concatenate the new data with the existing data
+    plannerTextData.value[index].data += newEntry.data;
+  } else {
+    // Add new entry
+    plannerTextData.value.push(newEntry);
+  }
+
+
+  console.log("plannerTextData: ",plannerTextData.value)
 }
 
 async function removeDocument(docId) {

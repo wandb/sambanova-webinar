@@ -69,9 +69,11 @@
  
       <!-- Render only available metadata fields -->
       <MetaData :presentMetadata="presentMetadata"/>
+      
+      <Fastest/>
+      <MaximizeBox/>
 
 </template>
-
 
 
 </div>   
@@ -89,6 +91,8 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick ,computed} from 'vue'
 // import AgentTimeline from './AgentTimeline.vue'  
 import TimelineItem from '@/components/ChatMain/TimelineItem.vue' 
 import MetaData from '@/components/ChatMain/MetaData.vue'
+import Fastest from '@/components/ChatMain/Fastest.vue'
+import MaximizeBox from '@/components/ChatMain/MaximizeBox.vue'
 
  
 // Reactive variables to store parsed data from the WebSocket.

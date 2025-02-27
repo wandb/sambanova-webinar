@@ -79,6 +79,21 @@ class FinancialAnalysisAgent(RoutedAgent):
                 f"Processing financial analysis request for company: '{message.parameters.company_name}'"
             ))
 
+            if message.parameters.ticker == "":
+                response = AgentStructuredResponse(
+                    agent_type=AgentEnum.Error,
+                    data=ErrorResponse(
+                        error=f"Could not find a ticker for {message.parameters.company_name}"
+                    ),
+                    message=f"Could not find a ticker for {message.parameters.company_name}",
+                    message_id=message.message_id,
+                )
+                await self.publish_message(
+                    response,
+                    DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+                )
+                return
+
             # Initialize crew
             crew = FinancialAnalysisCrew(
                 llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)),

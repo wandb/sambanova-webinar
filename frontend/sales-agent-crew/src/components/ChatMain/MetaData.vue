@@ -32,7 +32,7 @@
           key === 'agent_name' ? 'Agent name:' :
           key === 'task' ? 'Task:' :
           key === 'total_tokens' ? 'Total tokens:' :
-          key === 'total_prompt_tokens' ? 'Total input tokens:' :
+          key === 'prompt_tokens' ? 'Total input tokens:' :
           key === 'completion_tokens' ? 'Total output tokens:' :
           formatKey(key)
         }}

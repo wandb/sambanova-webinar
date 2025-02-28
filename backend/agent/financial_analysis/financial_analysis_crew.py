@@ -330,7 +330,7 @@ class FinancialAnalysisCrew:
         self.fundamental_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Fundamental Agent",
+            agent_name="Fundamental Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.fundamental_agent.llm.model,
             redis_client=self.redis_client,
@@ -348,7 +348,7 @@ class FinancialAnalysisCrew:
         self.risk_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Risk Agent",
+            agent_name="Risk Assessment Agent",
             workflow_name="Financial Analysis",
             llm_name=self.risk_agent.llm.model,
             redis_client=self.redis_client,
@@ -357,7 +357,7 @@ class FinancialAnalysisCrew:
         self.news_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="News Agent",
+            agent_name="Financial News Agent",
             workflow_name="Financial Analysis",
             llm_name=self.news_agent.llm.model,
             redis_client=self.redis_client,

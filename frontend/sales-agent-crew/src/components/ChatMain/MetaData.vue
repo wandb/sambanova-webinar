@@ -28,7 +28,8 @@
             <span class="mx-1 font-semibold text-primary-brandTextPrimary" v-else>
               {{ formatNumber(item) }}
             </span>
-            {{ formatKey(key) }}
+            <span v-if="key === 'duration'">latency</span>
+            <span v-if="key !== 'duration'">{{ formatKey(key) }}</span>
           </span>
         </template>
       </div>

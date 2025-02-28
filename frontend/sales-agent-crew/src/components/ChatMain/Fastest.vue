@@ -11,7 +11,7 @@
       </div>
       <!-- Bottom text with original content and custom styles -->
       <p class="bottom-text text-center">
-        Experience unmatched speed—7x faster than other platforms. See the difference for yourself in our direct comparison.
+        Experience unmatched speed—7x faster than other platforms. See the difference for yourself in <a target="_blank" href="https://sambanova.ai/blog/sambanova-cloud-launches-the-fastest-deepseek-r1-671b">our direct comparison</a>.
       </p>
     </div>
   </template>
@@ -36,11 +36,16 @@
     font-size: 14px;
     line-height: 20px;
     letter-spacing: 0px;
-    text-decoration: underline;
-    text-decoration-style: solid;
-    text-decoration-offset: auto;
-    text-decoration-thickness: auto;
+  
+    
+    
     color: #1E4620;
+  }
+  a{
+    text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: auto;
+  text-decoration-offset: auto;
   }
   </style>
   

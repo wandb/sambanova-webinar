@@ -2,7 +2,7 @@
 <template>
   <div class="relative h-full w-full ">
     <!-- Content -->
-    <div  ref="container" class="relative   h-full flex flex-col overflow-x-hidden overflow-y-auto">
+    <div  ref="container" class="relative    h-full flex flex-col overflow-x-hidden overflow-y-auto">
       <!-- Sticky Top Component -->
   <div v-if="chatName" class="sticky h-[62px] top-0 z-10 bg-white p-4 shadow">
     <div class="flex items-center justify-between">
@@ -34,7 +34,7 @@
         <!-- End Title -->
         <ul 
         
-class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
+class="mt-16  max-w-4xl w-full mx-auto space-y-5">
           <!-- Chat Bubble -->
           <ChatBubble
             v-for="msgItem in messagesData"
@@ -66,9 +66,9 @@ class="mt-16 px-4 max-w-4xl w-full mx-auto space-y-5">
         <div class="sticky bottom-0 z-10 ">
           <!-- Textarea -->
           <div class="max-w-4xl mx-auto lg:px-0">
-            <div class="flex items-start mb-3">
+            <!-- <div class="flex items-start mb-3">
               <StatusText v-if="isLoading" :text="statusText" />
-            </div>
+            </div> -->
 
             <div v-if="uploadedDocuments.length > 0" class="mt-4">
               <!-- Collapsible header -->

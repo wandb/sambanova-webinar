@@ -10,7 +10,7 @@
     </div>
     <!-- Bottom text with additional details -->
     <p class="bottom-text text-center">
-      Switch to SambaNova from GPT 4-o and save $1M per year when running this workflow {{token_savings}} times a day
+      Switch to SambaNova from GPT 4-o and save $1M per year when running this workflow {{formatNumber(token_savings)}} times a day
     </p>
   </div>
 </template>
@@ -22,6 +22,15 @@ const props = defineProps({
     required: true,
   }
 });
+// Format numbers to k notation if necessary.
+function formatNumber(value) {
+  if (typeof value !== "number" || isNaN(value)) return value;
+  if (value < 1000) {
+    return value.toString();
+  }
+  const formatted = (value / 1000).toFixed(1).replace(/\.0$/, "");
+  return `${formatted}k`;
+}
 </script>
 
 <style scoped>

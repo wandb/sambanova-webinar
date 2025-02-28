@@ -1,6 +1,6 @@
 <template>
-  <div class="mx-2 mb-2" @click="isOpen = !isOpen">
-    <div class="flex justify-between items-center cursor-pointer">
+  <div class="mx-2 mb-2" >
+    <div @click="isOpen = !isOpen" class="flex justify-between items-center cursor-pointer">
       <div class="flex items-start flex-1 no-wrap">
         <CorrectIcon class="mr-1 flex-shrink-0" />
         <!-- If heading is non-numeric, display formatted key -->
@@ -41,9 +41,8 @@
     <div class="m-1 p-1 border rounded-md bg-primary-brandGray" v-show="isOpen">
       <!-- If value is an object (and not an array), render all keys -->
       <div v-if="isObject(value) && !Array.isArray(value)">
+        <!-- <h1>Object</h1> -->
 
-        
-       
         <div class="w-full">
     <div
       v-for="(val, key) in value"
@@ -64,7 +63,8 @@
 
       <!-- If value is an array, render as a bullet list -->
       <div v-else-if="Array.isArray(value)">
-        
+        <!-- <h1>Array</h1> -->
+
         <ul class="list-disc ml-6 space-y-1">
           <li v-for="(item, index) in value" :key="index">
             <RecursiveDisplay :value="item" />
@@ -74,16 +74,21 @@
 
       <!-- If heading is numeric and value has a description, display it -->
       <div v-else-if="isNumeric(heading) && value?.description">
-        
+        <!-- <h1>Else If Numeric</h1> -->
+
         {{ value.description }}
       </div>
 
       <!-- Otherwise, render the value as plain text -->
       <div v-else>
-        
+        <!-- <h1>Else</h1> -->
+
         <!-- <p class="text-sm">{{ value }}</p> -->
 
-        <div class="markdown-content text-[#667085] text-xs" v-html="formattedText(value)"></div>
+        <div class="markdown-content text-[#667085] text-[12px]" v-html="formattedText(value)"></div>
+        <!-- <JsonRenderer :value="value" /> -->
+
+
 
       </div>
     </div>
@@ -91,11 +96,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref,defineComponent } from 'vue'
 import CorrectIcon from '@/components/icons/CorrectIcon.vue'
 import RecursiveDisplay from './RecursiveDisplay.vue'
 import { isNumeric } from '@/utils/globalFunctions'
 import { formattedText } from '@/utils/formatText'
+// import JsonRenderer from './JsonRenderer.vue'
 
 const isOpen = ref(false);
 
@@ -111,6 +117,8 @@ const props = defineProps({
 });
 
 
+
+
 // Checks if a value is an object.
 function isObject(val) {
   return val !== null && typeof val === 'object';
@@ -124,6 +132,10 @@ function formatKey(key) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+
+
+
 </script>
 
 <style scoped>

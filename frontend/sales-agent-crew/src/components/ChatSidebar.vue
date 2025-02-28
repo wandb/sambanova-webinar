@@ -36,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, watch,onMounted, computed } from 'vue'
 
 import { useAuth } from '@clerk/vue'
 import { decryptKey } from '@/utils/encryption'   // adapt path if needed
@@ -304,5 +304,16 @@ function onDownloadChat(conversationId) {
   console.log('Parent: Download conversation', conversationId)
 }
 
+
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if ( newId) {
+      preselectedChat.value=newId
+
+
+      loadChats()
+    }
+    })
 
 </script>

@@ -132,6 +132,7 @@ section_writer_instructions = """You are an expert technical writer crafting one
 - Starts with bold insight
 - No preamble prior to creating the section content
 - Sources cited at end
+- Your answer must be correct, high-quality, and written by an expert using an unbiased and journalistic tone.
 </Quality checks>
 """
 
@@ -215,4 +216,6 @@ For Conclusion/Summary:
 - For conclusion: 200-300 word limit, ## for section title, only ONE structural element at most, no sources section
 - Markdown format
 - Do not include word count or any preamble in your response
-</Quality Checks>"""
+- Your answer must be correct, high-quality, and written by an expert using an unbiased and journalistic tone.
+</Quality Checks>
+"""

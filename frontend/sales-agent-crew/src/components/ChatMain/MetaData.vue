@@ -15,7 +15,9 @@
   </svg>
 
   <!-- Loop over metadata items -->
-  <p class="m-0 p-0" v-for="(item, key, index) in props.presentMetadata" :key="key">
+  <template v-for="(item, key, index) in props.presentMetadata" :key="key">
+
+  <p v-if="key!=='token_savings'"  class="m-0 p-0" >
     <!-- Separator dot for every item except the first -->
     <!-- <span
       v-if="index !== 0"
@@ -42,6 +44,7 @@
       </span>
     
     </p>
+    </template>
 </div>
 
     </div>
@@ -79,4 +82,3 @@
   <style scoped>
   /* No additional custom styles are required as Tailwind classes handle styling */
   </style>
-  

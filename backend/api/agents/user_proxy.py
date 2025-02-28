@@ -38,6 +38,31 @@ class UserProxyAgent(RoutedAgent):
         self.redis_client = redis_client
         self.message_timings = {}  # Store message processing times
 
+    def _calculate_token_savings(self, data: dict) -> float:
+        """
+        Calculate token savings based on metadata information.
+        
+        Args:
+            data (dict): The parsed message data containing metadata with token information
+            
+        Returns:
+            dict: Token savings calculations or None if required metadata is missing
+        """
+        if not (
+            "metadata" in data 
+            and "prompt_tokens" in data["metadata"] 
+            and "completion_tokens" in data["metadata"]
+        ):
+            return None
+            
+        metadata = data["metadata"]
+        input_token_saving = (2.5 - 0.6) * metadata["prompt_tokens"] / 1e6
+        output_token_saving = (10 - 1.2) * metadata["completion_tokens"] / 1e6
+        total_saving_per_run = input_token_saving + output_token_saving
+        X = 1e6 / (365 * total_saving_per_run) if total_saving_per_run > 0 else float('inf')
+        
+        return X
+
     @message_handler
     async def handle_agent_response(
         self,
@@ -68,6 +93,13 @@ class UserProxyAgent(RoutedAgent):
             if message_data.get("metadata") is None:
                 message_data["metadata"] = {}
             message_data["metadata"]["duration"] = processing_time
+
+            # Calculate token savings
+            token_savings = self._calculate_token_savings(message_data)
+            if token_savings:
+                message_data["metadata"]["token_savings"] = token_savings
+            if "cached_prompt_tokens" in message_data["metadata"]:
+                del message_data["metadata"]["cached_prompt_tokens"]
 
             # Prepare message data
             message_data = {

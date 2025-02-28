@@ -236,12 +236,12 @@ class AssistantAgentWrapper(RoutedAgent):
             else:
                 response_content = "Unable to assist with this request. Please try again."
             if models_usage:
-                total_prompt_tokens = sum(usage.prompt_tokens for usage in models_usage)
-                total_completion_tokens = sum(usage.completion_tokens for usage in models_usage)
-                total_tokens = total_prompt_tokens + total_completion_tokens
+                prompt_tokens = sum(usage.prompt_tokens for usage in models_usage)
+                completion_tokens = sum(usage.completion_tokens for usage in models_usage)
+                total_tokens = prompt_tokens + completion_tokens
             else:
-                total_prompt_tokens = 0
-                total_completion_tokens = 0
+                prompt_tokens = 0
+                completion_tokens = 0
                 total_tokens = 0
 
             end_time = time.time()
@@ -257,8 +257,8 @@ class AssistantAgentWrapper(RoutedAgent):
                 "agent_name": "General Assistant",
                 "task": "assistant",
                 "total_tokens": total_tokens,
-                "total_prompt_tokens": total_prompt_tokens,
-                "completion_tokens": total_completion_tokens,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
             }
             assistant_message = {
                 "user_id": user_id,

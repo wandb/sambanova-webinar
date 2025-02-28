@@ -362,8 +362,6 @@ class WebSocketConnectionManager(WebSocketInterface):
         """
         message_key = f"messages:{user_id}:{conversation_id}"
         session_key = f"{user_id}:{conversation_id}"
-        last_ping_time = 0
-        PING_INTERVAL = 15.0
         BATCH_SIZE = 25
         
         try:

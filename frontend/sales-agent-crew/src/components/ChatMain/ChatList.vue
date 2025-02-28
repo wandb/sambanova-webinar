@@ -23,7 +23,7 @@
   </template>
   
   <script setup>
-  import { computed } from 'vue';
+  import { computed, watch } from 'vue';
   import ChatItem from './ChatItem.vue';
   
   // Props passed from the parent component.

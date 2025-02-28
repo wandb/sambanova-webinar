@@ -15,12 +15,12 @@
   </svg>
 
   <!-- Loop over metadata items -->
-  <p class="m-0 p-0" v-for="(item, key, index) in props.presentMetadata" :key="key">
+  <template v-for="(item, key, index) in props.presentMetadata" :key="key">
     <!-- Separator dot for every item except the first -->
-    <!-- <span
+    <span
       v-if="index !== 0"
       class="w-2 h-2 bg-gray-400 rounded-full inline-block "
-    ></span> -->
+    ></span>
     <!-- Each metadata item as a single inline-flex item that won't break internally -->
     
       
@@ -38,10 +38,10 @@
         }}
       
       <span class="ml-1 capitalize font-semibold text-primary-brandTextPrimary">
-        {{ key === 'duration'?formattedDuration(parseFloat(item)):formatNumber(item) }}
+        {{ key === 'duration' ? formattedDuration(parseFloat(item)) : formatNumber(item) }}
       </span>
     
-    </p>
+  </template>
 </div>
 
     </div>

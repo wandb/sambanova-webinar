@@ -66,7 +66,7 @@ export default {
 };
 </script>
 
-<style >
+<style scoped>
 /* Styling for headings (lines ending with a colon) */
 .md-heading {
   color: #101828;

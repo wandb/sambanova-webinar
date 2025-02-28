@@ -47,47 +47,79 @@ export function formattedText(data) {
     return html;
   }
   
- // utils/formatText.js
-
-/**
- * Render the input string as formatted HTML.
- * If a JSON block (wrapped in ```json ... ```) exists, only that block is used.
- * Otherwise, if the entire content (after removing backticks) is JSON, render it as a table.
- * Otherwise, process the content as plain markdown.
+ /**
+ * Processes the input string by splitting it into segments:
+ * - Any text inside <think> … </think> is rendered as markdown.
+ * - Any JSON block wrapped in triple backticks (```json … ```) is parsed and rendered as a table.
+ * - Any remaining text is rendered as markdown.
+ * 
+ * Stray triple backticks are removed from the remaining text.
  */
 export function renderMarkdownWithJSON(data) {
-  // Try to extract a JSON block wrapped in triple backticks.
-  const jsonBlockMatch = data.match(/```json\s*([\s\S]*?)\s*```/i);
-  if (jsonBlockMatch && jsonBlockMatch[1]) {
-    try {
-      const jsonData = JSON.parse(jsonBlockMatch[1].trim());
-      return processJSON(jsonData);
-    } catch (e) {
-      console.error("Error parsing JSON block:", e);
-      // If parsing fails, fall back to markdown processing.
-      return processMarkdown(data);
-    }
+  if (!data) return "";
+  let result = "";
+  let remaining = data;
+  
+  // Process <think> block if present.
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/i;
+  const thinkMatch = remaining.match(thinkRegex);
+  if (thinkMatch) {
+    const thinkContent = thinkMatch[1].trim();
+    result += processMarkdown(thinkContent);
+    remaining = remaining.replace(thinkRegex, "").trim();
   }
   
-  // If no JSON block is found, remove all triple backticks.
-  const cleaned = data.replace(/```/g, "").trim();
-  // Check if the cleaned text appears to be pure JSON.
-  if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+  // Process JSON blocks wrapped in triple backticks.
+  const jsonRegex = /```json\s*([\s\S]*?)\s*```/gi;
+  let match;
+  while ((match = jsonRegex.exec(remaining)) !== null) {
+    // Process text before this JSON block.
+    const textBefore = remaining.slice(0, match.index);
+    result += processMarkdown(textBefore);
+    
+    // Process the JSON block if it has nonempty content.
+    if (match[1].trim()) {
+      try {
+        const jsonData = JSON.parse(match[1].trim());
+        result += processJSON(jsonData);
+      } catch (e) {
+        console.error("Error parsing JSON block:", e);
+        result += processMarkdown(match[0]);
+      }
+    }
+    
+    // Remove the processed portion from remaining text.
+    remaining = remaining.slice(match.index + match[0].length);
+    jsonRegex.lastIndex = 0; // Reset regex index after slicing.
+  }
+  
+  // Remove any stray triple backticks from the remaining text.
+  remaining = remaining.replace(/```/g, "").trim();
+  
+  // Optionally, check if any remaining text is pure JSON.
+  const pureJSONMatch = remaining.match(/{[\s\S]*}/);
+  if (pureJSONMatch && pureJSONMatch[0].trim()) {
     try {
-      const jsonData = JSON.parse(cleaned);
-      return processJSON(jsonData);
+      const jsonData = JSON.parse(pureJSONMatch[0].trim());
+      result += processJSON(jsonData);
     } catch (e) {
       console.error("Error parsing pure JSON:", e);
-      return processMarkdown(data);
+      result += processMarkdown(pureJSONMatch[0]);
     }
+    remaining = remaining.replace(/{[\s\S]*}/, "").trim();
   }
   
-  // Otherwise, process as plain markdown.
-  return processMarkdown(data);
+  // Process any remaining text as markdown.
+  if (remaining) {
+    result += processMarkdown(remaining);
+  }
+  
+  return result;
 }
 
 /**
- * A basic markdown processor that wraps each nonempty line in a paragraph.
+ * Renders plain text as markdown.
+ * Each nonempty line is wrapped in a <p> tag.
  */
 function processMarkdown(data) {
   const lines = data.split("\n").filter(line => line.trim() !== "");
@@ -100,8 +132,7 @@ function processMarkdown(data) {
 
 /**
  * Renders a JSON object as an HTML table.
- * The table uses inline styles "display: inline-table; width: auto;" so that it
- * only takes up as much width as needed.
+ * The table is styled with "display: inline-table; width: auto;" so it takes only as much width as needed.
  */
 function processJSON(jsonData) {
   let html = "";
@@ -110,11 +141,11 @@ function processJSON(jsonData) {
   const cellStyle = "padding: 8px; border-bottom: 1px solid #ddd;";
   const lastCellStyle = "padding: 8px;";
   
-  // Helper to add a table row.
+  // Helper to add a row.
   const addRow = (key, value, isLast = false) => {
     const style = isLast ? lastCellStyle : cellStyle;
     html += `<tr>
-      <td style="${cellStyle}; font-weight: bold;">${escapeHTML(key)}</td>
+      <td style="${cellStyle}; color:#101828;text-transform: capitalize;">${escapeHTML(key)}</td>
       <td style="${style}">${escapeHTML(String(value))}</td>
     </tr>`;
   };
@@ -123,22 +154,20 @@ function processJSON(jsonData) {
   
   if (typeof jsonData === "object" && jsonData !== null) {
     if (Array.isArray(jsonData)) {
-      // For arrays, process each element.
       jsonData.forEach((item, idx) => {
         if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-          Object.keys(item).forEach((key, keyIdx, arr) => {
-            addRow(key, item[key], keyIdx === arr.length - 1);
+          const keys = Object.keys(item);
+          keys.forEach((key, keyIdx) => {
+            addRow(key, item[key], keyIdx === keys.length - 1);
           });
         } else {
           addRow(String(idx), item);
         }
       });
     } else {
-      // For plain objects, process key/value pairs.
       Object.keys(jsonData).forEach(key => {
         const value = jsonData[key];
         if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-          // Flatten nested objects.
           Object.keys(value).forEach((innerKey, idx, arr) => {
             addRow(innerKey, value[innerKey], idx === arr.length - 1);
           });

@@ -29,7 +29,7 @@
     
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="overflow-hidden  border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
+      <main class="overflow-hidden transition-all duration-300 border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
 
         <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->

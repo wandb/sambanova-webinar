@@ -32,9 +32,9 @@
   </h1>
 </div>
         <!-- End Title -->
-        <ul 
-        
-class="mt-16  max-w-4xl w-full mx-auto space-y-5">
+        <!-- <ul class="mt-16  max-w-4xl w-full mx-auto space-y-5"> -->
+          <transition-group name="chat" tag="ul" class="mt-16 max-w-4xl w-full mx-auto space-y-5">
+
           <!-- Chat Bubble -->
           <ChatBubble
             v-for="msgItem in messagesData"
@@ -58,7 +58,9 @@ class="mt-16  max-w-4xl w-full mx-auto space-y-5">
              :messageId="currentMsgId"
           />
           <!-- End Chat Bubble -->
-        </ul>
+        <!-- </ul> -->
+      </transition-group>
+
       </div>
 
       <!-- Documents Section -->
@@ -364,6 +366,7 @@ try {
   alert('Failed to create new conversation. Check keys or console.')
 }
 }
+
 
 // Watch for changes to the selection and load data accordingly.
 const provider = ref('')
@@ -1216,74 +1219,43 @@ async function removeDocument(docId) {
     }
   }
 }
+
+function scrollNewMessageToMiddle() {
+  nextTick(() => {
+    const containerEl = container.value
+    if (!containerEl) return
+    // Query the <ul> element inside the container
+    const messageListEl = containerEl.querySelector('ul')
+    if (!messageListEl) return
+    // Get the last message element
+    const lastMessageEl = messageListEl.lastElementChild
+    if (!lastMessageEl) return
+
+    // Calculate the new scrollTop:
+    // lastMessageEl.offsetTop gives the distance from container top to the new message.
+    // Add half its height, then subtract half the container height to center it.
+    const targetScrollTop = lastMessageEl.offsetTop + lastMessageEl.offsetHeight / 2 - containerEl.clientHeight / 2
+
+    containerEl.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+  })
+}
+watch(
+  () => messagesData.value.length,
+  () => {
+    scrollNewMessageToMiddle()
+  }
+)
 </script>
 
 <style scoped>
-/* Loader animation for 'typing' placeholder */
-.loader-dots {
-  width: 15px;
-  height: 3px;
-  position: relative;
+/* New message enter/leave transitions */
+.chat-enter-from,
+.chat-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
-.loader-dots::before,
-.loader-dots::after,
-.loader-dots > div {
-  content: '';
-  display: block;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #9ca3af;
-  position: absolute;
-  animation: loader-dots 0.8s infinite ease-in-out;
-}
-.loader-dots::before {
-  left: 0;
-}
-.loader-dots > div {
-  left: 6px;
-}
-.loader-dots::after {
-  left: 12px;
-}
-@keyframes loader-dots {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
-}
-
-/* Syntax highlighting background, code block style */
-.hljs {
-  background: #f9fafb;
-  padding: 0.5em;
-  border-radius: 4px;
-  overflow-x: auto;
-}
-
-/* Tailwind Typography (prose) styles */
-.prose h1, .prose h2, .prose h3, .prose h4 {
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-.prose p {
-  margin: 0.5rem 0;
-}
-.prose ul, .prose ol {
-  margin: 0.5rem 0;
-  padding-left: 1.25rem;
-}
-.prose li {
-  margin: 0.25rem 0;
-}
-
-.hljs-keyword {
-  color: #7c3aed;
-  font-weight: bold;
-}
-.hljs-string {
-  color: #15803d;
+.chat-enter-active,
+.chat-leave-active {
+  transition: all 0.3s ease;
 }
 </style>

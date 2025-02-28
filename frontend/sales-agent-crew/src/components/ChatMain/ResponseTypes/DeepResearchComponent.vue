@@ -291,6 +291,7 @@
   })
   </script>
   
+  
   <style scoped>
   .deep-research {
     /* Container styling, adjust as needed */

@@ -64,6 +64,9 @@ export default {
     }
   }
 };
+
+
+
 </script>
 
 <style scoped>
@@ -129,4 +132,5 @@ export default {
 p{
   line-height: 24px;
 }
+
 </style>

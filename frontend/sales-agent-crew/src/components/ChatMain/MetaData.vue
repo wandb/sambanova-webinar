@@ -22,14 +22,25 @@
           ></span>
           <!-- Metadata item rendered as inline-block with natural wrapping -->
           <span class="inline-block whitespace-normal text-sm text-primary-brandTextSecondary">
-            <span class="mx-1 font-semibold text-primary-brandTextPrimary" v-if="key === 'duration'">
+            <span class="ml-1" v-if="key === 'duration'">Latency:</span>
+            <span class="ml-1"  v-if="key === 'llm_name'">LLM Name:</span>
+
+            <span class="ml-1"  v-if="key === 'llm_provider'">LLM Provider:</span>
+            <span class="ml-1"  v-if="key === 'workflow_name'">Workflow Name:</span>
+            <span class="ml-1"  v-if="key === 'agent_name'">Agent Name:</span>
+            <span class="ml-1"  v-if="key === 'task'">Task:</span>
+            <span class="ml-1"  v-if="key === 'total_tokens'">Total Input Tokens:</span>
+            <span class="ml-1"  v-if="key === 'total_prompt_tokens'">Total Out Tokens:</span>
+            <span class="ml-1"  v-if="key === 'completion_tokens'">Total Tokens:</span>
+
+            
+            <span class="ml-1 font-semibold text-primary-brandTextPrimary" v-if="key === 'duration'">
               {{ formattedDuration(parseFloat(item)) }}
             </span>
-            <span class="mx-1 font-semibold text-primary-brandTextPrimary" v-else>
+            <span class="ml-1 font-semibold text-primary-brandTextPrimary" v-else>
               {{ formatNumber(item) }}
             </span>
-            <span v-if="key === 'duration'">latency</span>
-            <span v-if="key !== 'duration'">{{ formatKey(key) }}</span>
+            
           </span>
         </template>
       </div>

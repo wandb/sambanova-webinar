@@ -28,7 +28,7 @@
         <!-- Title -->
         <div v-if="messagesData.length == 0" class="w-full text-center">
   <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl">
-    <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
+    <span class="bg-clip-text text-primary-brandTextSecondary">SambaNova Co-Pilot</span>
   </h1>
 </div>
         <!-- End Title -->

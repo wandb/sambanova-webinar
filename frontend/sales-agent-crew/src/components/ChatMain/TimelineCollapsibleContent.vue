@@ -139,5 +139,5 @@ function formatKey(key) {
 </script>
 
 <style scoped>
-/* Adjust styles as needed */
+/*  */
 </style>

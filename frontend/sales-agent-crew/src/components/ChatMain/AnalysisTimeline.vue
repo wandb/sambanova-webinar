@@ -1,5 +1,5 @@
 <template>
-  <div class="vertical-timeline">
+  <div class="vertical-timeline mb-4">
     <!-- Timeline Header -->
     <div class="timeline-header flex items-center justify-start">
       <h2 v-if="!isLoading" class="text-md text-primary-brandTextSecondary">

@@ -22,7 +22,7 @@
       <div v-if="error" class="bg-red-100 text-red-700 p-2 rounded mb-4">
         {{ error }}
       </div>
-      <p v-else class="text-sm text-gray-600">
+      <p v-else class="text-[16px] text-primary-brandTextPrimary">
         <strong>Ticker:</strong> {{ parsed.data.ticker }} |
         <strong>Company Name:</strong> {{ parsed.data.company_name }}
       </p>
@@ -31,7 +31,7 @@
 
 
     <!-- FUNDAMENTALS -->
-    <hr class="my-4" />
+    <!-- <hr class="my-4" /> -->
     <section v-if="parsed.data.fundamental" class="pdf-section">
       <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
         <Bars3Icon class="w-5 h-5 text-purple-500" />
@@ -134,7 +134,7 @@
             {{ formatMetric('beta', parsed.data.fundamental.beta) }}
           </div>
         </div>
-        <div class="p-3 border rounded-md shadow-sm bg-white col-span-1 sm:col-span-2">
+        <div class="p-4 border rounded-md  bg-white col-span-1 sm:col-span-2">
           <div :class="textClasses.bigGrid">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>52wk Range</span>
@@ -215,8 +215,8 @@
       </div>
 
       <!-- QUARTERLY FUNDAMENTALS CHART -->
-      <div class="mt-6 border border-gray-200 p-3 rounded-lg chart-container pdf-section">
-        <div class="flex items-center space-x-2 mb-2 text-sm text-gray-600">
+      <div class="mt-6 border border-primary-brandFrame p-4 rounded-lg chart-container pdf-section">
+        <div class="flex items-center space-x-2 mb-2 text-[16px] text-primary-brandTextPrimary">
           <ChartBarIcon class="w-4 h-4 text-purple-600" />
           <span>Quarterly Fundamentals</span>
         </div>
@@ -226,17 +226,17 @@
       </div>
 
       <!-- ADVANCED DATA & DIVIDEND HISTORY -->
-      <div class="mt-6 border border-gray-200 p-3 rounded-lg pdf-section">
-        <div class="flex items-center space-x-2 mb-2 text-sm text-gray-600">
+      <div class="mt-6 border border-primary-brandFrame p-4 rounded-lg pdf-section">
+        <div class="flex items-center space-x-2 mb-2 text-[16px] text-primary-brandTextPrimary">
           <CircleStackIcon class="w-4 h-4 text-pink-600" />
           <span>Advanced Data</span>
         </div>
         <!-- advanced_fundamentals as a list -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
           <div 
             v-for="(val, key) in parsed.data.fundamental.advanced_fundamentals || {}"
             :key="key"
-            class="p-2 border rounded-md bg-white shadow-sm text-sm"
+            class="p-2 border rounded-md bg-white  text-[16px]"
           >
             <strong class="text-primary-brandTextPrimary">{{ key }}: </strong>
             <span class="text-primary-brandTextPrimary">{{ val }}</span>
@@ -244,7 +244,7 @@
         </div>
         <!-- dividend_history as a table -->
         <div v-if="(parsed.data.fundamental.dividend_history || []).length > 0" class="overflow-x-auto">
-          <table class="min-w-full border text-sm">
+          <table class="min-w-full border text-[16px]">
             <thead class="bg-gray-100 border-b text-left">
               <tr>
                 <th class="px-3 py-2 border-r">Date</th>
@@ -270,7 +270,7 @@
     </section>
 
     <!-- RISK & AVG MONTHLY RETURNS -->
-    <hr class="my-4" />
+    <!-- <hr class="my-4" /> -->
     <section v-if="parsed.data.risk" class="pdf-section">
       <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
         <ShieldCheckIcon class="w-5 h-5 text-pink-600" />
@@ -278,8 +278,8 @@
       </h3>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <!-- Beta -->
-        <div class="p-3 border rounded-md bg-white shadow-sm">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div class="p-4 border rounded-md bg-white ">
+          <div class="text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1">
             <ArrowTrendingUpIcon class="w-4 h-4 text-orange-600" />
             <span>Beta</span>
           </div>
@@ -288,8 +288,8 @@
           </div>
         </div>
         <!-- Sharpe -->
-        <div class="p-3 border rounded-md bg-white shadow-sm">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div class="p-4 border rounded-md bg-white ">
+          <div class="text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1">
             <ArrowTrendingUpIcon class="w-4 h-4 text-red-600" />
             <span>Sharpe</span>
           </div>
@@ -298,8 +298,8 @@
           </div>
         </div>
         <!-- VaR 95% -->
-        <div class="p-3 border rounded-md bg-white shadow-sm">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div class="p-4 border rounded-md bg-white ">
+          <div class="text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1">
             <ExclamationTriangleIcon class="w-4 h-4 text-orange-600" />
             <span>VaR 95%</span>
           </div>
@@ -308,8 +308,8 @@
           </div>
         </div>
         <!-- Max Drawdown -->
-        <div class="p-3 border rounded-md bg-white shadow-sm">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div class="p-4 border rounded-md bg-white ">
+          <div class="text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1">
             <ArrowTrendingDownIcon class="w-4 h-4 text-red-600" />
             <span>Max Drawdown</span>
           </div>
@@ -318,8 +318,8 @@
           </div>
         </div>
         <!-- Volatility -->
-        <div class="p-3 border rounded-md bg-white shadow-sm">
-          <div class="text-sm text-gray-600 flex items-center space-x-2 mb-1">
+        <div class="p-4 border rounded-md bg-white ">
+          <div class="text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1">
             <ArrowTrendingDownIcon class="w-4 h-4 text-orange-600" />
             <span>Volatility</span>
           </div>
@@ -329,7 +329,7 @@
         </div>
       </div>
       <!-- monthly returns chart -->
-      <div class="border border-gray-200 p-3 rounded-lg chart-container">
+      <div class="border border-primary-brandFrame p-4 rounded-lg chart-container">
         <div style="width: 100%; height: 300px;">
           <canvas ref="monthlyReturnsCanvasRef"></canvas>
         </div>
@@ -337,13 +337,13 @@
     </section>
 
     <!-- 6-MONTH WEEKLY STOCK PRICE -->
-    <hr class="my-4" />
+    <!-- <hr class="my-4" /> -->
     <section v-if="parsed.data.stock_price_data" class="pdf-section">
       <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
         <CursorArrowRaysIcon class="w-5 h-5 text-green-600" />
         <span>Stock Price (6-Month Weekly)</span>
       </h3>
-      <div class="border border-gray-200 p-3 rounded-lg chart-container">
+      <div class="border border-primary-brandFrame p-4 rounded-lg chart-container">
         <div style="width: 100%; height: 300px;">
           <canvas ref="stockPriceCanvasRef"></canvas>
         </div>
@@ -351,7 +351,7 @@
     </section>
 
     <!-- NEWS SECTION -->
-    <hr v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="my-4" />
+    <!-- <hr v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="my-4" /> -->
     <section v-if="parsed.data?.news?.news_items && parsed.data.news.news_items.length > 0" class="pdf-section">
       <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center space-x-2">
         <GlobeAmericasIcon class="w-5 h-5 text-blue-600" />
@@ -359,12 +359,12 @@
       </h3>
       
       <!-- News Summary -->
-      <div v-if="newsSummaryHtml" class="mb-4 p-3 border rounded-md bg-white shadow-sm">
-        <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center space-x-2">
+      <div v-if="newsSummaryHtml" class="mb-4 p-4 border rounded-md bg-white ">
+        <h4 class="text-[16px] font-semibold text-gray-700 mb-2 flex items-center space-x-2">
           <DocumentTextIcon class="w-4 h-4 text-blue-600" />
           <span>News Summary</span>
         </h4>
-        <div class="text-sm text-gray-700 prose max-w-none">
+        <div class="text-[16px] text-gray-700 prose max-w-none">
           <div v-html="newsSummaryHtml"></div>
         </div>
       </div>
@@ -374,7 +374,7 @@
         <div 
           v-for="(newsItem, index) in uniqueNewsItems" 
           :key="index" 
-          class="p-1.5 border rounded-md bg-white shadow-sm hover:bg-gray-50 transition-colors"
+          class="p-1.5 border rounded-md bg-white  hover:bg-gray-50 transition-colors"
         >
           <a 
             :href="newsItem.link" 
@@ -391,7 +391,7 @@
       </div>
     </section>
     <!-- COMPETITOR ANALYSIS -->
-    <hr class="my-4" />
+    <!-- <hr class="my-4" /> -->
     <section v-if="parsed.data.competitor" class="pdf-section">
       <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
         <UsersIcon class="w-5 h-5 text-green-500" />
@@ -399,7 +399,7 @@
       </h3>
 
       <!-- Chart (optional) -->
-      <div class="border border-gray-200 p-3 rounded-lg chart-container mb-6">
+      <div class="border border-primary-brandFrame p-4 rounded-lg chart-container mb-6">
         <div style="width: 100%; height: 300px;">
           <canvas ref="competitorCanvasRef"></canvas>
         </div>
@@ -413,7 +413,7 @@
         <div
           v-for="(comp, idx) in parsed.data.competitor.competitor_details"
           :key="idx"
-          class="p-4 border rounded-lg shadow-sm bg-white"
+          class="p-4 border rounded-lg  bg-white"
         >
           <div class="mb-2">
             <h4 class="font-semibold text-primary-brandTextPrimary">
@@ -423,7 +423,7 @@
               {{ comp.industry }}, {{ comp.sector }}
             </p>
           </div>
-          <div class="space-y-1 text-sm">
+          <div class="space-y-1 text-[16px]">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-1">
                 <BanknotesIcon class="w-4 h-4 text-blue-500" />
@@ -485,13 +485,13 @@
       </div>
     </section>
     <!-- COMPREHENSIVE SUMMARY -->
-    <hr class="my-4" />
+    <!-- <hr class="my-4" /> -->
     <section class="pdf-section">
       <h3 class="text-lg font-semibold text-primary-brandTextPrimary mb-2 flex items-center space-x-2">
         <DocumentTextIcon class="w-5 h-5 text-purple-600" />
         <span>Comprehensive Summary</span>
       </h3>
-      <div class="text-sm text-primary-brandTextPrimary prose max-w-none">
+      <div class="text-[16px] text-primary-brandTextPrimary prose max-w-none">
         <div v-html="comprehensiveSummaryHtml"></div>
       </div>
     </section>
@@ -562,11 +562,11 @@ const stockPriceCanvasRef = ref(null)
 /* --------------------------------------
  * Styling helpers
  * -------------------------------------- */
-const sectionClasses = 'p-3 border rounded-md shadow-sm bg-white'
+const sectionClasses = 'p-4 border rounded-md  bg-white'
 const textClasses = {
-  margin: 'text-sm text-gray-600 flex items-center space-x-2 mb-1',
+  margin: 'text-[16px] text-primary-brandTextPrimary flex items-center space-x-2 mb-1',
   value: 'text-lg overflow-hidden text-ellipsis font-bold text-gray-900',
-  bigGrid: 'flex items-center space-x-2 text-sm text-gray-600 mb-1'
+  bigGrid: 'flex items-center space-x-2 text-[16px] text-primary-brandTextPrimary mb-1'
 }
 
 /* --------------------------------------

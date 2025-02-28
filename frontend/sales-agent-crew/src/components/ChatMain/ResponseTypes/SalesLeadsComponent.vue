@@ -1,5 +1,5 @@
 <template>
-    <div class="container mx-auto p-4">
+    <div class="container mx-auto ">
       <!-- Display an error message if present -->
       <div v-if="error" class="bg-red-100 text-red-700 p-2 rounded mb-4">
         {{ error }}
@@ -9,14 +9,14 @@
         <div
           v-for="(item, index) in parsed.data.outreach_list"
           :key="index"
-          class="bg-white  rounded-lg p-6 mb-6 border border-gray-200"
+          class="bg-white  rounded-lg p-4 mb-4 border border-primary-brandFrame"
         >
-          <h2 class="text-2xl font-bold mb-2">
+          <h2 class="text-[20px] font-bold mb-2">
             <a
               :href="item.website"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-blue-600 hover:underline"
+              class="text-primary-brandTextPrimary underline"
             >
               {{ item.company_name }}
             </a>

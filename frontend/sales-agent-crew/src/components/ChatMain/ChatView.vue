@@ -1125,13 +1125,15 @@ async function connectWebSocket() {
               let metaDataComplettion = JSON.parse(receivedData.data)
               completionMetaData.value = metaDataComplettion.metadata
               emit('metadataChanged', completionMetaData.value)
+            }else{
+              AutoScrollToBottom()
             }
           } catch (error) {
             console.log("completionMetaData.value",error)
           }
           messagesData.value.push(receivedData)
           isLoading.value = false
-          AutoScrollToBottom()
+          
         }
         else if(receivedData.event==="think"){
           let dataParsed = JSON.parse(receivedData.data)

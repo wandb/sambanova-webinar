@@ -47,7 +47,7 @@ onMounted(() => {
 }
 
 .box-progress {
-  color: rgba(31, 41, 55, 0.3);
+  color: #667085;
   position: relative;
 }
 
@@ -57,7 +57,7 @@ onMounted(() => {
   overflow: hidden;
   max-width: 6.5em;
   white-space: nowrap;
-  color: orange;
+  color: #101828;
   animation: loading 2s linear infinite;
 }
 

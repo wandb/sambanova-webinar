@@ -46,18 +46,20 @@
         <!-- Inline metadata items -->
         <MetaData v-if="presentMetadata" :presentMetadata="presentMetadata" />
         <!-- Planner text -->
-        <div class="markdown-content text-[#667085]" v-html="formattedText(plannerText)"></div>
+         
+         
+        <div class="markdown-content text-[#667085]" v-html="renderedContent"></div>
       </div>
     </div>
   </template>
   
   <script setup>
-  import { ref } from 'vue'
+  import { ref ,computed} from 'vue'
   import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
   import MetaData from '@/components/ChatMain/MetaData.vue'
   import StatusText from '@/components/Common/StatusText.vue'
-  import { formattedText } from '@/utils/formatText'
-  
+  import { formattedText,renderMarkdownWithJSON } from '@/utils/formatText'
+
   const props = defineProps({
     isLoading: { type: Boolean, default: false },
     parsedData: { type: Object, default: () => ({}) },
@@ -67,6 +69,9 @@
     statusText: { type: String, default: '' },
     defaultCollapsed: { type: Boolean, default: true }
   });
+  const renderedContent = computed(() => renderMarkdownWithJSON(props.plannerText))
+
+  
   
   const collapsed = ref(props.defaultCollapsed || false);
   function toggleCollapse() {

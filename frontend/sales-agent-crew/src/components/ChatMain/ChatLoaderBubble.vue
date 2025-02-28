@@ -1,15 +1,19 @@
 <template>
        <li  
-      class="flex py-2 max-w-4xl px-4 items-start gap-x-2 sm:gap-x-4">
-      <!-- v-else for all other cases -->
-      <div class="flex items-start space-x-3">
-        <div class="flex-none ">
-          <UserAvatar :type="provider" />
+      class="px-4 items-start gap-x-2 sm:gap-x-4">
+      <div class="w-full flex items-center ">
+      
 
+      <UserAvatar :type="provider" /> 
+      <div class="grow text-start space-y-3">
+      <!-- Card -->
+      <div class="inline-block" >
+     <div class=" p-4 capitalize space-y-3 font-inter font-semibold text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent</div>
+</div>
+
+</div>
       </div>
-        <div class="flex-1 bg-white    p-4 space-y-3 ">
-        
-
+      <div class="w-full bg-white  ">
           <AnalysisTimeline 
       :isLoading="isLoading" 
       :workflowData="workflowData" 
@@ -19,16 +23,7 @@
       isOpen="'true'"
     />
      
-     
-<!-- End Card Section -->
-          <!-- <StatusText   :text="statusText"  /> 
-          
-          <div v:if="isOpen">  {{plannerText}}</div> -->
-        
-     
-
-      
-      </div>
+    
       </div>
     </li>
     

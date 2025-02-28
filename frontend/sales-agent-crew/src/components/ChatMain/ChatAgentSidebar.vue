@@ -71,7 +71,7 @@
       <MetaData :presentMetadata="presentMetadata"/>
       
       <Fastest/>
-      <MaximizeBox/>
+      <MaximizeBox   :token_savings="presentMetadata?.token_savings"/>
 
 </template>
 

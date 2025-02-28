@@ -10,12 +10,18 @@
     </div>
     <!-- Bottom text with additional details -->
     <p class="bottom-text text-center">
-      A company with 200 users can save up to $1M per year. Want proof? Check <a href=""></a>out our direct comparison.    </p>
+      Switch to SambaNova from GPT 4-o and save $1M per year when running this workflow {{token_savings}} times a day
+    </p>
   </div>
 </template>
 
 <script setup>
-// This component is static. Add any logic if needed.
+const props = defineProps({
+  token_savings: {
+    type: [Number, String],
+    required: true,
+  }
+});
 </script>
 
 <style scoped>
@@ -34,13 +40,10 @@
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0px;
-
-
   color: #EE7624;
 }
 
-a{
-  
+a {
   text-decoration: underline;
   text-decoration-style: solid;
   text-decoration-thickness: auto;

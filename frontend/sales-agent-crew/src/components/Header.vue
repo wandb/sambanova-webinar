@@ -17,7 +17,7 @@
           />
         </div>
         <h1 class="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight text-center">
-          Agents
+          Co-Pilot
         </h1>
       </div>
 

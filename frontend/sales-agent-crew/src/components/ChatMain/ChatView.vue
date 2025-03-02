@@ -28,7 +28,7 @@
         <!-- Title -->
         <div v-if="messagesData.length == 0" class="w-full text-center">
   <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl">
-    <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
+    <span class="bg-clip-text text-primary-brandTextSecondary">SambaNova Co-Pilot</span>
   </h1>
 </div>
         <!-- End Title -->
@@ -1042,7 +1042,9 @@ const addMessage = async () => {
   }
 
   if (selectedDocuments.value && selectedDocuments.value.length > 0) {
-    messagePayload.document_ids = selectedDocuments.value.map(doc => doc.id);
+    messagePayload.document_ids = selectedDocuments.value.map(doc => {
+      return typeof doc === 'string' ? doc : doc.id;
+    });
   } else {
     messagePayload.document_ids = [];
   }

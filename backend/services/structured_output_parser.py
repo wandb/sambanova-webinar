@@ -1,9 +1,6 @@
 import json
-from typing import Any, Type
-from crewai.utilities.converter import convert_to_model
-from pydantic import BaseModel
 from crewai.utilities.converter import Converter, ConverterError
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 import re
 import json
 import json5

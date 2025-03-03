@@ -2,7 +2,7 @@ import os
 import sys
 import uuid
 import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 import numpy as np
 from redis import Redis
 import yfinance as yf
@@ -35,7 +35,9 @@ from config.model_registry import model_registry
 
 
 ###################### NEWS MODELS & (SERPER) WRAPPER ######################
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic import field_validator
+from datetime import datetime, timedelta
 
 class NewsItem(BaseModel):
     title: str
@@ -108,7 +110,7 @@ class TechnicalData(BaseModel):
 
 class RiskDailyReturns(BaseModel):
     date: str
-    daily_return: str
+    daily_return: Union[str, float]
 
 class RiskData(BaseModel):
     beta: float
@@ -116,7 +118,19 @@ class RiskData(BaseModel):
     value_at_risk_95: str
     max_drawdown: str
     volatility: str
-    daily_returns: List[RiskDailyReturns] = []
+    daily_returns: List[RiskDailyReturns] = Field(default_factory=list)
+
+    @field_validator('daily_returns', mode='before')
+    @classmethod
+    def validate_daily_returns(cls, v):
+        try:
+            if not v:
+                return []
+            if all(isinstance(x, dict) for x in v):
+                return [RiskDailyReturns(**x) for x in v]
+            return []
+        except:
+            return []
 
 class CompetitorInfo(BaseModel):
     ticker: str
@@ -138,11 +152,11 @@ class CompetitorBlock(BaseModel):
 
 class WeeklyPriceData(BaseModel):
     date: str
-    open: str
-    high: str
-    low: str
-    close: str
-    volume: str
+    open: Union[str, float]
+    high: Union[str, float]
+    low: Union[str, float]
+    close: Union[str, float]
+    volume: Union[str, float]
 
 
 class NewsItem(BaseModel):

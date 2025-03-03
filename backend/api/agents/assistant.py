@@ -253,7 +253,7 @@ class AssistantAgentWrapper(RoutedAgent):
                 "duration": processing_time,
                 "llm_name": self.get_assistant(message.provider)._model_client._resolved_model,
                 "llm_provider": message.provider,
-                "workflow_name": "General Assistant",
+                "workflow": "General Assistant",
                 "agent_name": "General Assistant",
                 "task": "assistant",
                 "total_tokens": total_tokens,

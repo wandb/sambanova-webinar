@@ -27,8 +27,8 @@
       >
         <!-- Title -->
         <div v-if="messagesData.length == 0" class="w-full text-center">
-  <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl">
-    <span class="bg-clip-text text-primary-brandTextSecondary">SambaNova Co-Pilot</span>
+  <h1 v-if="!isLoading" class="text-3xl font-bold sm:text-4xl">
+    <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
   </h1>
 </div>
         <!-- End Title -->
@@ -413,13 +413,31 @@ function handleKeydownScroll(event) {
   }
 }
 
+// function AutoScrollToBottom() {
+//   nextTick(() => {
+//     if (container.value) {
+//       container.value.scrollTop = container.value.scrollHeight
+//     }
+//   })
+// }
+
+
+
 function AutoScrollToBottom() {
   nextTick(() => {
-    if (container.value) {
-      container.value.scrollTop = container.value.scrollHeight
-    }
-  })
+    setTimeout(() => {
+      if (container.value) {
+        const targetScroll = container.value.scrollHeight - container.value.clientHeight;
+        container.value.scrollTo({
+          top: targetScroll,
+          behavior: "smooth"
+        });
+      }
+    }, 100); // Increase this value if necessary
+  });
 }
+
+
 
 const emit = defineEmits([
   'searchStart',
@@ -1015,6 +1033,8 @@ function waitForSocketOpen(timeout = 5000) {
 const  currentMsgId=ref('')
 const addMessage = async () => {
 
+
+  workflowData.value=[]
  
     // If no conversation exists, create a new chat first.
     if (!route.params.id) {
@@ -1100,6 +1120,9 @@ function addOrUpdateModel(newData, message_id) {
       count: 1,
       message_id: idToUse
     });
+
+
+    console.log(workflowData.value)
   }
 }
 
@@ -1151,8 +1174,14 @@ async function connectWebSocket() {
           statusText.value = dataParsed.agent_name
           emit('agentThoughtsDataChanged', agentThoughtsData.value)
           try{
-            addOrUpdateModel(JSON.parse(receivedData.data).metadata)
-          } catch(e){}
+            console.log("think parsed",dataParsed.metadata)
+          addOrUpdateModel(dataParsed.metadata)
+          console.log("workflowData:",workflowData)
+          AutoScrollToBottom()
+
+          } catch(e){
+            console.log("model error",e)
+          }
         }
         else if(receivedData.event==="planner_chunk"){
           // plannerText.value = `${plannerText.value} ${receivedData.data}`

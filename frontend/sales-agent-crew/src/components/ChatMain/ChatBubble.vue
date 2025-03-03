@@ -52,7 +52,7 @@
   </template>
   
   <script setup>
-  import { computed, defineProps, ref } from 'vue'
+  import { computed, defineProps, ref,watch } from 'vue'
   import SILogo from '@/components/icons/SILogo.vue'
   import UserAvatar from '@/components/Common/UIComponents/UserAvtar.vue'
   import AssistantComponent from '@/components/ChatMain/ResponseTypes/AssistantComponent.vue'
@@ -88,14 +88,14 @@
       type: String,
       required: true
     },
-    statusText: {
-      type: String,
-      required: true
-    },
-    isLoading: {
-      type: Boolean,
-      required: true
-    },
+    // statusText: {
+    //   type: String,
+    //   required: true
+    // },
+    // isLoading: {
+    //   type: Boolean,
+    //   required: true
+    // },
     metadata: {
       type: Object,
       required: true
@@ -131,6 +131,15 @@ return parsedData.metadata;
   return props.metadata;
 });
 
+
+// watch(
+//   () => props.workflowData,
+//   (newWorkflowData, oldWorkflowData) => {
+//     console.log("Prop myProp received/changed:", newWorkflowData);
+//     // You can add additional checks or logic here
+//   },
+//   { immediate: true } // This makes sure the watcher fires immediately upon component creation.
+// );
   
   // Parse the JSON string safely
   const parsedData = computed(() => {

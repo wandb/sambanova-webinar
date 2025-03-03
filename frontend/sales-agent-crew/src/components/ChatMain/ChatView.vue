@@ -1033,6 +1033,8 @@ function waitForSocketOpen(timeout = 5000) {
 const  currentMsgId=ref('')
 const addMessage = async () => {
 
+
+  workflowData.value=[]
  
     // If no conversation exists, create a new chat first.
     if (!route.params.id) {
@@ -1118,6 +1120,9 @@ function addOrUpdateModel(newData, message_id) {
       count: 1,
       message_id: idToUse
     });
+
+
+    console.log(workflowData.value)
   }
 }
 
@@ -1169,8 +1174,14 @@ async function connectWebSocket() {
           statusText.value = dataParsed.agent_name
           emit('agentThoughtsDataChanged', agentThoughtsData.value)
           try{
-            addOrUpdateModel(JSON.parse(receivedData.data).metadata)
-          } catch(e){}
+            console.log("think parsed",dataParsed.metadata)
+          addOrUpdateModel(dataParsed.metadata)
+          console.log("workflowData:",workflowData)
+          AutoScrollToBottom()
+
+          } catch(e){
+            console.log("model error",e)
+          }
         }
         else if(receivedData.event==="planner_chunk"){
           // plannerText.value = `${plannerText.value} ${receivedData.data}`

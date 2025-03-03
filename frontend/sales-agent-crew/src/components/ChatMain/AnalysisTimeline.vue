@@ -48,7 +48,7 @@
       <!-- Inline metadata items -->
       <MetaData v-if="presentMetadata" :presentMetadata="presentMetadata" />
       <!-- Planner text -->
-      <div class="markdown-content text-[#667085]" v-html="renderedContent"></div>
+      <div class="ml-2 markdown-content text-[#667085]" v-html="renderedContent"></div>
     </div>
   </div>
 </template>
@@ -82,6 +82,9 @@ function toggleCollapse() {
     });
   }
 }
+
+
+
 
 function formattedDuration(duration) {
   if (typeof duration !== 'number' || isNaN(duration)) return duration;

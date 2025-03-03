@@ -7,6 +7,8 @@ import numpy as np
 from redis import Redis
 import yfinance as yf
 
+from services.structured_output_parser import CustomConverter
+
 # Ensure our parent directories are in sys.path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
@@ -149,7 +151,7 @@ class NewsItem(BaseModel):
 
 class News(BaseModel):
     news_items: List[NewsItem] = []
-    summary: str = ""
+    news_summary: str = ""
 
 class FinancialAnalysisResult(BaseModel):
     ticker: str
@@ -453,7 +455,8 @@ class FinancialAnalysisCrew:
             ] + ([self.document_summarizer_task] if self.docs_included else []),
             expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, news, comprehensive_summary",
             max_iterations=1,
-            output_pydantic=FinancialAnalysisResult
+            output_pydantic=FinancialAnalysisResult,
+            converter_cls=CustomConverter
         )
 
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:

@@ -611,7 +611,7 @@ const uniqueNewsItems = computed(() => {
 })
 
 const newsSummaryHtml = computed(() => {
-  let raw = props.parsed.data?.news?.summary || ''
+  let raw = props.parsed.data?.news?.news_summary || ''
   if (!raw) return ''
   
   let splitted = breakLargeBlocks(raw)

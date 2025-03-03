@@ -500,7 +500,7 @@ def write_section(
     content = invoke_llm_with_tracking(
         llm=writer_model,
         messages=[SystemMessage(content=sys_inst), HumanMessage(content="Write the section.")],
-        task="Write section",
+        task=f"Write section - {sec.name}",
         config=llm_config_section_writing,
         usage_handler=usage_handler_section_writing,
         configurable=configurable,
@@ -524,7 +524,7 @@ def write_section(
     fb = invoke_llm_with_tracking(
         llm=structured_llm,
         messages=[SystemMessage(content=grader_inst), HumanMessage(content="Grade it")],
-        task="Grade section",
+        task=f"Grade section - {sec.name}",
         config=llm_config_section_grading,
         usage_handler=usage_handler_section_grading,
         configurable=configurable,

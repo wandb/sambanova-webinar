@@ -11,8 +11,9 @@
       </div>
       <!-- Bottom text with original content and custom styles -->
       <p class="bottom-text text-center">
-        Experience unmatched speed—5.2x faster than the competition! See how <a target="_blank" href="https://x.com/SambaNovaAI/status/1895188233253986452">SN40L crushes H200</a> in real-world #AI inference. Check out our direct comparison and the groundbreaking performance.
-        SN40L vs. H200: 5.7x faster (201 tps vs 35 tps) <a target="_blank" href="https://sambanova.ai/blog/sambanova-cloud-launches-the-fastest-deepseek-r1-671b">See the full comparison here</a>.
+        Experience faster speeds using the best open source models like DeepSeek R1 and Llama. These speeds are only made possible thanks to SambaNova RDUs, not GPUs!
+        <!-- Experience unmatched speed—5.2x faster than the competition! See how <a target="_blank" href="https://x.com/SambaNovaAI/status/1895188233253986452">SN40L crushes H200</a> in real-world #AI inference. Check out our direct comparison and the groundbreaking performance.
+        SN40L vs. H200: 5.7x faster (201 tps vs 35 tps) <a target="_blank" href="https://sambanova.ai/blog/sambanova-cloud-launches-the-fastest-deepseek-r1-671b">See the full comparison here</a>. -->
       </p>
     </div>
   </template>

@@ -10,7 +10,8 @@
     </div>
     <!-- Bottom text with additional details -->
     <p class="bottom-text text-center">
-      Switch to SambaNova from GPT 4-o and save $1M per year when running this workflow {{formatNumber(token_savings)}} times a day
+      Switch to Llama 3.3 70B on SambaNova from GPT-4o and save up to $1 million per year at Enterprise Scale
+      <!-- Switch to SambaNova from GPT 4-o and save $1M per year when running this workflow {{formatNumber(token_savings)}} times a day -->
     </p>
   </div>
 </template>

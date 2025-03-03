@@ -70,3 +70,26 @@
 .copy-button-success {
   @apply text-green-600 bg-white;
 }
+
+
+/* src/assets/global.css */
+
+/* For Chrome, Safari, and Opera */
+::-webkit-scrollbar {
+  width: 2px; /* Reduced width */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  /* background-color: rgba(0, 0, 0, 0.5); */
+  border-radius: 1px;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.5) transparent;
+}

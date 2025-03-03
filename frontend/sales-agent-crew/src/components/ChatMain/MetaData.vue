@@ -17,7 +17,7 @@
   <!-- Loop over metadata items -->
   <template v-for="(item, key, index) in props.presentMetadata" :key="key">
 
-  <p v-if="key!=='token_savings'"  class="m-0 p-0" >
+  <p v-if="key!=='token_savings'"  class="m-0 p-0 w-full" >
     <!-- Separator dot for every item except the first -->
     <!-- <span
       v-if="index !== 0"

@@ -22,10 +22,7 @@
       :is="chatMode ? chatSidebarComp : sideBarComp"
       @selectReport="handleSavedReportSelect"       
       @selectConversation="handleSelectConversation"
-      ref="chatSideBarRef"
-      
-
-    />
+      ref="chatSideBarRef" />
     
 
       <!-- MAIN CONTENT WRAPPER -->

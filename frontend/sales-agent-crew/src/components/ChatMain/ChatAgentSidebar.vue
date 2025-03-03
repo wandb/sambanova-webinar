@@ -1,6 +1,6 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div  v-if="agentThoughtsData.length"  class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
+  <div ref="agentContainer"  v-if="agentThoughtsData.length"  class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
    border border-primary-brandFrame bg-white rounded-lg h-full border-l 
     transition-all duration-300 "
   :class="collapsed ? 'w-[64px]  ' : 'w-80'">
@@ -94,7 +94,8 @@ import MetaData from '@/components/ChatMain/MetaData.vue'
 import Fastest from '@/components/ChatMain/Fastest.vue'
 import MaximizeBox from '@/components/ChatMain/MaximizeBox.vue'
 
- 
+const agentContainer = ref(null);
+
 // Reactive variables to store parsed data from the WebSocket.
 const agentName = ref('')
 const timestamp = ref(0)
@@ -277,7 +278,18 @@ watch(
     
 
       agentThoughtsData.value = ((newAgentData)) || []    
+      nextTick(() => {
+  setTimeout(() => {
+    if (agentContainer.value) {
+      agentContainer.value.scrollTo({
+        top: agentContainer.value.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  }, 100); // Adjust the delay (in ms) as needed
+});
 
+      
   },
   { deep: true } // If you want to detect nested mutations
 )

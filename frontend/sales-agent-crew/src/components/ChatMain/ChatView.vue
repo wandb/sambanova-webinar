@@ -27,8 +27,8 @@
       >
         <!-- Title -->
         <div v-if="messagesData.length == 0" class="w-full text-center">
-  <h1 v-if="!isLoading" class="text-3xl font-bold text-gray-800 sm:text-4xl">
-    <span class="bg-clip-text text-primary-brandTextSecondary">SambaNova Co-Pilot</span>
+  <h1 v-if="!isLoading" class="text-3xl font-bold sm:text-4xl">
+    <span class="bg-clip-text text-primary-brandTextSecondary">Agents</span>
   </h1>
 </div>
         <!-- End Title -->
@@ -406,13 +406,31 @@ function handleKeydownScroll(event) {
   }
 }
 
+// function AutoScrollToBottom() {
+//   nextTick(() => {
+//     if (container.value) {
+//       container.value.scrollTop = container.value.scrollHeight
+//     }
+//   })
+// }
+
+
+
 function AutoScrollToBottom() {
   nextTick(() => {
-    if (container.value) {
-      container.value.scrollTop = container.value.scrollHeight
-    }
-  })
+    setTimeout(() => {
+      if (container.value) {
+        const targetScroll = container.value.scrollHeight - container.value.clientHeight;
+        container.value.scrollTo({
+          top: targetScroll,
+          behavior: "smooth"
+        });
+      }
+    }, 100); // Increase this value if necessary
+  });
 }
+
+
 
 const emit = defineEmits([
   'searchStart',

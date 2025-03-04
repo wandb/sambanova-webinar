@@ -161,7 +161,7 @@ class DeepResearchAgent(RoutedAgent):
                     if isinstance(interrupt_data, tuple) and interrupt_data:
                         interrupt_msg = interrupt_data[0].value
                         user_question_str = (
-                            "Please provide feedback on the following plan or type 'true' to approve it.\n\n"
+                            "Please <b>provide feedback</b> on the following plan or <b>type 'true' to approve it</b>.\n\n"
                             f"{interrupt_msg}\n\n"
                         )
                         token_usage = self._session_threads[session_id]["configurable"][

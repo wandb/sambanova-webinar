@@ -342,8 +342,8 @@ async def generate_report_plan(writer_model, planner_model, state: ReportState, 
 def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Literal["generate_report_plan","build_section_with_web_research"]]:
     sections = state["sections"]
     sec_str = "\n\n".join(
-        f"Section: {s.name}\nDescription: {s.description}\nResearch: {s.research}\n"
-        for s in sections
+        f"<b>Section {i+1}:</b> {s.name} - {s.description}\n"
+        for i, s in enumerate(sections)
     )
     fb = interrupt(
         f"Please provide feedback on the following plan:\n\n{sec_str}\n\n"

@@ -166,7 +166,6 @@ class WebSocketConnectionManager(WebSocketInterface):
                 return
 
             # Accept connection and subscribe to channel
-            await websocket.accept()
             self.add_connection(websocket, user_id, conversation_id)
             
             # Subscribe to channel if not already subscribed

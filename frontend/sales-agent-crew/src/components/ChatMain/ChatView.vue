@@ -1149,10 +1149,14 @@ async function connectWebSocket() {
     )
     const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
     const token = await window.Clerk.session.getToken()
-    const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}&token=${token}`
+    const fullUrl = `${WEBSOCKET_URL}?conversation_id=${currentId.value}`
     socket.value = new WebSocket(fullUrl)
     socket.value.onopen = () => {
       console.log('WebSocket connection opened')
+      socket.value.send(JSON.stringify({
+        type: 'auth',
+        token: `Bearer ${token}`
+      }))
     }
     socket.value.onmessage = (event) => {
       try {

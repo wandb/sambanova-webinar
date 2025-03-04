@@ -170,38 +170,53 @@ class LeadGenerationAPI:
         @self.app.websocket("/chat")
         async def websocket_endpoint(
             websocket: WebSocket,
-            conversation_id: str = Query(..., description="Conversation ID"),
-            token: str = Query(..., description="Clerk authentication token")
+            conversation_id: str = Query(..., description="Conversation ID")
         ):
             """
             WebSocket endpoint for handling user chat messages.
 
             Args:
                 websocket (WebSocket): The WebSocket connection.
-                user_id (str): The ID of the user.
                 conversation_id (str): The ID of the conversation.
-                token (str): The Clerk authentication token.
             """
             try:
-                # Verify the token and get the authenticated user
-                token_data = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-                user_id = get_user_id_from_token(token_data)
+                # Accept the connection first
+                await websocket.accept()
+                
+                # Wait for authentication message
+                auth_message = await websocket.receive_text()
+                try:
+                    auth_data = json.loads(auth_message)
+                    if auth_data.get('type') != 'auth':
+                        await websocket.close(code=4001, reason="Authentication message expected")
+                        return
+                    
+                    token = auth_data.get('token', '')
+                    if not token.startswith('Bearer '):
+                        await websocket.close(code=4001, reason="Invalid authentication token format")
+                        return
+                    
+                    token_data = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token.split(' ')[1])
+                    user_id = get_user_id_from_token(token_data)
 
-                if not user_id:
-                    await websocket.close(code=4001, reason="Invalid authentication token")
+                    if not user_id:
+                        await websocket.close(code=4001, reason="Invalid authentication token")
+                        return
+
+                    # Verify conversation exists and belongs to user
+                    meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                    if not self.app.state.redis_client.exists(meta_key):
+                        await websocket.close(code=4004, reason="Conversation not found")
+                        return
+
+                    await self.app.state.manager.handle_websocket(
+                        websocket, 
+                        user_id, 
+                        conversation_id
+                    )
+                except json.JSONDecodeError:
+                    await websocket.close(code=4001, reason="Invalid authentication message format")
                     return
-
-                # Verify conversation exists and belongs to user
-                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
-                if not self.app.state.redis_client.exists(meta_key):
-                    await websocket.close(code=4004, reason="Conversation not found")
-                    return
-
-                await self.app.state.manager.handle_websocket(
-                    websocket, 
-                    user_id, 
-                    conversation_id
-                )
             except Exception as e:
                 logger.error(f"[/chat/websocket] Error in WebSocket connection: {str(e)}")
                 await websocket.close(code=4000, reason="Internal server error")

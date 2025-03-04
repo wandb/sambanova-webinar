@@ -63,7 +63,7 @@
   const open = ref(false)
   // Updated options: Sambanova and Fireworks.
   const options = ref([
-    { label: 'Sambanova', value: 'sambanova' },
+    { label: 'SambaNova', value: 'sambanova' },
     { label: 'Fireworks', value: 'fireworks' }
   ])
   const dropdownRef = ref(null)

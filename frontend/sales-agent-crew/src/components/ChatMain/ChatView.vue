@@ -7,7 +7,7 @@
   <div v-if="chatName" class="sticky h-[62px] top-0 z-10 bg-white p-4 shadow">
     <div class="flex items-center justify-between">
   <!-- Left text -->
-  <div  class="text-[16px] font-medium text-gray-800">
+  <div  class="text-[16px]  w-80 font-medium text-gray-800 line-clamp-1 overflow-hidden">
     {{ chatName }}
   </div>
   <!-- Right buttons -->

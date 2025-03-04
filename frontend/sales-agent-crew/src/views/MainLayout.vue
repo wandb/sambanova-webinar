@@ -169,7 +169,7 @@ import { useReportStore } from '@/stores/reportStore'
 
 
 // Create a reactive property for the selected option.
-const selectedOption = ref({ label: 'Sambanova', value: 'sambanova' })
+const selectedOption = ref({ label: 'SambaNova', value: 'sambanova' })
 
 // Provide the state so that descendant components can access it.
 provide('selectedOption', selectedOption)

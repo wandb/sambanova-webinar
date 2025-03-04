@@ -465,7 +465,7 @@ const clearMessagesAfterDelay = () => {
 // Add the updateBackendKeys function
 const updateBackendKeys = async () => {
   try {
-    const url = `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`
+    const url = `${import.meta.env.VITE_API_URL}/set_api_keys`
     const postParams = {
       sambanova_key: sambanovaKey.value || '',
       serper_key: serperKey.value || '',
@@ -473,7 +473,11 @@ const updateBackendKeys = async () => {
       fireworks_key: fireworksKey.value || ''
     }
 
-    const response = await axios.post(url, postParams)
+    const response = await axios.post(url, postParams, {
+      headers: {
+        'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+      }
+    })
     if (response.status === 200) {
       console.log('API keys updated in backend successfully')
     }

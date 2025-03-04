@@ -349,29 +349,22 @@ function handleButtonClick(data) {
 
 
 async function createNewChat() {
-
-try {
-  
-  const uid = userId.value || 'anonymous'
-  const resp = await axios.post(
-    `${import.meta.env.VITE_API_URL}/chat/init`, 
-    {}, 
-    {
-      headers: {
-        // 'x-sambanova-key': sambanovaKey.value || '',
-        // 'x-serper-key': serperKey.value || '',
-        // 'x-exa-key': exaKey.value || '',
-        'x-user-id': uid
+  try {
+    const resp = await axios.post(
+      `${import.meta.env.VITE_API_URL}/chat/init`, 
+      {}, 
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`,
+        }
       }
-    }
-  )
-  const cid = resp.data.conversation_id
- 
-  router.push(`/${cid}`)
-} catch (err) {
-  console.error('Error creating new chat:', err)
-  alert('Failed to create new conversation. Check keys or console.')
-}
+    )
+    const cid = resp.data.conversation_id
+    router.push(`/${cid}`)
+  } catch (err) {
+    console.error('Error creating new chat:', err)
+    alert('Failed to create new conversation. Check keys or console.')
+  }
 }
 
 
@@ -523,8 +516,12 @@ async function loadPreviousChat(convId) {
   try {
     isLoading.value = true
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${props.userId}/${convId}`,
-      {}
+      `${import.meta.env.VITE_API_URL}/chat/history/${convId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`,
+        }
+      }
     )
     isLoading.value = false
     console.log(resp)
@@ -964,7 +961,7 @@ async function handleFileUpload(event) {
       formData,
       {
         headers: {
-          'x-user-id': userId.value || ''
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
         }
       }
     )
@@ -988,7 +985,12 @@ async function handleFileUpload(event) {
 async function loadUserDocuments() {
   try {
     const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}`
+      `${import.meta.env.VITE_API_URL}/documents`,
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+        }
+      }
     )
     uploadedDocuments.value = response.data.documents
   } catch (error) {
@@ -1128,23 +1130,32 @@ function addOrUpdateModel(newData, message_id) {
 
 async function connectWebSocket() {
   try {
-
     await loadKeys()
 
     await axios.post(
-      `${import.meta.env.VITE_API_URL}/set_api_keys/${userId.value}`,
+      `${import.meta.env.VITE_API_URL}/set_api_keys`,
       {
         sambanova_key: sambanovaKey.value || '',
         serper_key: serperKey.value || '',
         exa_key: exaKey.value || '',
         fireworks_key: fireworksKey.value || ''
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+        }
       }
     )
     const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
-    const fullUrl = `${WEBSOCKET_URL}?user_id=${userId.value}&conversation_id=${currentId.value}`
+    const token = await window.Clerk.session.getToken()
+    const fullUrl = `${WEBSOCKET_URL}?conversation_id=${currentId.value}`
     socket.value = new WebSocket(fullUrl)
     socket.value.onopen = () => {
       console.log('WebSocket connection opened')
+      socket.value.send(JSON.stringify({
+        type: 'auth',
+        token: `Bearer ${token}`
+      }))
     }
     socket.value.onmessage = (event) => {
       try {
@@ -1183,12 +1194,7 @@ async function connectWebSocket() {
           }
         }
         else if(receivedData.event==="planner_chunk"){
-          // plannerText.value = `${plannerText.value} ${receivedData.data}`
-
-          // plannerTextData.value.push({message_id:currentMsgId,data})
-
           addOrUpdatePlannerText({message_id:currentMsgId.value,data:receivedData.data})
-
         }
         else if(receivedData.event==="planner"){
           let dataParsed = JSON.parse(receivedData.data)
@@ -1239,7 +1245,12 @@ function addOrUpdatePlannerText(newEntry) {
 async function removeDocument(docId) {
   try {
     await axios.delete(
-      `${import.meta.env.VITE_API_URL}/documents/${userId.value}/${docId}`
+      `${import.meta.env.VITE_API_URL}/documents/${docId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+        }
+      }
     )
     const selectedIndex = selectedDocuments.value.indexOf(docId)
     if (selectedIndex !== -1) {

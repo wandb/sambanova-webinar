@@ -90,11 +90,12 @@ let cId=route.params.id
 
 
 async function deleteChat( conversationId) {
-  const url = `${import.meta.env.VITE_API_URL}/chat/${userId.value}/${conversationId}`;
+  const url = `${import.meta.env.VITE_API_URL}/chat/${conversationId}`;
   try {
     const response = await axios.delete(url, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
       }
     });
     // console.log('Chat deleted successfully:', response.data);
@@ -137,20 +138,18 @@ defineExpose({loadChats})
 
 async function loadChats() {
   try {
-    
-    // if (missingKeys.value.length > 0) {
-    //   alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
-    //   return
-    // }
-
     const uid = userId.value || 'anonymous'
     const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/list/${uid}`,   
+      `${import.meta.env.VITE_API_URL}/chat/list`,   
+      {
+        headers: {
+          'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+        }
+      }
     )
    
-   console.log(resp)
-
-   conversations.value = resp.data?.chats;
+    console.log(resp)
+    conversations.value = resp.data?.chats;
 
   } catch (err) {
     console.error('Error creating new chat:', err)

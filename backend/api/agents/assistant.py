@@ -138,7 +138,6 @@ class AssistantAgentWrapper(RoutedAgent):
         )
         self.api_keys = api_keys
         self.redis_client = redis_client
-        self._default_model = "llama-3.3-70b"
         self._current_provider = None
         self._assistant_instance = None
 
@@ -161,7 +160,7 @@ class AssistantAgentWrapper(RoutedAgent):
         try:
             # Get model configuration
             model_info = model_registry.get_model_info(
-                model_key=self._default_model, 
+                model_key="llama-3.1-70b" if provider == "fireworks" else "llama-3.3-70b", 
                 provider=provider
             )
             if not model_info:

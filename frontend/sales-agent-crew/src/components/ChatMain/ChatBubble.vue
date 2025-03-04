@@ -22,8 +22,7 @@
     <li v-else class="    px-4 items-start gap-x-2 sm:gap-x-4">
       
       <div class="w-full flex items-center ">
-      
-
+    
         <UserAvatar :type="provider" /> 
         <div class="grow text-start space-y-3">
         <!-- Card -->

@@ -88,3 +88,25 @@ p{
   /* line-height: 24px; */
   color: #101828;
 }
+
+/* src/assets/global.css */
+
+/* For Chrome, Safari, and Opera */
+::-webkit-scrollbar {
+  width: 2px; /* Reduced width */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: pink;
+  border-radius: 1px;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: pink;
+}

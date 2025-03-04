@@ -1,51 +1,62 @@
 export function formattedText(data) {
-    // Remove any trailing JSON block starting with "```json"
-    // const cleanedData = data.replace(/```json[\s\S]*$/, "").trim();
-    const cleanedData = data.trim();
+  // Remove any trailing JSON block starting with "```json"
+  // const cleanedData = data.replace(/```json[\s\S]*$/, "").trim();
+  const cleanedData = data.trim();
 
-    const text = cleanedData || "";
-    const lines = text.split("\n");
-    let html = "";
-    let inList = false;
-    // Match bullet lines starting with *, +, or -
-    const bulletRegex = /^([*+-])\s+(.*)/;
-    
-    lines.forEach((line) => {
+  const text = cleanedData || "";
+  const lines = text.split("\n");
+  let html = "";
+  let inList = false;
+  // Match bullet lines starting with *, +, or -
+  const bulletRegex = /^([*+-])\s+(.*)/;
+
+  lines.forEach((line, index) => {
       const trimmed = line.trim();
       const bulletMatch = trimmed.match(bulletRegex);
+
       if (bulletMatch) {
-        if (!inList) {
-          html += "<ul class='my-2'>";
-          inList = true;
-        }
-        // Each bullet item gets an inline span for the bullet marker
-        html += `<li class="custom-bullet"><span class="bullet-marker">•</span> ${bulletMatch[2]}</li>`;
-      } else {
-        if (inList) {
-          html += "</ul>";
-          inList = false;
-        }
-        if (trimmed.length > 0) {
-          // If the line ends with a colon, treat it as a heading
-          if (trimmed.endsWith(":")) {
-            // Wrap heading text in <h2> tags
-            html += `<h2 class="md-heading text-[16px] font-semibold">${trimmed}</h2>`;
-          } else {
-            html += `<p class="md-paragraph">${trimmed}</p>`;
+          if (!inList) {
+              html += "<ul class='my-2'>";
+              inList = true;
           }
-        }
+          // Each bullet item gets an inline span for the bullet marker
+          html += `<li class="custom-bullet"><span class="bullet-marker">•</span> ${bulletMatch[2]}</li>`;
+      } else {
+          if (inList) {
+              html += "</ul>";
+              inList = false;
+          }
+
+          // Check for the specific sentence
+          if (trimmed.includes("Please provide feedback on the following plan or type 'true' to approve it.")) {
+              // Format "provide feedback" and "type 'true'" in bold
+              const formattedLine = trimmed
+                  .replace("provide feedback", "<strong>provide feedback</strong>")
+                  .replace("type 'true'", "<strong>type 'true'</strong>");
+
+              // Add a new line after this sentence
+              html += `<p class="md-paragraph">${formattedLine}</p><br>`;
+          } else if (trimmed.length > 0) {
+              // If the line ends with a colon, treat it as a heading
+              if (trimmed.endsWith(":")) {
+                  html += `<h2 class="md-heading text-[16px] font-semibold">${trimmed}</h2>`;
+              } else {
+                  html += `<p class="md-paragraph">${trimmed}</p>`;
+              }
+          }
       }
-    });
-    
-    if (inList) {
+  });
+
+  if (inList) {
       html += "</ul>";
-    }
-    
-    // Replace markdown bold syntax (i.e. **text**) with HTML <strong> tags.
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    return html;
   }
+
+  // Replace markdown bold syntax (i.e. **text**) with HTML <strong> tags.
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  return html;
+}
+
   
  /**
  * Processes the input string by splitting it into segments:

@@ -1,5 +1,6 @@
 <template>
   <div class="assistant-message">
+    
     <!-- Wrap generated HTML in a container so our styles apply -->
     <div class="markdown-content" v-html="formattedText(parsed?.data?.response||'')"></div>
   </div>

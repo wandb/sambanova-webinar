@@ -7,7 +7,7 @@
   <div v-if="chatName" class="sticky h-[62px] top-0 z-10 bg-white p-4 shadow">
     <div class="flex items-center justify-between">
   <!-- Left text -->
-  <div  class="text-[16px] font-medium text-gray-800">
+  <div  class="text-[16px]  w-80 font-medium text-gray-800 line-clamp-1 overflow-hidden">
     {{ chatName }}
   </div>
   <!-- Right buttons -->
@@ -415,18 +415,17 @@ function handleKeydownScroll(event) {
 // }
 
 
-
-function AutoScrollToBottom() {
+function AutoScrollToBottom(smoothScrollOff = false) {
   nextTick(() => {
     setTimeout(() => {
       if (container.value) {
         const targetScroll = container.value.scrollHeight - container.value.clientHeight;
         container.value.scrollTo({
           top: targetScroll,
-          behavior: "smooth"
+          behavior: smoothScrollOff ? "auto" : "smooth"
         });
       }
-    }, 100); // Increase this value if necessary
+    }, 100); // Adjust timeout as needed
   });
 }
 
@@ -527,7 +526,7 @@ async function loadPreviousChat(convId) {
     isLoading.value = false
     console.log(resp)
     filterChat(resp.data)
-    AutoScrollToBottom()
+    AutoScrollToBottom(true)
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')

@@ -9,7 +9,7 @@
     ></div>
         
     <span  class="absolute flex items-center justify-center w-6 h-6 bg-white rounded-full -start-3 ring-8 ring-white">
-      <component  :is="iconComponent"  />
+      <component class="size-[18px]"  :is="iconComponent"  />
     </span>
 
     <h3  :class="collapsed?'invisible':''" class="flex ml-6 capitalize items-center mb-1 text-primary-brandTextPrimary text-[14px]">

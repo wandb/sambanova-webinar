@@ -422,18 +422,17 @@ function handleKeydownScroll(event) {
 // }
 
 
-
-function AutoScrollToBottom() {
+function AutoScrollToBottom(smoothScrollOff = false) {
   nextTick(() => {
     setTimeout(() => {
       if (container.value) {
         const targetScroll = container.value.scrollHeight - container.value.clientHeight;
         container.value.scrollTo({
           top: targetScroll,
-          behavior: "smooth"
+          behavior: smoothScrollOff ? "auto" : "smooth"
         });
       }
-    }, 100); // Increase this value if necessary
+    }, 100); // Adjust timeout as needed
   });
 }
 
@@ -530,7 +529,7 @@ async function loadPreviousChat(convId) {
     isLoading.value = false
     console.log(resp)
     filterChat(resp.data)
-    AutoScrollToBottom()
+    AutoScrollToBottom(true)
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')

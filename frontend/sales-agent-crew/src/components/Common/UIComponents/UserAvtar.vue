@@ -10,7 +10,8 @@
 import { computed } from 'vue'
 import { useUser } from '@clerk/vue'
 
-const { user, isLoaded, isSignedIn } = useUser()
+// Use the full reactive object without destructuring
+const clerk = useUser()
 
 const props = defineProps({
   // When type is "user", we'll use Clerk's user data.
@@ -22,7 +23,7 @@ const props = defineProps({
   // A fallback initials string.
   initials: {
     type: String,
-    default: 'AD'
+    default: ''
   },
   // Background color for user type; for other types we can use a different color.
   bgColor: {
@@ -64,10 +65,15 @@ function getInitials(firstName, lastName) {
 // Otherwise, treat props.type as the full name.
 const displayedInitials = computed(() => {
   if (props.type === 'user') {
-    if (isLoaded && isSignedIn && user && user.firstName && user.lastName) {
-      return getInitials(user.firstName, user.lastName)
+    // Check if the Clerk data is loaded and the user is signed in.
+    if (clerk.isLoaded.value && clerk.isSignedIn.value && clerk.user.value) {
+      // Attempt to read first and last name using both camelCase and snake_case.
+      const first = clerk.user.value.firstName || clerk.user.value.first_name || ''
+      const last = clerk.user.value.lastName || clerk.user.value.last_name || ''
+      return getInitials(first, last)
     }
-    return props.initials // fallback if Clerk data is not available
+    // Fallback if Clerk data is not available.
+    return props.initials
   } else {
     return getInitials(props.type)
   }

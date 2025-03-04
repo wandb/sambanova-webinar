@@ -345,10 +345,7 @@ def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Litera
         f"<b>Section {i+1}:</b> {s.name} - {s.description}\n"
         for i, s in enumerate(sections)
     )
-    fb = interrupt(
-        f"Please provide feedback on the following plan:\n\n{sec_str}\n\n"
-        "type 'true' to accept, or text to revise."
-    )
+    fb = interrupt(sec_str)
     if isinstance(fb, bool):
         return Command(goto=[
             Send("build_section_with_web_research", {"section": s, "search_iterations": 0})

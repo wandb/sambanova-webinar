@@ -5,6 +5,10 @@ metadata:
 spec:
   selector:
     app: samba-copilot-backend
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
   ports:
     - protocol: TCP
       port: 80

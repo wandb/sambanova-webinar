@@ -166,6 +166,22 @@ class LeadGenerationAPI:
         )
 
     def setup_routes(self):
+        @self.app.get("/health")
+        async def health_check():
+            """Health check endpoint for Kubernetes liveness and readiness probes."""
+            try:
+                # Check Redis connection
+                self.app.state.redis_client.ping()
+                return JSONResponse(
+                    status_code=200,
+                    content={"status": "healthy", "message": "Service is running"}
+                )
+            except Exception as e:
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "unhealthy", "message": str(e)}
+                )
+
         # WebSocket endpoint to handle user messages
         @self.app.websocket("/chat")
         async def websocket_endpoint(

@@ -1,5 +1,5 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Build stage
+FROM python:3.11-slim AS builder
 
 # Set the working directory in the container
 WORKDIR /app
@@ -24,16 +24,37 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Final stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy installed packages and binaries from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
 # Copy source code
-COPY api ./api
-COPY agent ./agent
-COPY services ./services
-COPY utils ./utils
-COPY tools ./tools
-COPY config ./config
+COPY --chown=appuser:appuser api ./api
+COPY --chown=appuser:appuser agent ./agent
+COPY --chown=appuser:appuser services ./services
+COPY --chown=appuser:appuser utils ./utils
+COPY --chown=appuser:appuser tools ./tools
+COPY --chown=appuser:appuser config ./config
 
-# Expose port 8000 for the FastAPI application
-EXPOSE 8000
+# Switch to non-root user
+USER appuser
 
-# Command to run multiple Uvicorn workers for concurrency
-CMD ["uvicorn", "api.lead_generation_api:create_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"] 
+# Environment variables for configuration
+ENV PORT=8000
+ENV WORKERS=1
+ENV HOST=0.0.0.0
+
+# Expose port
+EXPOSE ${PORT}
+
+# Command to run the application
+CMD ["sh", "-c", "uvicorn api.lead_generation_api:create_app --host ${HOST} --port ${PORT} --workers ${WORKERS}"] 

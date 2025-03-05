@@ -1155,14 +1155,7 @@ async function connectWebSocket() {
         }
       }
     )
-    
-    // Use the same base URL pattern as API calls
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const baseUrl = import.meta.env.PROD 
-      ? `${wsProtocol}//${window.location.host}/api`  // Use the current origin in production
-      : (import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000')
-    
-    const WEBSOCKET_URL = `${baseUrl}/chat`
+    const WEBSOCKET_URL = `${import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000'}/chat`
     const token = await window.Clerk.session.getToken()
     const fullUrl = `${WEBSOCKET_URL}?conversation_id=${currentId.value}`
     socket.value = new WebSocket(fullUrl)

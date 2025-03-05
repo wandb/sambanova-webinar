@@ -2,13 +2,13 @@
     <!-- Check if event is 'user_message' -->
     <li
       v-if="props.event === 'user_message'" 
-      class=" flex  px-4 items-center  gap-x-2 sm:gap-x-4"
+      class=" flex  px-4 items-start    gap-x-2 sm:gap-x-4"
     >
     
-      <div class="grow text-end space-y-3">
+      <div class="grow text-end space-y-3 ">
         <!-- Card -->
-        <div class="inline-block  ">
-          <p class="text-[16px] color-primary-brandGray">
+        <div class="inline-block flex justify-end ">
+          <p class="text-[16px]  text-left color-primary-brandGray max-w-[80%] w-auto">
             {{ props.data }}
             
           </p>

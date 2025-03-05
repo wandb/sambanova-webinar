@@ -139,6 +139,9 @@
             <!-- Input -->
             <div class="relative">
               <textarea
+
+              @focus="checkAndOpenSettings"
+
                 @keydown="handleKeyDown"
                 v-model="searchQuery"
                 type="search"
@@ -517,6 +520,12 @@ async function loadFullHistory() {
     console.error('[ChatView] Error loading conversation history:', err)
     messages.value = []
   }
+}
+
+
+const checkAndOpenSettings = () => {
+  emitterMitt.emit('check-keys', { message: 'check keys!' });
+
 }
 
 async function loadPreviousChat(convId) {

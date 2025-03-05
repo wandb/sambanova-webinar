@@ -36,15 +36,6 @@ deploy: push
 		sed 's@{{DOCKER_IMAGE}}@$(DOCKER_IMAGE):$(TAG)@g' | \
 		kubectl apply -f -
 
-# Deploy secrets to Kubernetes
-deploy-secrets:
-	@echo "Deploying secrets to Kubernetes..."
-	@echo "Creating base64 encoded secrets..."
-	$(eval CLERK_SECRET_KEY_B64 := $(shell echo -n "$(CLERK_SECRET_KEY)" | base64))
-	@cat ../../k8s/frontend_secrets.yaml | \
-		sed 's@{{CLERK_SECRET_KEY}}@$(CLERK_SECRET_KEY_B64)@g' | \
-		kubectl apply -f -
-
 # Run the application locally
 local:
 	@echo "Running application locally..."

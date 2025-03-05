@@ -9,21 +9,7 @@ include .env
 export
 
 # Phony targets (targets that are not actual files)
-.PHONY: build push deploy clean local deploy-secrets
-
-# Deploy secrets to Kubernetes
-deploy-secrets:
-	@echo "Deploying secrets to Kubernetes..."
-	@echo "Creating base64 encoded secrets..."
-	$(eval LANGTRACE_API_KEY_B64 := $(shell echo -n "$(LANGTRACE_API_KEY)" | base64))
-	$(eval TAVILY_API_KEY_B64 := $(shell echo -n "$(TAVILY_API_KEY)" | base64))
-	# NOTE: -n flag breaks CLERK_JWT_ISSUER, there is an issue with newlines in k8s secrets
-	$(eval CLERK_JWT_ISSUER_B64 := $(shell echo "$(CLERK_JWT_ISSUER)" | base64))
-	@cat ../k8s/backend_secrets.yaml | \
-		sed 's@{{LANGTRACE_API_KEY}}@$(LANGTRACE_API_KEY_B64)@g' | \
-		sed 's@{{TAVILY_API_KEY}}@$(TAVILY_API_KEY_B64)@g' | \
-		sed 's@{{CLERK_JWT_ISSUER}}@$(CLERK_JWT_ISSUER_B64)@g' | \
-		kubectl apply -f -
+.PHONY: build push deploy clean local
 
 # Build the Docker image
 build:

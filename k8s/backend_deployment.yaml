@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba-copilot-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba-copilot-backend
+  template:
+    metadata:
+      labels:
+        app: samba-copilot-backend
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: samba-copilot-backend-container
+        image: {{DOCKER_IMAGE}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: LANGTRACE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: samba-copilot-backend-secrets
+              key: LANGTRACE_API_KEY
+        - name: TAVILY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: samba-copilot-backend-secrets
+              key: TAVILY_API_KEY
+        - name: CLERK_JWT_ISSUER
+          valueFrom:
+            secretKeyRef:
+              name: samba-copilot-backend-secrets
+              key: CLERK_JWT_ISSUER

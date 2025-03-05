@@ -17,17 +17,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container
+# Copy only requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Upgrade pip
-RUN pip install --upgrade pip
+# Upgrade pip and install requirements
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install the required packages
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the backend code into the container
-COPY . .
+# Copy source code
+COPY api ./api
+COPY agent ./agent
+COPY services ./services
+COPY utils ./utils
+COPY tools ./tools
+COPY config ./config
 
 # Expose port 8000 for the FastAPI application
 EXPOSE 8000

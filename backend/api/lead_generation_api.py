@@ -119,7 +119,7 @@ def get_user_id_from_token(token: HTTPAuthorizationCredentials) -> str:
 
 class LeadGenerationAPI:
     def __init__(self):
-        self.app = FastAPI(lifespan=lifespan)
+        self.app = FastAPI(lifespan=lifespan, root_path="/api")
         self.setup_cors()
         self.setup_routes()
         self.executor = ThreadPoolExecutor(max_workers=2)

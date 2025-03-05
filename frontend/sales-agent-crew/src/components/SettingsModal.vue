@@ -7,8 +7,8 @@
       <!-- Modal -->
       <div class="relative w-full max-w-lg bg-white rounded-xl shadow-lg p-6">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">API Settings</h2>
-          <button @click="close" class="text-gray-500 hover:text-gray-700">
+          <h2 class="text-2xl font-semibold text-primary-brandTextPrimary">API Settings</h2>
+          <button @click="close" class="text-primary-brandTextSecondary hover:text-gray-700">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -29,7 +29,7 @@
           <!-- SambaNova API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              SambaNova API Key
+              SambaNova API Key <span v-if="missingKeys.sambanovaKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://cloud.sambanova.ai/"
                 target="_blank"
@@ -47,7 +47,7 @@
               />
               <button 
                 @click="toggleSambanovaKeyVisibility"
-                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-primary-brandTextSecondary hover:text-gray-700"
               >
                 <svg v-if="sambanovaKeyVisible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor">
@@ -89,7 +89,8 @@
           <!-- Exa API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Exa API Key
+              Exa API Key <span v-if="missingKeys.exaKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
+
               <a 
                 href="https://exa.ai/"
                 target="_blank"
@@ -107,7 +108,7 @@
               />
               <button 
                 @click="toggleExaKeyVisibility"
-                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-primary-brandTextSecondary hover:text-gray-700"
               >
                 <svg v-if="exaKeyVisible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor">
@@ -149,7 +150,7 @@
           <!-- Serper API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Serper API Key
+              Serper API Key <span v-if="missingKeys.serperKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://serper.dev/"
                 target="_blank"
@@ -167,7 +168,7 @@
               />
               <button 
                 @click="toggleSerperKeyVisibility"
-                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-primary-brandTextSecondary hover:text-gray-700"
               >
                 <!-- Eye icon -->
               </button>
@@ -192,7 +193,7 @@
           <!-- Fireworks API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Fireworks API Key
+              Fireworks API Key <span v-if="missingKeys.fireworksKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://fireworks.ai/"
                 target="_blank"
@@ -210,7 +211,7 @@
               />
               <button 
                 @click="toggleFireworksKeyVisibility"
-                class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                class="absolute inset-y-0 right-0 px-3 flex items-center text-primary-brandTextSecondary hover:text-gray-700"
               >
                 <!-- Eye icon -->
               </button>
@@ -252,38 +253,62 @@
     </div>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, defineProps, defineExpose, defineEmits, onMounted } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { encryptKey, decryptKey } from '../utils/encryption'
 import axios from 'axios'
+import emitterMitt from '@/utils/eventBus.js';
+
+const props = defineProps({
+  provider: String, // Current provider name passed from parent
+})
+
+const emit = defineEmits(['keysUpdated'])
+
+const { userId } = useAuth()
 
 const isOpen = ref(false)
 const sambanovaKey = ref('')
 const exaKey = ref('')
 const serperKey = ref('')
 const fireworksKey = ref('')
-const selectedModel = ref('llama-3.3-70b')
 const errorMessage = ref('')
 const successMessage = ref('')
-
+const selectedModel = ref('llama-3.3-70b')
 // Key visibility controls
 const sambanovaKeyVisible = ref(false)
 const exaKeyVisible = ref(false)
 const serperKeyVisible = ref(false)
 const fireworksKeyVisible = ref(false)
 
-const { userId } = useAuth()
-
-// Define the emit function
-const emit = defineEmits(['keysUpdated'])
-
-// Load keys on mount
-onMounted(async () => {
-  await loadKeys()
+// Missing keys state for validation messages
+const missingKeys = ref({
+  exaKey: false,
+  serperKey: false,
+  sambanovaKey: false,
+  fireworksKey: false
 })
 
+
+// Load keys on mount and check if modal should be open
+onMounted(async () => {
+  await loadKeys()
+  checkRequiredKeys() // Ensure modal opens if needed
+  emitterMitt.on('check-keys', checkRequiredKeys);
+
+})
+
+
+// Watch for provider changes and check required keys dynamically
+watch(() => props.provider, () => {
+  checkRequiredKeys()
+})
+watch([exaKey, serperKey, sambanovaKey, fireworksKey], () => {
+  // checkRequiredKeys()
+})
+
+// ✅ Function to load saved keys
 const loadKeys = async () => {
   try {
     const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
@@ -292,29 +317,68 @@ const loadKeys = async () => {
     const savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
     const savedModel = localStorage.getItem(`selected_model_${userId.value}`)
 
-    sambanovaKey.value = savedSambanovaKey
-      ? await decryptKey(savedSambanovaKey)
-      : ''
-    exaKey.value = savedExaKey
-      ? await decryptKey(savedExaKey)
-      : ''
-    serperKey.value = savedSerperKey
-      ? await decryptKey(savedSerperKey)
-      : ''
-    fireworksKey.value = savedFireworksKey
-      ? await decryptKey(savedFireworksKey)
-      : ''
-    
-    // If no model was saved, save the default
-    if (!savedModel) {
+    sambanovaKey.value = savedSambanovaKey ? await decryptKey(savedSambanovaKey) : ''
+    exaKey.value = savedExaKey ? await decryptKey(savedExaKey) : ''
+    serperKey.value = savedSerperKey ? await decryptKey(savedSerperKey) : ''
+    fireworksKey.value = savedFireworksKey ? await decryptKey(savedFireworksKey) : ''
+
+     // If no model was saved, save the default
+     if (!savedModel) {
       localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
     } else {
       selectedModel.value = savedModel
     }
+
+    // checkRequiredKeys() // Check if modal should be open
   } catch (error) {
     console.error('Failed to load keys:', error)
     errorMessage.value = 'Failed to load saved keys'
   }
+}
+// Toggle key visibility
+const toggleSambanovaKeyVisibility = () => {
+  sambanovaKeyVisible.value = !sambanovaKeyVisible.value
+}
+
+const toggleExaKeyVisibility = () => {
+  exaKeyVisible.value = !exaKeyVisible.value
+}
+
+const toggleSerperKeyVisibility = () => {
+  serperKeyVisible.value = !serperKeyVisible.value
+}
+
+const toggleFireworksKeyVisibility = () => {
+  fireworksKeyVisible.value = !fireworksKeyVisible.value
+}
+
+const handleModelSelection = () => {
+  localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
+  emit('keysUpdated')
+}
+// ✅ Function to check if required keys are missing
+const checkRequiredKeys = () => {
+  missingKeys.value = {
+    exaKey: !exaKey.value,
+    serperKey: !serperKey.value,
+    sambanovaKey: props.provider === 'sambanova' && !sambanovaKey.value,
+    fireworksKey: props.provider === 'fireworks' && !fireworksKey.value
+  }
+
+  isOpen.value = Object.values(missingKeys.value).some((missing) => missing)
+
+}
+
+// ✅ Function to manually open modal
+const openModal = () => {
+  isOpen.value = true
+}
+
+// ✅ Function to manually close modal
+const close = () => {
+  isOpen.value = false
+  errorMessage.value = ''
+  successMessage.value = ''
 }
 
 // Save functions for individual keys
@@ -337,13 +401,21 @@ const saveSambanovaKey = async () => {
   }
 }
 
-const clearSambanovaKey = () => {
+const clearSambanovaKey =async () => {
+
+  try{
+
+ 
   localStorage.removeItem(`sambanova_key_${userId.value}`)
+}catch(e){
+  console.log("samabanova clear ",e)
+}
   sambanovaKey.value = ''
   successMessage.value = 'SambaNova API key cleared successfully!'
-  updateBackendKeys()
+  await updateBackendKeys()
   emit('keysUpdated')
   clearMessagesAfterDelay()
+
 }
 
 const saveExaKey = async () => {
@@ -393,75 +465,6 @@ const saveSerperKey = async () => {
   }
 }
 
-const saveFireworksKey = async () => {
-  try {
-    if (!fireworksKey.value) {
-      errorMessage.value = 'Fireworks API key cannot be empty!'
-      return
-    }
-    const encryptedKey = await encryptKey(fireworksKey.value)
-    localStorage.setItem(`fireworks_key_${userId.value}`, encryptedKey)
-    successMessage.value = 'Fireworks API key saved successfully!'
-    await updateBackendKeys()
-    emit('keysUpdated')
-  } catch (error) {
-    console.error('Failed to save Fireworks key:', error)
-    errorMessage.value = 'Failed to save Fireworks API key'
-  } finally {
-    clearMessagesAfterDelay()
-  }
-}
-
-const clearFireworksKey = () => {
-  localStorage.removeItem(`fireworks_key_${userId.value}`)
-  fireworksKey.value = ''
-  successMessage.value = 'Fireworks API key cleared successfully!'
-  updateBackendKeys()
-  emit('keysUpdated')
-  clearMessagesAfterDelay()
-}
-
-const clearSerperKey = () => {
-  localStorage.removeItem(`serper_key_${userId.value}`)
-  serperKey.value = ''
-  successMessage.value = 'Serper API key cleared successfully!'
-  updateBackendKeys()
-  emit('keysUpdated')
-  clearMessagesAfterDelay()
-}
-
-// Toggle key visibility
-const toggleSambanovaKeyVisibility = () => {
-  sambanovaKeyVisible.value = !sambanovaKeyVisible.value
-}
-
-const toggleExaKeyVisibility = () => {
-  exaKeyVisible.value = !exaKeyVisible.value
-}
-
-const toggleSerperKeyVisibility = () => {
-  serperKeyVisible.value = !serperKeyVisible.value
-}
-
-const toggleFireworksKeyVisibility = () => {
-  fireworksKeyVisible.value = !fireworksKeyVisible.value
-}
-
-
-const close = () => {
-  isOpen.value = false
-  errorMessage.value = ''
-  successMessage.value = ''
-}
-
-// Function to clear messages after a delay
-const clearMessagesAfterDelay = () => {
-  setTimeout(() => {
-    errorMessage.value = ''
-    successMessage.value = ''
-  }, 3000)
-}
-
 // Add the updateBackendKeys function
 const updateBackendKeys = async () => {
   try {
@@ -487,20 +490,56 @@ const updateBackendKeys = async () => {
   }
 }
 
-const handleModelSelection = () => {
-  localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
-  emit('keysUpdated')
+const saveFireworksKey = async () => {
+  try {
+    if (!fireworksKey.value) {
+      errorMessage.value = 'Fireworks API key cannot be empty!'
+      return
+    }
+    const encryptedKey = await encryptKey(fireworksKey.value)
+    localStorage.setItem(`fireworks_key_${userId.value}`, encryptedKey)
+    successMessage.value = 'Fireworks API key saved successfully!'
+    await updateBackendKeys()
+    emit('keysUpdated')
+  } catch (error) {
+    console.error('Failed to save Fireworks key:', error)
+    errorMessage.value = 'Failed to save Fireworks API key'
+  } finally {
+    clearMessagesAfterDelay()
+  }
 }
 
-// Expose methods and state
+const clearMessagesAfterDelay = () => {
+  setTimeout(() => {
+    errorMessage.value = ''
+    successMessage.value = ''
+  }, 3000)
+}
+const clearFireworksKey = () => {
+  localStorage.removeItem(`fireworks_key_${userId.value}`)
+  fireworksKey.value = ''
+  successMessage.value = 'Fireworks API key cleared successfully!'
+  updateBackendKeys()
+  emit('keysUpdated')
+  clearMessagesAfterDelay()
+}
+
+const clearSerperKey = () => {
+  localStorage.removeItem(`serper_key_${userId.value}`)
+  serperKey.value = ''
+  successMessage.value = 'Serper API key cleared successfully!'
+  updateBackendKeys()
+  emit('keysUpdated')
+  clearMessagesAfterDelay()
+}
+
+// ✅ Expose methods for parent component
 defineExpose({
-  isOpen,
-  getKeys: () => ({
-    sambanovaKey: sambanovaKey.value,
-    exaKey: exaKey.value,
+  openModal,
+  checkRequiredKeys,
+  exaKey: exaKey.value,
     serperKey: serperKey.value,
     fireworksKey: fireworksKey.value,
     selectedModel: selectedModel.value
-  }),
 })
 </script>

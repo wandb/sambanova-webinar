@@ -304,7 +304,7 @@ Additional features of the application are:
 - ✍ AI-generated outreach templates – Craft professional messages instantly
 
 
-## Usage
+# Usage
 
 1. **Configure API Keys**
 
@@ -324,7 +324,7 @@ Additional features of the application are:
    - Export functionality available
    - Save important searches
 
-## Contributing
+# Contributing
 
 1. Fork the repository
 2. Create your feature branch
@@ -332,6 +332,6 @@ Additional features of the application are:
 4. Push to the branch
 5. Create a new Pull Request
 
-## License
+# License
 
 [MIT License](LICENSE)

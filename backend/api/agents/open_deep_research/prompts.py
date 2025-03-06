@@ -97,10 +97,11 @@ section_writer_instructions = """You are an expert technical writer crafting one
 <Source material>
 Web search results:
 {context}
-
-Document summary (if available):
-{document_summary}
 </Source material>
+
+<Document summary (if available)>
+{document_summary}
+</Document summary>
 
 <Guidelines for writing>
 

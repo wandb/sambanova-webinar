@@ -11,12 +11,64 @@ The Agents application helps sales teams and researchers by:
 - Intelligently routing queries to the appropriate service.
 - Supporting voice input for natural interaction.
 
-This application has four agents (AI-powered assistants).
+This application has four agents (AI-powered assistants)
 
-1. **General Assistant**
-1. **Sales Leads**
-1. **Deep Research**
-1. **Finance Analysis**
+1. General Assistant
+1. Sales Leads
+1. Deep Research
+1. Finance Analysis
+
+# Architecture
+
+![Co-Pilot Architecture Diagram](backend/images/architecture-diagram.jpg)
+
+This application is built with:
+
+- Vue 3 + Composition API
+- Vite
+- TailwindCSS
+- Clerk for authentication
+- Axios for API calls
+
+# Technology stack
+
+This application is built using the following technologies. The stack is designed to offer high-performance and scalability for both frontend and backend needs.
+
+See the frontend and backend technology stack listed in the table below.
+
+<table style="width:40%; border: 1px solid #000; border-collapse: collapse;">
+  <thead>
+      <tr style="background-color: #f0f0f0;"> <!-- Shading applied here -->
+      <th style="border: 1px solid #000; width: 30%;">Category</th>
+      <th style="border: 1px solid #000; width: 80%;">Technologies used</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #000; width: 30%;"><strong>Frontend</strong></td>
+      <td style="border: 1px solid #000; width: 80%;">
+        <ul>
+          <li>Vue.js 3 (Composition API)</li>
+          <li>TailwindCSS for styling</li>
+          <li>Vite for build tooling</li>
+          <li>Clerk for authentication</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #000; width: 30%;"><strong>Backend</strong></td>
+      <td style="border: 1px solid #000; width: 80%;">
+        <ul>
+          <li>FastAPI</li>
+          <li>CrewAI</li>
+          <li>SambaNova Agentic Cloud</li>
+          <li>Exa Search API</li>
+          <li>Financial Data APIs</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 # Features
 
@@ -145,7 +197,7 @@ Get the following API keys to setup the Agent application.
 
   - [SambaNova API key](https://cloud.sambanova.ai/)
   - [Serper API key](https://serper.dev/) for web search
-  - [Exa API key](https://exa.co/) for company data.
+  - [Exa API key](https://exa.co/) for company data
   - [Fireworks API key](https://fireworks.ai/) 
 
 > **Note**: After logging in, click the settings gear icon ⚙️ (located next to your user photo) to configure your API keys. The application requires these keys to function properly.
@@ -253,58 +305,6 @@ Access the settings modal to configure your:
 - Fireworks API key
 
 Ensure that API keys are encrypted before storing them in localStorage.
-
-# Architecture
-
-![Co-Pilot Architecture Diagram](backend/images/architecture-diagram.jpg)
-
-This application is built with:
-
-- Vue 3 + Composition API
-- Vite
-- TailwindCSS
-- Clerk for authentication
-- Axios for API calls
-
-# Technology stack
-
-This application is built using the following technologies. The stack is designed to offer high-performance and scalability for both frontend and backend needs.
-
-See the frontend and backend technology stack listed in the table below.
-
-<table style="width:40%; border: 1px solid #000; border-collapse: collapse;">
-  <thead>
-      <tr style="background-color: #f0f0f0;"> <!-- Shading applied here -->
-      <th style="border: 1px solid #000; width: 30%;">Category</th>
-      <th style="border: 1px solid #000; width: 80%;">Technologies used</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Frontend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
-        <ul>
-          <li>Vue.js 3 (Composition API)</li>
-          <li>TailwindCSS for styling</li>
-          <li>Vite for build tooling</li>
-          <li>Clerk for authentication</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Backend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
-        <ul>
-          <li>FastAPI</li>
-          <li>CrewAI</li>
-          <li>SambaNova Agentic Cloud</li>
-          <li>Exa Search API</li>
-          <li>Financial Data APIs</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
 
 ## Usage
 

@@ -31,7 +31,7 @@
        text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent   <!-- Menu button: visible on hover -->
       <button
         type="button"
-        class="  group-hover:opacity-100 transition-opacity duration-200"
+        class=" hidden group-hover:opacity-100 transition-opacity duration-200"
         @click.stop="toggleMenu"
         @mousedown.stop
         aria-label="Open menu"

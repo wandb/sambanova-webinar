@@ -127,8 +127,8 @@ def estimate_tokens_regex(text: str) -> int:
         return len(re.findall(r"\w+|\S", text))
 
 
-def load_documents(user_id: str, document_ids: List[str], redis_client: redis.Redis, context_length_summariser: int) -> str:
-    chunks_text = []
+def load_documents(user_id: str, document_ids: List[str], redis_client: redis.Redis, context_length_summariser: int) -> List[str]:
+    documents = []
 
     for doc_id in document_ids:
         # Verify document exists and belongs to user
@@ -141,19 +141,17 @@ def load_documents(user_id: str, document_ids: List[str], redis_client: redis.Re
 
         if chunks_data:
             chunks = json.loads(chunks_data)
-            chunks_text.extend([chunk['text'] for chunk in chunks])
+            doc_text = "\n".join([chunk['text'] for chunk in chunks])
+            token_count = estimate_tokens_regex(doc_text)
+            
+            # Check if individual document exceeds context length
+            if token_count > context_length_summariser:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": f"Document {doc_id} exceeds maximum context window size. Please reduce the document size."
+                    },
+                )
+            documents.append(doc_text)
 
-    if chunks_text:
-        combined_text = "\n".join(chunks_text)
-        token_count = estimate_tokens_regex(combined_text)
-        # Check if combined document chunks exceed context length
-        if (
-            token_count > context_length_summariser
-        ): 
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": "Combined document length exceeds maximum context window size. Please reduce the number or size of documents."
-                },
-            )
-        return combined_text
+    return documents

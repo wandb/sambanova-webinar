@@ -347,8 +347,7 @@ const selectedOption = inject('selectedOption')
 const eventData = ref(null);
 function handleButtonClick(data) {
   eventData.value = data.message;
-  console.log('Button click received:', data);
-
+  
   chatName.value=''
   createNewChat()
 
@@ -1202,7 +1201,6 @@ async function connectWebSocket() {
         if(receivedData.event=="user_message" || receivedData.event=="completion"){
           try {
             if(receivedData.event=="completion"){
-              console.log("completionMetaData.value=receivedData.data.metadata",completionMetaData.value)
               let metaDataComplettion = JSON.parse(receivedData.data)
               completionMetaData.value = metaDataComplettion.metadata
               emit('metadataChanged', completionMetaData.value)
@@ -1219,13 +1217,13 @@ async function connectWebSocket() {
         else if(receivedData.event==="think"){
           let dataParsed = JSON.parse(receivedData.data)
           agentThoughtsData.value.push(dataParsed)
-          console.log("Socket on message:think ", dataParsed.agent_name)
+          
           statusText.value = dataParsed.agent_name
           emit('agentThoughtsDataChanged', agentThoughtsData.value)
           try{
-            console.log("think parsed",dataParsed.metadata)
+            
           addOrUpdateModel(dataParsed.metadata)
-          console.log("workflowData:",workflowData)
+          
           AutoScrollToBottom()
 
           } catch(e){
@@ -1238,7 +1236,7 @@ async function connectWebSocket() {
         else if(receivedData.event==="planner"){
           let dataParsed = JSON.parse(receivedData.data)
           addOrUpdateModel(dataParsed.metadata)
-          console.log("workflowData:",workflowData)
+          
           AutoScrollToBottom()
         }
         else{
@@ -1277,8 +1275,6 @@ function addOrUpdatePlannerText(newEntry) {
     plannerTextData.value.push(newEntry);
   }
 
-
-  console.log("plannerTextData: ",plannerTextData.value)
 }
 
 async function removeDocument(docId) {

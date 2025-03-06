@@ -31,7 +31,7 @@
        text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent   <!-- Menu button: visible on hover -->
       <button
         type="button"
-        class=" hidden group-hover:opacity-100 transition-opacity duration-200"
+        class="hidden  group-hover:opacity-100 transition-opacity duration-200"
         @click.stop="toggleMenu"
         @mousedown.stop
         aria-label="Open menu"
@@ -247,13 +247,15 @@ async function genPDF() {
   // };
 
   let dataForPdf=JSON.parse(props.data)
-console.log(JSON.parse(props.data).data)
+console.log(dataForPdf.agent_type,dataForPdf)
 
 if(dataForPdf.agent_type==="deep_research")
-generatePDFDeepResearch( JSON.parse(props.data).data , headerConfig);
+generatePDFDeepResearch( dataForPdf.data , headerConfig);
 
-else if (dataForPdf.agent_type==="deep_research")
-generatePDFDeepResearch( JSON.parse(props.data).data , headerConfig);
+else if (dataForPdf.agent_type==="financial_analysis"){
+  generatePDFDeepResearch( dataForPdf.data , headerConfig);
+}
+
 
 
   }catch(e){

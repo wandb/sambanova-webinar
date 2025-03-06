@@ -52,10 +52,7 @@ import { decryptKey } from '@/utils/encryption'   // adapt path if needed
 import { useRoute, useRouter } from 'vue-router'
 import SILogo from '@/components/icons/SILogo.vue'  
 import emitterMitt from '@/utils/eventBus.js';
-
 import ChatList from '@/components/ChatMain/ChatList.vue'
-
-
 import axios from 'axios'
 const router = useRouter()
 const route = useRoute() 
@@ -64,7 +61,7 @@ const route = useRoute()
  * an array of { conversation_id, title, created_at }
  */
 const emit = defineEmits(['selectConversation'])
-
+const preselectedChat=ref('')
 /** Clerk user */
 const { userId } = useAuth()
 
@@ -124,17 +121,16 @@ async function deleteChat( conversationId) {
   }
 }
 
-let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
-let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
-async function loadKeys(missingKeysListData) {
 
+async function loadKeys(missingKeysListData) {
 
   if(missingKeysListData){
 console.log("missingKeysList",missingKeysListData)
 
 missingKeysList.value=missingKeysListData
 
-  }else{
+  }
+  
 
   try {
     const uid = userId.value || 'anonymous'
@@ -151,7 +147,7 @@ missingKeysList.value=missingKeysListData
   } catch (err) {
     console.error('[ChatSidebar] Error decrypting keys:', err)
   }
-}
+
 }
 
 const missingKeys = computed(() => {
@@ -212,94 +208,9 @@ async function createNewChat() {
   emitterMitt.emit('new-chat', { message: 'The new chat button was clicked!' });
 
 
-  // try {
-  //   if (missingKeys.value.length > 0) {
-  //     alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
-  //     return
-  //   }
-
-  //   const uid = userId.value || 'anonymous'
-  //   const resp = await axios.post(
-  //     `${import.meta.env.VITE_API_URL}/chat/init`, 
-  //     {}, 
-  //     {
-  //       headers: {
-  //         // 'x-sambanova-key': sambanovaKey.value || '',
-  //         // 'x-serper-key': serperKey.value || '',
-  //         // 'x-exa-key': exaKey.value || '',
-  //         'x-user-id': uid
-  //       }
-  //     }
-  //   )
-  //   const cid = resp.data.conversation_id
-
-  //   preselectedChat.value=cid
-   
-  //   loadChats()
-  //   router.push(`/${cid}`)
-  // } catch (err) {
-  //   console.error('Error creating new chat:', err)
-  //   alert('Failed to create new conversation. Check keys or console.')
-  // }
 }
 
-async function createNewChatOld() {
 
-emitterMitt.emit('new-chat', { message: 'The new chat button was clicked!' });
-
-
-try {
-  if (missingKeys.value.length > 0) {
-    alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
-    return
-  }
-
-  const uid = userId.value || 'anonymous'
-  const resp = await axios.post(
-    `${import.meta.env.VITE_API_URL}/chat/init`, 
-    {}, 
-    {
-      headers: {
-        // 'x-sambanova-key': sambanovaKey.value || '',
-        // 'x-serper-key': serperKey.value || '',
-        // 'x-exa-key': exaKey.value || '',
-        'x-user-id': uid
-      }
-    }
-  )
-  const cid = resp.data.conversation_id
-
-  preselectedChat.value=cid
- 
-  loadChats()
-  router.push(`/${cid}`)
-} catch (err) {
-  console.error('Error creating new chat:', err)
-  alert('Failed to create new conversation. Check keys or console.')
-}
-}
-async function loadOldConversations() {
-  try {
-    if (missingKeys.value.length > 0) {
-      alert(`Missing required keys: ${missingKeys.value.join(', ')}`)
-      return
-    }
-
-    const uid = userId.value || 'anonymous'
-    const resp = await axios.get(
-      `${import.meta.env.VITE_API_URL}/chat/history/${userIdStatic}/${convId}`, 
-      {}, 
-      
-    )
-    console.log(resp)
-    
-  } catch (err) {
-    console.error('Error creating new chat:', err)
-    alert('Failed to create new conversation. Check keys or console.')
-  }
-}
-
-const preselectedChat=ref('')
 
 /** Emit an event so parent can handle "selectConversation" */
 function selectConversation(conv) {

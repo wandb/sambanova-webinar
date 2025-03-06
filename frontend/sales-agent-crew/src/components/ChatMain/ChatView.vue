@@ -11,7 +11,7 @@
     {{ chatName }}
   </div>
   <!-- Right buttons -->
-  <div class="flex  space-x-2">
+  <div class="flex hidden space-x-2">
     <button 
     
     class=" text-sm h-[30px] py-1 px-2.5 bg-[#EE7624] text-white rounded">

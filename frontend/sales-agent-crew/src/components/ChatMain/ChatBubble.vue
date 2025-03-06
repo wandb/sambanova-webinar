@@ -20,7 +20,7 @@
     
     <!-- For all other cases -->
     <li v-else class="  relative  px-4 items-start gap-x-2 sm:gap-x-4">
-      {{ (props.data?.data) }}
+      
       <div class="w-full relative flex items-center  ">
     
         <UserAvatar :type="provider" />   
@@ -29,9 +29,14 @@
         <div class="inline-block" >
        <div class="relative p-4 flex items-center capitalize space-y-3 font-inter font-semibold 
        text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent   <!-- Menu button: visible on hover -->
-      <button
+      
+      
+       <button
+
+           v-if="parsedData.agent_type==='sales_leads'||parsedData.agent_type==='financial_analysis'
+           ||parsedData.agent_type==='deep_research'"
         type="button"
-        class="hidden  group-hover:opacity-100 transition-opacity duration-200"
+        class="  group-hover:opacity-100 transition-opacity duration-200"
         @click.stop="toggleMenu"
         @mousedown.stop
         aria-label="Open menu"
@@ -50,7 +55,7 @@
         @click.stop
       >
        
-        <button
+        <!-- <button
           class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
           
         >
@@ -60,10 +65,10 @@
             <polyline points="9 6 12 3 15 6" />
           </svg>
           View Report
-        </button>
+        </button> -->
         <button
           class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
-          @click="genPDF"
+          @click="generatePDFFromHtml"
         >
           <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -87,7 +92,7 @@
       :plannerText="plannerText" 
     />
    
-        <component :is="selectedComponent" :parsed="parsedData" />
+        <component :id="'chat-'+messageId" :is="selectedComponent" :parsed="parsedData" />
     </div>
       
       
@@ -107,12 +112,12 @@
   import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
   import ErrorComponent from '@/components/ChatMain/ResponseTypes/ErrorComponent.vue'
-  import MetaData from '@/components/ChatMain/MetaData.vue'
-  import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
   import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
   import {downloadPDF, generatePDFDeepResearch} from '@/utils/createPDF';
 
-
+  import html2canvas from "html2canvas";
+  import jsPDF from "jspdf";
+  import html2pdf from 'html2pdf.js'
 
   const formattedDuration=(duration) =>{
       // Format duration to 2 decimal places
@@ -176,6 +181,35 @@ return parsedData.metadata;
   return props.metadata;
 });
 
+
+async function generatePDFFromHtml() {
+  toggleMenu()
+  const element = document.getElementById('chat-'+props.messageId)
+  
+  const pdfOpts = {
+    margin: [10, 10],
+    filename: 'financial_analysis.pdf',
+    pagebreak: { mode: ['css', 'legacy'] },
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      letterRendering: true
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    }
+  }
+
+  try {
+    await html2pdf().set(pdfOpts).from(element).save()
+  } catch(e) {
+    console.error('PDF error:', e)
+  }
+  
+}
 
 // watch(
 //   () => props.workflowData,

@@ -90,7 +90,7 @@ Follow the steps below to install the backend for the Agent application.
 
 > **Note**: For the following commands, go to `/backend/` directory.
 
-1. **Install Python dependencies** - Create and activate a virtual environment (for example with venv) and install the project dependencies inside it.
+1. Install Python dependencies - Create and activate a virtual environment (for example with venv) and install the project dependencies inside it.
 
    ```bash
    python -m venv venv
@@ -98,7 +98,7 @@ Follow the steps below to install the backend for the Agent application.
    pip install -r requirements.txt
    ```
 
-2. **Run the application**
+2. Run the application
 
    ```bash
    uvicorn api.main:app --reload
@@ -207,7 +207,7 @@ The **General Assistant** agent helps with:
 
 ### Example queries
 
-See example queries for general assistance.
+Example queries for general assistance are listed below.
 
 - "What's the difference between supervised and unsupervised learning?"
 - "Can you explain how REST APIs work?"
@@ -226,7 +226,7 @@ The application uses the **Sales Lead** agent to:
 
 ### Example queries
 
-See example queries for Sales lead information.
+Example queries for sales lead information are listed below.
 
 - "Find AI startups in Silicon Valley with Series B funding"
 - "Which healthcare companies in Boston are working on drug discovery?"
@@ -245,7 +245,7 @@ For research queries, the application uses the **Deep Research** agent to:
 
 ### Example queries
 
-See example queries for research and content generation.
+Example queries for research and content generation are listed below.
 
 - "Explain quantum computing and its applications in cryptography"
 - "How does CRISPR gene editing work in modern medicine?"
@@ -267,7 +267,7 @@ For financial queries, the application uses the **Financial Analysis** agent to:
 
 ### Example queries
 
-See example queries for financial analysis and market research.
+Example queries for financial analysis and market research are listed below.
 
 - "Analyze Tesla's recent performance and future growth prospects"
 - "How is the semiconductor industry performing this quarter?"
@@ -293,7 +293,7 @@ The application allows you to make queries using audio input. Simply click the m
 
 ## Additional features
 
-Additional features of the application are:
+Additional features of the application are listed below.
 
 - 🔐 Secure API key management – Encrypted for maximum protection
 - 📜 Chat history tracking – Easily access past conversations

@@ -11,11 +11,15 @@
     {{ chatName }}
   </div>
   <!-- Right buttons -->
-  <div class="flex hidden space-x-2">
-    <button class=" text-sm h-[30px] py-1 px-2.5 bg-[#EE7624] text-white rounded">
+  <div class="flex  space-x-2">
+    <button 
+    
+    class=" text-sm h-[30px] py-1 px-2.5 bg-[#EE7624] text-white rounded">
       View full report
     </button>
-    <button class=" text-sm h-[30px] py-1 px-2.5 bg-[#EAECF0] text-[#344054] rounded">
+    <button
+    @click="genPDF"
+    class=" text-sm h-[30px] py-1 px-2.5 bg-[#EAECF0] text-[#344054] rounded">
       Download PDF
     </button>
   </div>
@@ -350,6 +354,25 @@ function handleButtonClick(data) {
 
 }
 
+
+async function genPDF() {
+  try {
+    const sampleContent = {
+    report: [
+      {
+        title: 'Introduction',
+        high_level_goal: 'Understand the basics of Vue 3',
+        why_important: 'Vue 3 is a modern framework with reactivity features.',
+        generated_content: '## Vue 3 Overview\nVue 3 introduces Composition API, better performance, and more...'
+      }
+    ]
+  };
+
+  downloadPDF(sampleContent);
+  }catch(e){
+console.log("PDF gen error",e)
+  }
+}
 
 async function createNewChat() {
   try {

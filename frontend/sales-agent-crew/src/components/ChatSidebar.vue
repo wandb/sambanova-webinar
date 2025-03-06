@@ -14,8 +14,17 @@
     </div>
 
     <!-- If missing any key, show a small alert -->
-    <div v-if="missingKeys.length > 0" class="bg-yellow-50 text-yellow-700 text-sm p-2">
+    <!-- <div v-if="missingKeys.length > 0" class="bg-yellow-50 text-yellow-700 text-sm p-2">
       Missing {{ missingKeys.join(', ') }} key(s). Please set them in settings.
+    </div> -->
+
+    <!-- {{ missingKeysArray }} -->
+    <div v-if="missingKeysArray.length > 0" class="bg-yellow-50 text-yellow-700 text-sm p-2">
+      
+      <span class="capitalize" v-for="(keyItem,index) in missingKeysArray" >
+        {{ index>0?",":"" }}{{  keyItem  ? keyItem:''  }}  
+      </span> key(s) are missing. Please set them in settings.
+      
     </div>
 
     <!-- Conversation list -->
@@ -62,7 +71,7 @@ const { userId } = useAuth()
 const sambanovaKey = ref(null)
 const serperKey = ref(null)
 const exaKey = ref(null)
-
+const missingKeysList=ref({})
 const conversations = ref([])
 
 // Event handler functions for events emitted from ChatList/ChatItem.
@@ -81,12 +90,17 @@ onMounted(() => {
   // loadConversations()
   loadChats()
   loadKeys()
+
+  emitterMitt.on('keys-updated', loadKeys);
+
 let cId=route.params.id
   if(cId)
   preselectedChat.value=cId
   
   
 })
+
+
 
 
 async function deleteChat( conversationId) {
@@ -112,7 +126,16 @@ async function deleteChat( conversationId) {
 
 let convId="db5ff51c-2886-46f6-bbda-6f041ad69a41"
 let userIdStatic="user_2sfDzHK9r5FkXrufqoAFjnjGNPk"
-async function loadKeys() {
+async function loadKeys(missingKeysListData) {
+
+
+  if(missingKeysListData){
+console.log("missingKeysList",missingKeysListData)
+
+missingKeysList.value=missingKeysListData
+
+  }else{
+
   try {
     const uid = userId.value || 'anonymous'
     const encryptedSamba = localStorage.getItem(`sambanova_key_${uid}`)
@@ -122,9 +145,13 @@ async function loadKeys() {
     sambanovaKey.value = encryptedSamba ? await decryptKey(encryptedSamba) : null
     serperKey.value     = encryptedSerp ? await decryptKey(encryptedSerp) : null
     exaKey.value        = encryptedExa  ? await decryptKey(encryptedExa)  : null
+
+  
+
   } catch (err) {
     console.error('[ChatSidebar] Error decrypting keys:', err)
   }
+}
 }
 
 const missingKeys = computed(() => {
@@ -135,7 +162,10 @@ const missingKeys = computed(() => {
   return missing
 })
 defineExpose({loadChats})
-
+const missingKeysArray = computed(() => {
+  if (!missingKeysList.value || typeof missingKeysList.value !== 'object') return []
+  return Object.keys(missingKeysList.value).filter(key => missingKeysList.value[key])
+})
 async function loadChats() {
   try {
     const uid = userId.value || 'anonymous'

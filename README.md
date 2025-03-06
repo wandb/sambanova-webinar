@@ -2,209 +2,51 @@
 
 <h1 style="font-size: 3em;">Agents</h1>
 
-# Overview
-
-The Agents application helps sales teams and researchers by:
+The Agents application routes requests to four different agents: General assistant agent, Sales leads agent, Deep research agent, and a Finance analysis agent. The agents process tens of thousands of tokens that generates lightning fast and accurate results. The Agents application helps sales teams and researchers by:
 
 - Generating qualified sales information with company insights.
 - Creating detailed research reports and educational content.
 - Intelligently routing queries to the appropriate service.
 - Supporting voice input for natural interaction.
 
-This application has four agents (AI-powered assistants)
+The basic process of the Agent application is described below.
 
-1. General Assistant
-1. Sales Leads
-1. Deep Research
-1. Finance Analysis
+1. User query processing
+   - User submits a query via text or voice input.
+   - The application analyzes the query to determine its category (general assistance, sales lead, research, or financial analysis).
 
-# Architecture
+1. Agent assignment
+   - The query is routed to the appropriate agent based on content and intent.
+   - If the query spans multiple domains, agents collaborate to provide a comprehensive response.
+   
+1. Data retrieval and processing
+   - The selected agent fetches relevant data from available APIs and knowledge bases.
+   - AI models process and structure the information for clarity and accuracy.
+   
+1. Response generation
+   - The application generates a structured response.
+   - The response is formatted based on the query type (e.g., report format for research, tabular format for financial analysis).
 
-![Co-Pilot Architecture Diagram](backend/images/architecture-diagram.jpg)
+1. User interaction and feedback
+   - The user reviews the response and may refine the query.
+   - The system continuously learns from interactions to improve future responses.
 
-This application is built with:
+# Prerequisites
 
-- Vue 3 + Composition API
-- Vite
-- TailwindCSS
-- Clerk for authentication
-- Axios for API calls
+1. Ensure to install the prerequisites.
+   - [Python 3.8 or later](https://www.python.org/downloads/)
+   - [Node.js 16 or later](https://nodejs.org/en/download)
+   - [Yarn](https://classic.yarnpkg.com/en/docs/install)
 
-# Technology stack
+1. Get the following API keys to setup the Agent application.
+   - [SambaNova API key](https://cloud.sambanova.ai/)
+   - [Serper API key](https://serper.dev/) for web search
+   - [Exa API key](https://exa.co/) for company data
+   - [Fireworks API key](https://fireworks.ai/) 
 
-This application is built using the following technologies. The stack is designed to offer high-performance and scalability for both frontend and backend needs.
+# Setup and run the application
 
-See the frontend and backend technology stack listed in the table below.
-
-<table style="width:40%; border: 1px solid #000; border-collapse: collapse;">
-  <thead>
-      <tr style="background-color: #f0f0f0;"> <!-- Shading applied here -->
-      <th style="border: 1px solid #000; width: 30%;">Category</th>
-      <th style="border: 1px solid #000; width: 80%;">Technologies used</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Frontend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
-        <ul>
-          <li>Vue.js 3 (Composition API)</li>
-          <li>TailwindCSS for styling</li>
-          <li>Vite for build tooling</li>
-          <li>Clerk for authentication</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Backend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
-        <ul>
-          <li>FastAPI</li>
-          <li>CrewAI</li>
-          <li>SambaNova Agentic Cloud</li>
-          <li>Exa Search API</li>
-          <li>Financial Data APIs</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-# Features
-
-This section describes the features and capabilities of the application. 
-
-## General assistance
-
-The **General Assistant** agent helps with:
-
-- Answering basic questions and queries.
-- Providing explanations and clarifications.
-- Offering technical support.
-- Assisting with general research tasks.
-
-### Example queries
-
-See example queries for general assistance.
-
-- "What's the difference between supervised and unsupervised learning?"
-- "Can you explain how REST APIs work?"
-- "What are the best practices for data visualization?"
-- "How do I optimize database queries?"
-- "Explain the concept of containerization"
-
-## Sales lead information
-
-The application uses the **Sales Lead** agent to:
-
-- Find relevant companies matching your criteria.
-- Extract key company information.
-- Provide funding status and insights.
-- Generate customized sales approaches.
-
-### Example queries
-
-See example queries for Sales lead information.
-
-- "Find AI startups in Silicon Valley with Series B funding"
-- "Which healthcare companies in Boston are working on drug discovery?"
-- "Show me cybersecurity companies in Israel with enterprise clients"
-- "Find sustainable energy startups in Nordic countries"
-- "Show me B2B SaaS companies in Singapore with over 100 employees"
-
-## Research and content generation
-
-For research queries, the application uses the **Deep Research** agent to:
-
-- Analyze topics in-depth
-- Create structured research reports
-- Provide educational content
-- Include relevant citations and sources
-
-### Example queries
-
-See example queries for research and content generation.
-
-- "Explain quantum computing and its applications in cryptography"
-- "How does CRISPR gene editing work in modern medicine?"
-- "What's the relationship between AI and neuromorphic computing?"
-- "Explain the impact of blockchain on supply chain management"
-- "How do machine learning algorithms handle natural language processing?"
-- "What are the latest developments in fusion energy research?"
-
-## Financial analysis and market research
-
-For financial queries, the application uses the **Financial Analysis** agent to:
-
-- Analyze company financial performance
-- Track market trends and competitive positioning
-- Evaluate stock performance and valuation metrics
-- Generate investment insights
-- Monitor industry-specific metrics
-- Compare companies within sectors
-
-### Example queries
-
-See example queries for financial analysis and market research.
-
-- "Analyze Tesla's recent performance and future growth prospects"
-- "How is the semiconductor industry performing this quarter?"
-- "Compare cloud revenue growth between Microsoft Azure and AWS"
-- "What's the market outlook for AI chip manufacturers?"
-- "Evaluate Apple's financial health considering recent product launches"
-- "Compare profitability metrics between major EV manufacturers"
-
-## Intelligent query routing
-
-The application automatically determines the best category for your query, ensuring efficient processing. Query routing is automatically done for use-cases such as:
-
-- Sales lead information gathering
-- Educational content/research creation
-- Financial analysis and market research
-
-## Voice input support
-
-The application allows you to make queries using audio input. Simply click the microphone icon to start speaking. It also offers:
-
-- Automatic speech-to-text transcription
-- Hands-free operation for convenience
-
-## Additional features
-
-Additional features of the application are:
-
-- 🔐 Secure API key management – Encrypted for maximum protection
-- 📜 Chat history tracking – Easily access past conversations
-- 📥 Results export functionality – Download and share insights effortlessly
-- 🔄 Real-time query routing – Instant categorization for accurate responses
-- 📊 Detailed company insights – In-depth business data at your fingertips
-- 💹 Financial analysis and market trends – Stay ahead with real-time analytics
-- ✍ AI-generated outreach templates – Craft professional messages instantly
-
-# Technical setup
-
-## Prerequisites
-
-Ensure to install the prerequisites.
-
-- [Python 3.8 or later](https://www.python.org/downloads/)
-- [Node.js 16 or later](https://nodejs.org/en/download)
-- [Yarn](https://classic.yarnpkg.com/en/docs/install)
-
-## API keys
-
-Get the following API keys to setup the Agent application.
-
-  - [SambaNova API key](https://cloud.sambanova.ai/)
-  - [Serper API key](https://serper.dev/) for web search
-  - [Exa API key](https://exa.co/) for company data
-  - [Fireworks API key](https://fireworks.ai/) 
-
-> **Note**: After logging in, click the settings gear icon ⚙️ (located next to your user photo) to configure your API keys. The application requires these keys to function properly.
-
-# Running the application
-
-You can run the application in two ways
+You can setup and run the application in two ways - Cloud hosted version or locally hosted version.
 
 ## Cloud hosted version
 
@@ -262,7 +104,7 @@ Follow the steps below to install the backend for the Agent application.
    uvicorn api.main:app --reload
    ```
 
-### Setup environment variables
+### Environment variables setup
 
 > **Note**: For the frontend environment variables, go to `/frontend/sales-agent-crew/`.
 
@@ -297,14 +139,170 @@ Follow the steps below to install the backend for the Agent application.
 
 ### API keys setup
 
-Access the settings modal to configure your:
+1. Access the settings modal to configure the API keys mentioned in the [prerequisites](#prerequisites) section.
+1. Ensure that API keys are encrypted before storing them in localStorage.
 
-- SambaNova API key
-- Serper API key
-- Exa API key
-- Fireworks API key
+# Architecture
 
-Ensure that API keys are encrypted before storing them in localStorage.
+![Co-Pilot Architecture Diagram](backend/images/architecture-diagram.jpg)
+
+This application is built with:
+
+- Vue 3 + Composition API
+- Vite
+- TailwindCSS
+- Clerk for authentication
+- Axios for API calls
+
+# Technology stack
+
+The stack is designed to offer high-performance and scalability for both frontend and backend needs. See the frontend and backend technology stack listed in the table below.
+
+<table style="width:40%; border: 1px solid #000; border-collapse: collapse;">
+  <thead>
+      <tr style="background-color: #f0f0f0;"> <!-- Shading applied here -->
+      <th style="border: 1px solid #000; width: 30%;">Category</th>
+      <th style="border: 1px solid #000; width: 80%;">Technologies used</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #000; width: 30%;"><strong>Frontend</strong></td>
+      <td style="border: 1px solid #000; width: 80%;">
+        <ul>
+          <li>Vue.js 3 (Composition API)</li>
+          <li>TailwindCSS for styling</li>
+          <li>Vite for build tooling</li>
+          <li>Clerk for authentication</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #000; width: 30%;"><strong>Backend</strong></td>
+      <td style="border: 1px solid #000; width: 80%;">
+        <ul>
+          <li>FastAPI</li>
+          <li>CrewAI</li>
+          <li>SambaNova Agentic Cloud</li>
+          <li>Exa Search API</li>
+          <li>Financial Data APIs</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+# Features
+
+This section describes the agents and feature capabilities of the application. 
+
+## General Assistant
+
+The **General Assistant** agent helps with:
+
+- Answering basic questions and queries.
+- Providing explanations and clarifications.
+- Offering technical support.
+- Assisting with general research tasks.
+
+### Example queries
+
+See example queries for general assistance.
+
+- "What's the difference between supervised and unsupervised learning?"
+- "Can you explain how REST APIs work?"
+- "What are the best practices for data visualization?"
+- "How do I optimize database queries?"
+- "Explain the concept of containerization"
+
+## Sales Lead
+
+The application uses the **Sales Lead** agent to:
+
+- Find relevant companies matching your criteria.
+- Extract key company information.
+- Provide funding status and insights.
+- Generate customized sales approaches.
+
+### Example queries
+
+See example queries for Sales lead information.
+
+- "Find AI startups in Silicon Valley with Series B funding"
+- "Which healthcare companies in Boston are working on drug discovery?"
+- "Show me cybersecurity companies in Israel with enterprise clients"
+- "Find sustainable energy startups in Nordic countries"
+- "Show me B2B SaaS companies in Singapore with over 100 employees"
+
+## Deep Research
+
+For research queries, the application uses the **Deep Research** agent to:
+
+- Analyze topics in-depth
+- Create structured research reports
+- Provide educational content
+- Include relevant citations and sources
+
+### Example queries
+
+See example queries for research and content generation.
+
+- "Explain quantum computing and its applications in cryptography"
+- "How does CRISPR gene editing work in modern medicine?"
+- "What's the relationship between AI and neuromorphic computing?"
+- "Explain the impact of blockchain on supply chain management"
+- "How do machine learning algorithms handle natural language processing?"
+- "What are the latest developments in fusion energy research?"
+
+## Financial Analysis
+
+For financial queries, the application uses the **Financial Analysis** agent to:
+
+- Analyze company financial performance
+- Track market trends and competitive positioning
+- Evaluate stock performance and valuation metrics
+- Generate investment insights
+- Monitor industry-specific metrics
+- Compare companies within sectors
+
+### Example queries
+
+See example queries for financial analysis and market research.
+
+- "Analyze Tesla's recent performance and future growth prospects"
+- "How is the semiconductor industry performing this quarter?"
+- "Compare cloud revenue growth between Microsoft Azure and AWS"
+- "What's the market outlook for AI chip manufacturers?"
+- "Evaluate Apple's financial health considering recent product launches"
+- "Compare profitability metrics between major EV manufacturers"
+
+## Intelligent query routing
+
+The application automatically determines the best category for your query, ensuring efficient processing. Query routing is automatically done for use-cases such as:
+
+- Sales lead information gathering
+- Educational content/research creation
+- Financial analysis and market research
+
+## Voice input support
+
+The application allows you to make queries using audio input. Simply click the microphone icon to start speaking. It also offers:
+
+- Automatic speech-to-text transcription
+- Hands-free operation for convenience
+
+## Additional features
+
+Additional features of the application are:
+
+- 🔐 Secure API key management – Encrypted for maximum protection
+- 📜 Chat history tracking – Easily access past conversations
+- 📥 Results export functionality – Download and share insights effortlessly
+- 🔄 Real-time query routing – Instant categorization for accurate responses
+- 📊 Detailed company insights – In-depth business data at your fingertips
+- 💹 Financial analysis and market trends – Stay ahead with real-time analytics
+- ✍ AI-generated outreach templates – Craft professional messages instantly
+
 
 ## Usage
 

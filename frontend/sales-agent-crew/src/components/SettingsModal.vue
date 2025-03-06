@@ -243,9 +243,9 @@
               @change="handleModelSelection"
               class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             >
-              <option value="llama-3.3-70b">Meta-Llama-3.3-70B-Instruct</option>
-              <option value="deepseek-r1">DeepSeek-R1</option>
-              <option value="llama-3.1-tulu-3-405b">Llama-3.1-Tulu-3-405B</option>
+              <option value="llama-3.3-70b">Meta-Llama-3.3-70B-Instruct - 128K</option>
+              <option value="deepseek-r1">DeepSeek-R1 - 8K</option>
+              <option value="llama-3.1-tulu-3-405b">Llama-3.1-Tulu-3-405B - 16K</option>
             </select>
           </div>
         </div>

@@ -95,13 +95,19 @@ section_writer_instructions = """You are an expert technical writer crafting one
 </Existing section content>
 
 <Source material>
+Web search results:
 {context}
 </Source material>
+
+<Document summary (if available)>
+{document_summary}
+</Document summary>
 
 <Guidelines for writing>
 
 1. If the existing section content is not populated, write a new section from scratch.
 2. If the existing section content is populated, write a new section that synthesizes the existing section content with the new information.
+3. If document summary is available, incorporate relevant insights from the provided documents.
 </Guidelines for writing>
 
 <Length and style>

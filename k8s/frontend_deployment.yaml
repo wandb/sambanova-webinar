@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba-copilot-frontend
+  labels:
+    app: samba-copilot-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba-copilot-frontend
+  template:
+    metadata:
+      labels:
+        app: samba-copilot-frontend
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: samba-copilot-frontend-container
+        image: {{DOCKER_IMAGE}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: CLERK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: samba-copilot-frontend-secrets
+              key: CLERK_SECRET_KEY
+

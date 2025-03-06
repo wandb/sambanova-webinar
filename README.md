@@ -33,12 +33,12 @@ The basic process of the Agent application is described below.
 
 # Prerequisites
 
-1. Ensure to install the prerequisites.
+Ensure to install the prerequisites.
    - [Python 3.8 or later](https://www.python.org/downloads/)
    - [Node.js 16 or later](https://nodejs.org/en/download)
    - [Yarn](https://classic.yarnpkg.com/en/docs/install)
 
-1. Get the following API keys to setup the Agent application.
+Get the following API keys to setup the Agent application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
    - [Serper API key](https://serper.dev/) for web search
    - [Exa API key](https://exa.co/) for company data

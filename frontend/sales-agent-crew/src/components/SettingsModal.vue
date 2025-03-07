@@ -29,7 +29,7 @@
           <!-- SambaNova API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              SambaNova API Key <span v-if="missingKeys.sambanovaKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
+              SambaNova API Key <span v-if="missingKeys.sambanova" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://cloud.sambanova.ai/"
                 target="_blank"
@@ -89,7 +89,7 @@
           <!-- Exa API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Exa API Key <span v-if="missingKeys.exaKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
+              Exa API Key <span v-if="missingKeys.exa" class="text-red-500 text-sm mt-1">(*Required Key)</span>
 
               <a 
                 href="https://exa.ai/"
@@ -150,7 +150,7 @@
           <!-- Serper API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Serper API Key <span v-if="missingKeys.serperKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
+              Serper API Key <span v-if="missingKeys.serper" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://serper.dev/"
                 target="_blank"
@@ -193,7 +193,7 @@
           <!-- Fireworks API Key -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Fireworks API Key <span v-if="missingKeys.fireworksKey" class="text-red-500 text-sm mt-1">(*Required Key)</span>
+              Fireworks API Key <span v-if="missingKeys.fireworks" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
                 href="https://fireworks.ai/"
                 target="_blank"

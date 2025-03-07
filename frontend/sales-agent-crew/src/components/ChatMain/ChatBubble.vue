@@ -68,7 +68,7 @@
         </button> -->
         <button
           class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
-          @click="generateSelectablePDF"
+          @click="generatePDFFromHtml"
         >
           <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -97,7 +97,7 @@
   </template>
   
   <script setup>
-  import { computed, defineProps, ref,watch } from 'vue'
+  import { computed, defineProps, ref,watch,nextTick } from 'vue'
   
   import UserAvatar from '@/components/Common/UIComponents/UserAvtar.vue'
   import AssistantComponent from '@/components/ChatMain/ResponseTypes/AssistantComponent.vue'
@@ -351,8 +351,8 @@ async function generatePDFFromHtml() {
 
 
   // Append header and cloned content to the wrapper
-  wrapper.appendChild(headerContainer);
-  element.prepend(wrapper);
+  // wrapper.appendChild(headerContainer);
+  // element.prepend(wrapper);
   // Remove any extra top margin to avoid overlap
   // clonedContent.style.marginTop = '0mm';
   // wrapper.appendChild(clonedContent);
@@ -385,66 +385,63 @@ async function generatePDFFromHtml() {
 }
 
 async function generateSelectablePDF() {
-  // Close the menu if open
-  toggleMenu()
-
-  // Get the element to convert
-  const element = document.getElementById('chat-' + props.messageId)
-  if (!element) {
+  // For testing, we use the static element with id "pdf-content".
+  const contentEl = document.getElementById('chat-'+props.messageId)
+  if (!contentEl) {
     console.error('Content element not found')
     return
   }
 
-  // Create a wrapper element to combine header and content
+  // Create a wrapper element to house the content with explicit styling.
   const wrapper = document.createElement('div')
-  wrapper.style.padding = '10mm'
-
-  // Create header container with dynamic SVG logo and text
-  const headerContainer = document.createElement('div')
-  headerContainer.style.textAlign = 'center'
-  headerContainer.style.marginBottom = '10mm'
-  headerContainer.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center;">
-      ${headerConfig.value.SVGMarkup}
-      <h1 style="margin: 5mm 0 0 0; font-size: 18pt;">${headerConfig.value.topHeading}</h1>
-      <p style="margin: 0; font-size: 12pt;">${headerConfig.value.subHeading}</p>
-    </div>
-  `
-  wrapper.appendChild(headerContainer)
-
-  // Clone the content element and append it to the wrapper
-  const clonedContent = element.cloneNode(true)
-  clonedContent.style.marginTop = '0mm'
-  wrapper.appendChild(clonedContent)
-
-  // Append the wrapper to the document body offscreen so it renders correctly.
+  // Set a fixed width (in pixels) that approximates your intended PDF layout.
+  // You may adjust this value (e.g., 800px) to better match your design.
+  wrapper.style.width = '800px'
+  wrapper.style.padding = '20px'
+  wrapper.style.background = '#fff'
+  // Inject the inner HTML from our test content.
+  wrapper.innerHTML = contentEl.innerHTML
+  
+  // Append the wrapper offscreen so that html2canvas can fully render it.
   wrapper.style.position = 'absolute'
   wrapper.style.top = '-10000px'
   document.body.appendChild(wrapper)
 
-  // Create a new jsPDF instance
-  const doc = new jsPDF({
-    unit: 'mm',
-    format: 'a4',
-    orientation: 'portrait'
-  })
+  // Wait for the DOM to update and a short delay to ensure full rendering.
+  await nextTick()
+  setTimeout(() => {
+    // Create a new jsPDF instance.
+    // Using unit: 'px' here helps to more directly map from CSS pixels.
+    const doc = new jsPDF({
+      unit: 'px',
+      format: 'a4',
+      orientation: 'portrait'
+    })
 
-  console.log("Wrapper HTML:", wrapper.innerHTML)
-
-  // Use jsPDF's html() method to render the wrapper content.
-  await doc.html(wrapper, {
-    callback: function (doc) {
-      console.log("PDF rendering complete. Saving PDF...")
-      doc.save('financial_analysis.pdf')
-      // Clean up the temporary wrapper element.
-      document.body.removeChild(wrapper)
-    },
-    margin: [10, 10, 10, 10],
-    x: 10,
-    y: 10,
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true }
-  })
+    // Render the wrapper using jsPDF's html() method.
+    doc.html(wrapper, {
+      callback: function (doc) {
+        console.log('PDF rendering complete. Saving PDF...')
+        doc.save('output.pdf')
+        // Clean up the temporary wrapper.
+        document.body.removeChild(wrapper)
+      },
+      // Set starting coordinates inside the PDF.
+      x: 10,
+      y: 10,
+      // Specify the content width in the PDF (in px).
+      width: 800,
+      // Adjust html2canvas options.
+      html2canvas: {
+        scale: 1, // lower scale if text is too large; you can try 1 or 1.5
+        useCORS: true,
+        // This helps html2canvas know the intended width of the element.
+        windowWidth: wrapper.scrollWidth
+      }
+    })
+  }, 500) // A delay of 500ms; adjust if necessary
 }
+
   </script>
   <style>
 

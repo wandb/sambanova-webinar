@@ -19,15 +19,65 @@
     </li>
     
     <!-- For all other cases -->
-    <li v-else class="    px-4 items-start gap-x-2 sm:gap-x-4">
+    <li v-else class="  relative  px-4 items-start gap-x-2 sm:gap-x-4">
       
-      <div class="w-full flex items-center ">
+      <div class="w-full relative flex items-center  ">
     
-        <UserAvatar :type="provider" /> 
-        <div class="grow text-start space-y-3">
+        <UserAvatar :type="provider" />   
+        <div class="grow relative text-start space-y-3">
         <!-- Card -->
         <div class="inline-block" >
-       <div class=" p-4 capitalize space-y-3 font-inter font-semibold text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent</div>
+       <div class="relative p-4 flex items-center capitalize space-y-3 font-inter font-semibold 
+       text-[16px] leading-[18px] tracking-[0px] text-center">{{ provider }} Agent   <!-- Menu button: visible on hover -->
+      
+      
+       <button
+
+           v-if="parsedData.agent_type==='sales_leads'||parsedData.agent_type==='financial_analysis'
+           ||parsedData.agent_type==='deep_research'"
+        type="button"
+        class="  group-hover:opacity-100 transition-opacity duration-200"
+        @click.stop="toggleMenu"
+        @mousedown.stop
+        aria-label="Open menu"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="1" />
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="19" r="1" />
+        </svg>
+      </button>
+    
+      <!-- Popover menu -->
+      <div
+        v-if="activeMenu"
+        class="absolute right-1 top-8 bg-white border border-gray-200 shadow-lg rounded z-30"
+        @click.stop
+      >
+       
+        <!-- <button
+          class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
+          
+        >
+          <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+            <polyline points="12 3 12 12" />
+            <polyline points="9 6 12 3 15 6" />
+          </svg>
+          View Report
+        </button> -->
+        <button
+          class="flex items-center w-full px-4 py-2 hover:bg-gray-100 text-left"
+          @click="generatePDFFromHtml"
+        >
+          <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download PDF
+        </button>
+      </div></div>
 </div>
 
 </div>
@@ -42,7 +92,7 @@
       :plannerText="plannerText" 
     />
    
-        <component :is="selectedComponent" :parsed="parsedData" />
+        <component :id="'chat-'+messageId" :is="selectedComponent" :parsed="parsedData" />
     </div>
       
       
@@ -62,11 +112,12 @@
   import FinancialAnalysisComponent from '@/components/ChatMain/ResponseTypes/FinancialAnalysisComponent.vue'
   import DeepResearchComponent from '@/components/ChatMain/ResponseTypes//DeepResearchComponent.vue'
   import ErrorComponent from '@/components/ChatMain/ResponseTypes/ErrorComponent.vue'
-  import MetaData from '@/components/ChatMain/MetaData.vue'
-  import WorkflowDataItem from '@/components/ChatMain/WorkflowDataItem.vue'
   import AnalysisTimeline from '@/components/ChatMain/AnalysisTimeline.vue'
+  import {downloadPDF, generatePDFDeepResearch} from '@/utils/createPDF';
 
-
+  import html2canvas from "html2canvas";
+  import jsPDF from "jspdf";
+  import html2pdf from 'html2pdf.js'
 
   const formattedDuration=(duration) =>{
       // Format duration to 2 decimal places
@@ -131,6 +182,35 @@ return parsedData.metadata;
 });
 
 
+async function generatePDFFromHtml() {
+  toggleMenu()
+  const element = document.getElementById('chat-'+props.messageId)
+  
+  const pdfOpts = {
+    margin: [10, 10],
+    filename: 'financial_analysis.pdf',
+    pagebreak: { mode: ['css', 'legacy'] },
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      letterRendering: true
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    }
+  }
+
+  try {
+    await html2pdf().set(pdfOpts).from(element).save()
+  } catch(e) {
+    console.error('PDF error:', e)
+  }
+  
+}
+
 // watch(
 //   () => props.workflowData,
 //   (newWorkflowData, oldWorkflowData) => {
@@ -178,6 +258,48 @@ return parsedData.metadata;
 function toggleCollapse() {
   collapsed.value = !collapsed.value
 }
+
+const activeMenu = ref(false);
+
+const headerConfig = {
+    SVGComponent: SILogo, // Pass Vue Component here
+    topHeading: 'Research Report',
+    subHeading: 'Generated with Vue 3'
+  };
+
+async function genPDF() {
+  try {
+  //   const sampleContent = {
+  //   report: [
+  //     {
+  //       title: 'Introduction',
+  //       high_level_goal: 'Understand the basics of Vue 3',
+  //       why_important: 'Vue 3 is a modern framework with reactivity features.',
+  //       generated_content: '## Vue 3 Overview\nVue 3 introduces Composition API, better performance, and more...'
+  //     }
+  //   ]
+  // };
+
+  let dataForPdf=JSON.parse(props.data)
+console.log(dataForPdf.agent_type,dataForPdf)
+
+if(dataForPdf.agent_type==="deep_research")
+generatePDFDeepResearch( dataForPdf.data , headerConfig);
+
+else if (dataForPdf.agent_type==="financial_analysis"){
+  generatePDFDeepResearch( dataForPdf.data , headerConfig);
+}
+
+
+
+  }catch(e){
+console.log("PDF gen error",e)
+  }
+}
+
+function toggleMenu() {
+    activeMenu.value = !activeMenu.value;
+  }
   </script>
   <style>
 

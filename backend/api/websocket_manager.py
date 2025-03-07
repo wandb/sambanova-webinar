@@ -7,8 +7,8 @@ from typing import Optional, Dict
 import redis
 from starlette.websockets import WebSocketState
 
-from api.data_types import APIKeys, EndUserMessage
-from api.utils import initialize_agent_runtime, load_documents
+from api.data_types import APIKeys, EndUserMessage, AgentEnum, AgentStructuredResponse, ErrorResponse
+from api.utils import initialize_agent_runtime, load_documents, DocumentContextLengthError
 from api.websocket_interface import WebSocketInterface
 
 from .otlp_tracing import logger
@@ -115,7 +115,7 @@ class WebSocketConnectionManager(WebSocketInterface):
         pubsub = None
         background_task = None
         session_key = f"{user_id}:{conversation_id}"
-        
+
         try:
             # Update session activity time
             self.session_last_active[session_key] = datetime.now()
@@ -127,11 +127,11 @@ class WebSocketConnectionManager(WebSocketInterface):
                 agent_runtime = session.get('agent_runtime')
                 pubsub = session.get('pubsub')
                 background_task = session.get('background_task')
-                
+
                 # Update the websocket reference without recreating the agent runtime
                 session['websocket'] = websocket
                 session['is_active'] = True
-            
+
             # Pre-compute keys that will be used throughout the session
             meta_key = f"chat_metadata:{user_id}:{conversation_id}"
             message_key = f"messages:{user_id}:{conversation_id}"
@@ -144,13 +144,13 @@ class WebSocketConnectionManager(WebSocketInterface):
                 asyncio.to_thread(self.redis_client.exists, meta_key),
                 asyncio.to_thread(self.redis_client.hgetall, api_keys_key),
             ]
-            
+
             # Only create new pubsub if not restored from session
             if not pubsub:
                 setup_tasks.append(asyncio.to_thread(
                     lambda: self.redis_client.pubsub(ignore_subscribe_messages=True)
                 ))
-            
+
             # Wait for all setup tasks to complete
             results = await asyncio.gather(*setup_tasks)
             exists, redis_api_keys = results[:2]
@@ -167,7 +167,7 @@ class WebSocketConnectionManager(WebSocketInterface):
 
             # Accept connection and subscribe to channel
             self.add_connection(websocket, user_id, conversation_id)
-            
+
             # Subscribe to channel if not already subscribed
             if not pubsub.patterns:
                 await asyncio.to_thread(pubsub.subscribe, channel)
@@ -228,7 +228,7 @@ class WebSocketConnectionManager(WebSocketInterface):
                 user_message_text = await websocket.receive_text()
                 # Update session activity time on each message
                 self.session_last_active[session_key] = datetime.now()
-                
+
                 try:
                     user_message_input = json.loads(user_message_text)
                 except json.JSONDecodeError:
@@ -286,8 +286,26 @@ class WebSocketConnectionManager(WebSocketInterface):
                         self.context_length_summariser,
                     ))
 
-                # Execute all tasks in parallel
-                results = await asyncio.gather(*tasks)
+                try:
+                    # Execute all tasks in parallel
+                    results = await asyncio.gather(*tasks)
+                except DocumentContextLengthError as e:
+                    logger.info(f"Document context length error: {str(e)}")
+                    response = AgentStructuredResponse(
+                        agent_type=AgentEnum.Error,
+                        data=ErrorResponse(
+                            error="The documents you are trying to add exceed the allowable size."
+                        ),
+                        message=f"Error processing deep research request: {str(e)}",
+                        message_id=user_message_input["message_id"],
+                        sender="error_handler"
+                    )
+                    await agent_runtime.publish_message(
+                        response,
+                        DefaultTopicId(type="user_proxy", source=source),
+                    )
+                    continue
+
                 if "document_ids" in user_message_input and user_message_input["document_ids"]:
                     document_content = results[2]
 
@@ -322,7 +340,7 @@ class WebSocketConnectionManager(WebSocketInterface):
                 self.active_sessions[session_key]['is_active'] = False
         finally:
             self.remove_connection(user_id, conversation_id)
-            
+
             # Only close websocket if it hasn't been closed already
             try:
                 if (websocket.client_state != WebSocketState.DISCONNECTED and 
@@ -362,7 +380,7 @@ class WebSocketConnectionManager(WebSocketInterface):
         message_key = f"messages:{user_id}:{conversation_id}"
         session_key = f"{user_id}:{conversation_id}"
         BATCH_SIZE = 25
-        
+
         try:
             while self.active_sessions.get(session_key, {}).get('is_active', False):
                 # Process messages only if session is active
@@ -444,7 +462,7 @@ class WebSocketConnectionManager(WebSocketInterface):
         try:
             session_key = f"{user_id}:{conversation_id}"
             websocket = self.connections.get(session_key)
-            
+
             if not websocket:
                 logger.error(f"No WebSocket connection found for {session_key}")
                 return False

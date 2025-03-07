@@ -83,7 +83,10 @@ async def lifespan(app: FastAPI):
         port=redis_port,
         db=0,
         decode_responses=True,
-        max_connections=20  # Adjust based on expected concurrent connections
+        max_connections=100,
+        socket_timeout=5,  # Add timeout to prevent hanging connections
+        socket_connect_timeout=5,  # Add connection timeout
+        health_check_interval=30  # Add health check to remove stale connections
     )
     
     # Create Redis client with connection pool

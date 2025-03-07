@@ -360,7 +360,7 @@ async function generatePDFFromHtml() {
 
   const pdfOpts = {
     margin: [10, 10],
-    filename: 'financial_analysis.pdf',
+    filename: 'download.pdf',
     pagebreak: { mode: ['css', 'legacy'] },
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: {

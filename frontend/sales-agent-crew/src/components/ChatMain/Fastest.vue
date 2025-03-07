@@ -1,5 +1,5 @@
 <template>
-    <div class="w-auto mx-2 my-4 h-auto p-2 rounded border 
+    <div class="w-auto mx-1 my-2 h-auto p-2 rounded border 
     border-[#C8E6C9] bg-[#E8F5E9] flex flex-col items-center justify-center space-y-2">
       <!-- Top line with icon and title text -->
       <div class="flex items-center space-x-2">

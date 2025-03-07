@@ -1,4 +1,4 @@
-![Samba Sales Co-Pilot Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
+![Samba Agents Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
 
 <h1 style="font-size: 3em;">Agents</h1>
 
@@ -141,7 +141,7 @@ Follow the steps below to install the backend for the Agents application.
 
 # Architecture
 
-![Co-Pilot Architecture Diagram](backend/images/architecture-diagram.jpg)
+![Agents Architecture Diagram](backend/images/architecture-diagram.jpg)
 
 This application is built with:
 

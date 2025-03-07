@@ -6,12 +6,14 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-#load dotenv
+# load dotenv
 from dotenv import load_dotenv
 load_dotenv()
 
-from langtrace_python_sdk import langtrace
-langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
+# Only import and initialize langtrace if API key is set
+if os.getenv("LANGTRACE_API_KEY"):
+    from langtrace_python_sdk import langtrace
+    langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool
@@ -65,18 +67,20 @@ class ExtractedMarketTrend(BaseModel):
 class ExtractedMarketTrendList(BaseModel):
     market_trends: List[ExtractedMarketTrend]
 
-class ResearchCrew:
-    def __init__(self,
-                 llm_api_key: str,
-                 provider: str,
-                 exa_key: str,
-                 user_id: str = "",
-                 run_id: str = "",
-                 verbose: bool = True
-                 ):
-        
 
-        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
+class ResearchCrew:
+    def __init__(
+        self,
+        llm_api_key: str,
+        provider: str,
+        exa_key: str,
+        user_id: str = "",
+        run_id: str = "",
+        message_id: str = "",
+        verbose: bool = True,
+    ):
+
+        model_info = model_registry.get_model_info(model_key="llama-3.3-70b", provider=provider)
         self.llm = LLM(
             model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.00,
@@ -87,6 +91,7 @@ class ResearchCrew:
         self.exa_key = exa_key
         self.user_id = user_id
         self.run_id = run_id
+        self.message_id = message_id
         self.verbose = verbose
 
         self._initialize_agents()
@@ -144,6 +149,7 @@ class ResearchCrew:
             agent_name="Aggregator Search Agent",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
+            message_id=self.message_id
         )
         self.data_extraction_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -151,6 +157,7 @@ class ResearchCrew:
             agent_name="Data Extraction Agent",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
+            message_id=self.message_id
         )
         self.market_trends_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -158,6 +165,7 @@ class ResearchCrew:
             agent_name="Market Trends Analyst",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
+            message_id=self.message_id
         )
         self.outreach_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -165,6 +173,7 @@ class ResearchCrew:
             agent_name="Outreach Specialist",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
+            message_id=self.message_id
         )
 
     def _initialize_tasks(self) -> None:

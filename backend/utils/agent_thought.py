@@ -17,18 +17,23 @@ class RedisConversationLogger:
         agent_name="",
         workflow_name="",
         llm_name="",
+        redis_client=None,
+        message_id=None,
     ):
         # Read from env or default
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
 
         try:
-            self.r = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=0,
-                decode_responses=True
-            )
+            if redis_client:
+                self.r = redis_client
+            else:
+                self.r = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=0,
+                    decode_responses=True
+                )
             self.r.ping()
             print(f"[RedisConversationLogger] Connected to Redis at {redis_host}:{redis_port} for {agent_name}")
         except redis.ConnectionError as e:
@@ -53,6 +58,19 @@ class RedisConversationLogger:
             self.llm_provider = ""
             self.llm_name = llm_name
         self.init_timestamp = time.time()
+        self._message_id = str(message_id) if message_id else None
+
+    @property
+    def message_id(self):
+        return self._message_id
+
+    @message_id.setter
+    def message_id(self, value):
+        self._message_id = str(value) if value else None
+
+    def update_message_id(self, message_id):
+        """Update the message_id for the next set of logs."""
+        self.message_id = message_id
 
     # TODO: log llm usage
     def log_success_event(
@@ -77,6 +95,7 @@ class RedisConversationLogger:
                     "agent_name": self.agent_name,
                     "text": output.text,
                     "timestamp": time.time(),
+                    "message_id": self.message_id,
                     "metadata": {
                         "workflow_name": self.workflow_name,
                         "agent_name": self.agent_name,

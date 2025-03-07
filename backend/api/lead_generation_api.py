@@ -1,40 +1,29 @@
-from fastapi import FastAPI, File, Query, Request, BackgroundTasks, UploadFile
+from fastapi import Depends, FastAPI, File, Query, Request, UploadFile
+from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
+import jwt
 from pydantic import BaseModel
 import json
 import uvicorn
-import re
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, List
-from starlette.websockets import WebSocketState
 from contextlib import asynccontextmanager
-import logging
 
 from api.agents.user_proxy import UserProxyAgent
 from api.websocket_manager import WebSocketConnectionManager
 
-from api.utils import initialize_agent_runtime
+from api.utils import load_documents
+from api.data_types import APIKeys
 from utils.logging import logger
-from autogen_core import MessageContext
-from config.model_registry import model_registry
 import os
 import sys
 
 import redis
 import uuid
-
-from autogen_core import (
-    DefaultTopicId,
-    RoutedAgent,
-    default_subscription,
-    message_handler,
-)
-
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from api.data_types import APIKeys, EndUserMessage, AgentStructuredResponse, TestMessage
+from fastapi import FastAPI, WebSocket
 
 
 # SSE support
@@ -72,8 +61,9 @@ class EduContentRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
-def estimate_tokens_regex(text: str) -> int:
-        return len(re.findall(r"\w+|\S", text))
+CLERK_JWT_ISSUER = os.environ.get("CLERK_JWT_ISSUER")
+clerk_config = ClerkConfig(jwks_url=CLERK_JWT_ISSUER)
+clerk_auth_guard = ClerkHTTPBearer(config=clerk_config)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -85,6 +75,7 @@ async def lifespan(app: FastAPI):
 
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    app.state.context_length_summariser = 100_000
     
     # Create a Redis connection pool
     pool = redis.ConnectionPool(
@@ -103,21 +94,13 @@ async def lifespan(app: FastAPI):
     print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port} with connection pool")
 
     app.state.manager = WebSocketConnectionManager(
-        redis_client=app.state.redis_client
+        redis_client=app.state.redis_client,
+        context_length_summariser=app.state.context_length_summariser
     )
     UserProxyAgent.connection_manager = app.state.manager
     SemanticRouterAgent.connection_manager = app.state.manager
 
     yield  # This separates the startup and shutdown logic
-
-    # Cleanup chat-specific agent runtimes
-    chat_keys = app.state.redis_client.keys("chat_manager:*")
-    for key in chat_keys:
-        chat_data = app.state.redis_client.get(key)
-        if chat_data:
-            chat_info = json.loads(chat_data)
-            # TODO: Add cleanup for chat-specific agent runtime
-            app.state.redis_client.delete(key)
 
     # Close Redis connection pool
     app.state.redis_client.close()
@@ -126,12 +109,19 @@ async def lifespan(app: FastAPI):
     # Cleanup default agent runtime
     await app.state.agent_runtime.close()
 
+def get_user_id_from_token(token: HTTPAuthorizationCredentials) -> str:
+    try:
+        decoded_token = jwt.decode(token.credentials, options={"verify_signature": False})
+        return decoded_token.get("sub", "anonymous")
+    except Exception as e:
+        logger.error(f"Error decoding token: {str(e)}")
+        return "anonymous"
+
 class LeadGenerationAPI:
     def __init__(self):
-        self.app = FastAPI(lifespan=lifespan)
+        self.app = FastAPI(lifespan=lifespan, root_path="/api")
         self.setup_cors()
         self.setup_routes()
-        self.context_length_summariser = 64000
         self.executor = ThreadPoolExecutor(max_workers=2)
 
     def verify_conversation_exists(self, user_id: str, conversation_id: str) -> bool:
@@ -176,11 +166,26 @@ class LeadGenerationAPI:
         )
 
     def setup_routes(self):
+        @self.app.get("/health")
+        async def health_check():
+            """Health check endpoint for Kubernetes liveness and readiness probes."""
+            try:
+                # Check Redis connection
+                self.app.state.redis_client.ping()
+                return JSONResponse(
+                    status_code=200,
+                    content={"status": "healthy", "message": "Service is running"}
+                )
+            except Exception as e:
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "unhealthy", "message": str(e)}
+                )
+
         # WebSocket endpoint to handle user messages
         @self.app.websocket("/chat")
         async def websocket_endpoint(
             websocket: WebSocket,
-            user_id: str = Query(..., description="User ID"),
             conversation_id: str = Query(..., description="Conversation ID")
         ):
             """
@@ -188,14 +193,49 @@ class LeadGenerationAPI:
 
             Args:
                 websocket (WebSocket): The WebSocket connection.
-                user_id (str): The ID of the user.
                 conversation_id (str): The ID of the conversation.
             """
-            await self.app.state.manager.handle_websocket(
-                websocket, 
-                user_id, 
-                conversation_id
-            )
+            try:
+                # Accept the connection first
+                await websocket.accept()
+                
+                # Wait for authentication message
+                auth_message = await websocket.receive_text()
+                try:
+                    auth_data = json.loads(auth_message)
+                    if auth_data.get('type') != 'auth':
+                        await websocket.close(code=4001, reason="Authentication message expected")
+                        return
+                    
+                    token = auth_data.get('token', '')
+                    if not token.startswith('Bearer '):
+                        await websocket.close(code=4001, reason="Invalid authentication token format")
+                        return
+                    
+                    token_data = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token.split(' ')[1])
+                    user_id = get_user_id_from_token(token_data)
+
+                    if not user_id:
+                        await websocket.close(code=4001, reason="Invalid authentication token")
+                        return
+
+                    # Verify conversation exists and belongs to user
+                    meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                    if not self.app.state.redis_client.exists(meta_key):
+                        await websocket.close(code=4004, reason="Conversation not found")
+                        return
+
+                    await self.app.state.manager.handle_websocket(
+                        websocket, 
+                        user_id, 
+                        conversation_id
+                    )
+                except json.JSONDecodeError:
+                    await websocket.close(code=4001, reason="Invalid authentication message format")
+                    return
+            except Exception as e:
+                logger.error(f"[/chat/websocket] Error in WebSocket connection: {str(e)}")
+                await websocket.close(code=4000, reason="Internal server error")
 
         @self.app.post("/route")
         async def determine_route(request: Request, query_request: QueryRequest):
@@ -206,8 +246,8 @@ class LeadGenerationAPI:
                     content={"error": "Missing required SambaNova API key"}
                 )
             try:
-                router = QueryRouterService(sambanova_key, "sambanova")
-                route_result = await router.route_query(query_request.query)
+                router = QueryRouterService(sambanova_key)
+                route_result = router.route_query(query_request.query)
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -235,36 +275,8 @@ class LeadGenerationAPI:
             try:
                 # Load document chunks if document_ids are provided
                 if "document_ids" in parameters:
-                    doc_ids = parameters["document_ids"]
-                    chunks_text = []
-
-                    for doc_id in doc_ids:
-                        # Verify document exists and belongs to user
-                        user_docs_key = f"user_documents:{user_id}"
-                        if not self.app.state.redis_client.sismember(user_docs_key, doc_id):
-                            continue  # Skip if document doesn't belong to user
-
-                        chunks_key = f"document_chunks:{doc_id}"
-                        chunks_data = self.app.state.redis_client.get(chunks_key)
-
-                        if chunks_data:
-                            chunks = json.loads(chunks_data)
-                            chunks_text.extend([chunk['text'] for chunk in chunks])
-
-                    if chunks_text:
-                        combined_text = "\n".join(chunks_text)
-                        token_count = estimate_tokens_regex(combined_text)
-                        # Check if combined document chunks exceed context length
-                        if (
-                            token_count > self.context_length_summariser
-                        ): 
-                            return JSONResponse(
-                                status_code=400,
-                                content={
-                                    "error": "Combined document length exceeds maximum context window size. Please reduce the number or size of documents."
-                                },
-                            )
-                        parameters["docs"] = combined_text
+                    combined_text = load_documents(user_id, parameters["document_ids"], self.app.state.redis_client, self.app.state.context_length_summariser)
+                    parameters["docs"] = combined_text
 
                 if query_type == "sales_leads":
                     if not exa_key:
@@ -296,14 +308,14 @@ class LeadGenerationAPI:
                         user_id=user_id,
                         run_id=run_id,
                         provider="sambanova",
-                        docs_included="docs" in parameters
+                        docs_included="docs" in parameters and parameters["docs"] is not None
                     )
                     edu_inputs = {
                         "topic": parameters["topic"] if query_type == "educational_content" else parameters["deep_research_topic"],
                         "audience_level": parameters.get("audience_level", "intermediate"),
                         "additional_context": ", ".join(parameters.get("focus_areas", []))
                     }
-                    if "docs" in parameters:
+                    if "docs" in parameters and parameters["docs"] is not None:
                         edu_inputs["docs"] = parameters["docs"]
                     edu_flow.input_variables = edu_inputs
                     loop = asyncio.get_running_loop()
@@ -329,7 +341,7 @@ class LeadGenerationAPI:
                         user_id=user_id,
                         run_id=run_id,
                         provider="sambanova",
-                        docs_included="docs" in parameters
+                        docs_included="docs" in parameters and parameters["docs"] is not None
                     )
                     raw_result = await self.execute_financial(crew, parameters, "sambanova")
                     parsed_fin = json.loads(raw_result)
@@ -403,24 +415,33 @@ class LeadGenerationAPI:
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
         @self.app.post("/chat/init")
-        async def init_chat(request: Request, chat_name: Optional[str] = None):
+        async def init_chat(
+            chat_name: Optional[str] = None,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Initializes a new chat session and stores the provided API keys.
             Returns a chat ID for subsequent interactions.
             
             Args:
-                request (Request): The request object containing headers
                 chat_name (Optional[str]): Optional name for the chat. If not provided, a default will be used.
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
-            user_id = request.headers.get("x-user-id", "anonymous")
+            # Get and verify authenticated user
+            user_id = get_user_id_from_token(token_data)
+            if not user_id:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Invalid authentication token"}
+                )
 
             try:
                 # Generate a unique chat ID
                 conversation_id = str(uuid.uuid4())
-                
+
                 # Use provided chat name or default
                 timestamp = time.time()
-                
+
                 # Store chat metadata
                 metadata = {
                     "conversation_id": conversation_id,
@@ -431,12 +452,12 @@ class LeadGenerationAPI:
                 }
                 chat_meta_key = f"chat_metadata:{user_id}:{conversation_id}"
                 self.app.state.redis_client.set(chat_meta_key, json.dumps(metadata))
-                
+
                 # Add to user's conversation list
                 user_chats_key = f"user_chats:{user_id}"
                 self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp})
 
-                #TODO: init autogen agent
+                # TODO: init autogen agent
 
                 return JSONResponse(
                     status_code=200,
@@ -454,63 +475,94 @@ class LeadGenerationAPI:
                     status_code=500,
                     content={"error": f"Failed to initialize chat: {str(e)}"}
                 )
-            
-        @self.app.get("/chat/history/{user_id}/{conversation_id}")
-        async def get_conversation_messages(user_id: str, conversation_id: str):
+
+        @self.app.get("/chat/history/{conversation_id}")
+        async def get_conversation_messages(
+            conversation_id: str,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Retrieve all messages for a specific conversation.
             
             Args:
                 user_id (str): The ID of the user
                 conversation_id (str): The ID of the conversation
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
+            # Verify the authenticated user matches the requested user_id
+            user_id = get_user_id_from_token(token_data)
+            if not user_id:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Invalid authentication token"}
+                )
+
             try:
+                # Verify conversation exists and belongs to user
+                meta_key = f"chat_metadata:{user_id}:{conversation_id}"
+                if not self.app.state.redis_client.exists(meta_key):
+                    return JSONResponse(
+                        status_code=404,
+                        content={"error": "Conversation not found"}
+                    )
+
                 message_key = f"messages:{user_id}:{conversation_id}"
                 messages = self.app.state.redis_client.lrange(message_key, 0, -1)
-                
+
                 if not messages:
                     return JSONResponse(
                         status_code=200,
                         content={"messages": []}
                     )
-                
+
                 # Parse JSON strings back into objects
                 parsed_messages = [json.loads(msg) for msg in messages]
-                
+
                 # Sort messages by timestamp
                 parsed_messages.sort(key=lambda x: x.get("timestamp", ""))
-                
+
                 return JSONResponse(
                     status_code=200,
                     content={"messages": parsed_messages}
                 )
-                
+
             except Exception as e:
                 print(f"[/messages] Error retrieving messages: {str(e)}")
                 return JSONResponse(
                     status_code=500,
                     content={"error": f"Failed to retrieve messages: {str(e)}"}
                 )
-            
-        @self.app.get("/chat/list/{user_id}")
-        async def list_chats(user_id: str):
+
+        @self.app.get("/chat/list")
+        async def list_chats(
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Get list of all chats for a user, sorted by most recent first.
             
             Args:
                 user_id (str): The ID of the user
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"}
+                    )
+
                 # Get conversation IDs from sorted set, newest first
                 user_chats_key = f"user_chats:{user_id}"
                 conversation_ids = self.app.state.redis_client.zrevrange(user_chats_key, 0, -1)
-                
+
                 if not conversation_ids:
                     return JSONResponse(
                         status_code=200,
                         content={"chats": []}
                     )
-                
+
                 # Get metadata for each conversation
                 chats = []
                 for conv_id in conversation_ids:
@@ -521,12 +573,12 @@ class LeadGenerationAPI:
                         if "name" not in data:
                             data["name"] = ""
                         chats.append(data)
-                
+
                 return JSONResponse(
                     status_code=200,
                     content={"chats": chats}
                 )
-                
+
             except Exception as e:
                 print(f"[/chat/list] Error retrieving chats: {str(e)}")
                 return JSONResponse(
@@ -534,16 +586,28 @@ class LeadGenerationAPI:
                     content={"error": f"Failed to retrieve chats: {str(e)}"}
                 )
 
-        @self.app.delete("/chat/{user_id}/{conversation_id}")
-        async def delete_chat(user_id: str, conversation_id: str):
+        @self.app.delete("/chat/{conversation_id}")
+        async def delete_chat(
+            conversation_id: str,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Delete a chat conversation and all its associated data.
             
             Args:
                 user_id (str): The ID of the user
                 conversation_id (str): The ID of the conversation to delete
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 # Verify chat exists and belongs to user
                 meta_key = f"chat_metadata:{user_id}:{conversation_id}"
                 if not self.app.state.redis_client.exists(meta_key):
@@ -684,18 +748,17 @@ class LeadGenerationAPI:
 
         @self.app.post("/upload")
         async def upload_document(
-            request: Request,
             file: UploadFile = File(...),
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
         ):
             """Upload and process a document."""
             try:
-                # Get user_id from headers
-                user_id = request.headers.get("x-user-id", "")
-
+                # Get and verify authenticated user
+                user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
-                        status_code=400,
-                        content={"error": "x-user-id header is required"}
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
                     )
 
                 # Generate unique document ID
@@ -714,7 +777,7 @@ class LeadGenerationAPI:
                     "filename": file.filename,
                     "upload_timestamp": time.time(),
                     "num_chunks": len(chunks),
-                    "user_id": user_id
+                    "user_id":  user_id
                 }
 
                 # Store document metadata
@@ -751,10 +814,21 @@ class LeadGenerationAPI:
                 print(f"[/upload] Error processing document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @self.app.get("/documents/{user_id}")
-        async def get_user_documents(user_id: str):
+        @self.app.get("/documents")
+        async def get_user_documents(
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """Retrieve all documents for a user."""
             try:
+                # Verify the authenticated user matches the requested user_id
+
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 # Get all document IDs for the user
                 user_docs_key = f"user_documents:{user_id}"
                 doc_ids = self.app.state.redis_client.smembers(user_docs_key)
@@ -782,10 +856,21 @@ class LeadGenerationAPI:
                 print(f"[/documents] Error retrieving documents: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @self.app.get("/documents/{user_id}/{document_id}/chunks")
-        async def get_document_chunks_by_id(user_id: str, document_id: str):
+        @self.app.get("/documents/{document_id}/chunks")
+        async def get_document_chunks_by_id(
+            document_id: str,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """Retrieve chunks for a specific document."""
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 # Verify document belongs to user
                 user_docs_key = f"user_documents:{user_id}"
                 if not self.app.state.redis_client.sismember(user_docs_key, document_id):
@@ -813,10 +898,21 @@ class LeadGenerationAPI:
                 print(f"[/documents/chunks] Error retrieving chunks: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @self.app.delete("/documents/{user_id}/{document_id}")
-        async def delete_document(user_id: str, document_id: str):
+        @self.app.delete("/documents/{document_id}")
+        async def delete_document(
+            document_id: str,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """Delete a document and its associated data from the database."""
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 # Verify document belongs to user
                 user_docs_key = f"user_documents:{user_id}"
                 if not self.app.state.redis_client.sismember(user_docs_key, document_id):
@@ -845,16 +941,28 @@ class LeadGenerationAPI:
                 print(f"[/documents/delete] Error deleting document: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @self.app.post("/set_api_keys/{user_id}")
-        async def set_api_keys(user_id: str, keys: APIKeys):
+        @self.app.post("/set_api_keys")
+        async def set_api_keys(
+            keys: APIKeys,
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Store API keys for a user in Redis.
             
             Args:
                 user_id (str): The ID of the user
                 keys (APIKeys): The API keys to store
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 # Store keys in Redis with user-specific prefix
                 key_prefix = f"api_keys:{user_id}"
                 self.app.state.redis_client.hset(
@@ -866,12 +974,12 @@ class LeadGenerationAPI:
                         "fireworks_key": keys.fireworks_key
                     }
                 )
-                
+
                 return JSONResponse(
                     status_code=200,
                     content={"message": "API keys stored successfully"}
                 )
-                
+
             except Exception as e:
                 print(f"[/set_api_keys] Error storing API keys: {str(e)}")
                 return JSONResponse(
@@ -879,24 +987,35 @@ class LeadGenerationAPI:
                     content={"error": f"Failed to store API keys: {str(e)}"}
                 )
 
-        @self.app.get("/get_api_keys/{user_id}")
-        async def get_api_keys(user_id: str):
+        @self.app.get("/get_api_keys")
+        async def get_api_keys(
+            token_data: HTTPAuthorizationCredentials = Depends(clerk_auth_guard)
+        ):
             """
             Retrieve stored API keys for a user.
             
             Args:
                 user_id (str): The ID of the user
+                token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
+                # Verify the authenticated user matches the requested user_id
+                user_id = get_user_id_from_token(token_data)
+                if not user_id:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "Invalid authentication token"},
+                    )
+
                 key_prefix = f"api_keys:{user_id}"
                 stored_keys = self.app.state.redis_client.hgetall(key_prefix)
-                
+
                 if not stored_keys:
                     return JSONResponse(
                         status_code=404,
                         content={"error": "No API keys found for this user"}
                     )
-                
+
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -906,7 +1025,7 @@ class LeadGenerationAPI:
                         "fireworks_key": stored_keys.get("fireworks_key", "")
                     }
                 )
-                
+
             except Exception as e:
                 print(f"[/get_api_keys] Error retrieving API keys: {str(e)}")
                 return JSONResponse(

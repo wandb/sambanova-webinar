@@ -14,11 +14,13 @@ from agent.samba_research_flow.crews.edu_research.edu_research_crew import Educa
 from agent.samba_research_flow.samba_research_flow import SambaResearchFlow
 from config.model_registry import model_registry
 
-from ..data_types import (
+from api.data_types import (
+    AgentEnum,
     AgentRequest,
     AgentStructuredResponse,
     EducationalPlanResult,
     APIKeys,
+    ErrorResponse,
 )
 from utils.logging import logger
 
@@ -44,7 +46,7 @@ class EducationalContentAgent(RoutedAgent):
                     serper_key=self.api_keys.serper_key,
                     user_id=user_id,
                     run_id=conversation_id,
-                    docs_included=False,
+                    docs_included=True if message.docs else False,
                     verbose=False
                 )
             edu_inputs = {
@@ -52,6 +54,8 @@ class EducationalContentAgent(RoutedAgent):
                 "audience_level": message.parameters.audience_level if message.parameters.audience_level else "",
                 "additional_context": message.parameters.focus_areas if message.parameters.focus_areas else ""
             }
+            if message.docs:
+                edu_inputs["docs"] = message.docs
             logger.info(logger.format_message(
                 ctx.topic_id.source,
                 f"Starting educational content flow with inputs: {edu_inputs}"
@@ -80,20 +84,13 @@ class EducationalContentAgent(RoutedAgent):
             ))
             sections_with_content = EducationalPlanResult.model_validate({"sections": result})
             
-        except Exception as e:
-            logger.error(logger.format_message(
-                ctx.topic_id.source,
-                f"Failed to process educational content request: {str(e)}"
-            ), exc_info=True)
-            sections_with_content = EducationalPlanResult()
-
-        try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
                 data=sections_with_content,
                 message=message.parameters.model_dump_json(),
-                metadata=total_usage
+                metadata=total_usage,
+                message_id=message.message_id
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -106,5 +103,15 @@ class EducationalContentAgent(RoutedAgent):
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
-                f"Failed to publish response: {str(e)}"
+                f"Failed to process educational content request: {str(e)}"
             ), exc_info=True)
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with research content, try again later."),
+                message=f"Error processing research content request: {str(e)}",
+                message_id=message.message_id
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )

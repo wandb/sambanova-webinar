@@ -47,7 +47,7 @@ class EduDocSummariserCrew:
         self.agents = []
         self.tasks = []
         self.llm_api_key = llm_api_key
-        model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
+        model_info = model_registry.get_model_info(model_key="llama-3.3-70b", provider=provider)
         self.llm = LLM(
             model=model_info["crewai_prefix"] + "/" + model_info["model"],
             temperature=0.00,

@@ -64,7 +64,7 @@ def risk_assessment_tool(ticker: str, benchmark: str = "^GSPC", period: str = "1
         })
 
     return {
-        "beta": beta,
+        "beta": f"{beta:.4f}",
         "sharpe_ratio": f"{sharpe:.4f}",
         "value_at_risk_95": f"{var_95:.4f}",
         "max_drawdown": f"{max_dd:.4f}",

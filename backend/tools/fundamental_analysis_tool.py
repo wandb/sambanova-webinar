@@ -126,6 +126,8 @@ def fundamental_analysis_tool(ticker: str) -> Dict[str, Any]:
                     "total_revenue": str(total_rev) if total_rev else None,
                     "net_income": str(net_inc) if net_inc else None
                 })
+            # Sort the quarterly data by date (oldest to newest)
+            quarterly_csv.sort(key=lambda x: x["date"])
     except:
         pass
 

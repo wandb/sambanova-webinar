@@ -1,5 +1,5 @@
 <template>
-    <div class="deep-research max-w-4xl mx-auto px-4 py-4">
+    <div class="deep-research max-w-4xl mx-auto px-0 py-0">
   
       <!-- If there's no finalReport, show a placeholder -->
       <div v-if="!finalReport">
@@ -8,7 +8,7 @@
   
       <template v-else>
         <!-- Main Markdown-Rendered Content (larger font) -->
-        <div class="report-content prose prose-lg dark:prose-invert max-w-none mb-6">
+        <div class="report-content prose prose-lg  max-w-none mb-6">
           <div v-html="renderMarkdown(finalReport)"></div>
         </div>
   
@@ -23,7 +23,7 @@
         <!-- If citations exist, show them in a smaller text size -->
         <div v-if="citations.length > 0" class="citations-container space-y-4">
           <!-- Smaller heading for "Sources & Citations" -->
-          <h2 class="text-base font-bold text-gray-900 dark:text-white">
+          <h2 class="text-base font-semibold text-primary-brandTextPrimary ">
             Sources & Citations ({{ totalCitationsCount }})
           </h2>
   
@@ -34,8 +34,8 @@
               v-model="searchQuery"
               placeholder="Search citations..."
               class="flex-1 px-2 py-1 rounded-md border border-gray-300
-                     dark:border-gray-700 dark:bg-gray-800 dark:text-white
-                     outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                     
+                     outline-none focus:ring-1 focus:ring-blue-500 text-[16px]"
             />
           </div>
   
@@ -46,8 +46,8 @@
               <div
                 v-for="(cit, idx) in pagedCitations"
                 :key="cit.id"
-                class="citation-card flex flex-col bg-white dark:bg-gray-800
-                       p-3 rounded-md shadow-sm border border-gray-100 dark:border-gray-700
+                class="citation-card flex flex-col bg-white 
+                       p-3 rounded-md shadow-sm border border-gray-100 
                        hover:shadow-md transition-shadow"
               >
                 <div class="flex items-start gap-2 mb-2">
@@ -58,7 +58,7 @@
                     alt="favicon"
                   />
                   <!-- Citation Title -->
-                  <h3 class="font-medium text-gray-800 dark:text-gray-100 flex-1 leading-snug">
+                  <h3 class="font-medium text-primary-brandTextPrimary  flex-1 leading-snug">
                     {{ cit.title }}
                   </h3>
                 </div>
@@ -72,7 +72,7 @@
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center text-blue-600
-                           dark:text-blue-400 hover:underline text-xs break-all"
+                            hover:underline text-xs break-all"
                   >
                     {{ getDomain(cit.url) }}
                     <svg
@@ -89,7 +89,7 @@
                       />
                     </svg>
                   </a>
-                  <span v-else class="text-sm text-gray-400 dark:text-gray-500">
+                  <span v-else class="text-[16px] text-gray-400 ">
                     No URL provided
                   </span>
                 </div>
@@ -97,11 +97,11 @@
             </div>
   
             <!-- Pagination Controls -->
-            <div class="mt-4 flex items-center justify-center gap-2 text-sm">
+            <div class="mt-4 flex items-center justify-center gap-2 text-[16px]">
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
-                class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
+                class="px-2 py-1 bg-gray-100  rounded disabled:opacity-50"
               >
                 Prev
               </button>
@@ -111,7 +111,7 @@
               <button
                 @click="nextPage"
                 :disabled="currentPage === totalPages"
-                class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
+                class="px-2 py-1 bg-gray-100  rounded disabled:opacity-50"
               >
                 Next
               </button>
@@ -291,6 +291,7 @@
   })
   </script>
   
+  
   <style scoped>
   .deep-research {
     /* Container styling, adjust as needed */
@@ -298,28 +299,28 @@
   
   /* MAIN REPORT: Larger text sizes (matching 'prose-lg') */
   .report-content :deep(h1) {
-    @apply text-2xl font-bold mt-6 mb-4;
+    @apply text-[20px] font-semibold mt-4 mb-4;
   }
   .report-content :deep(h2) {
-    @apply text-xl font-bold mt-6 mb-3;
+    @apply text-[16px] font-semibold mt-4 mb-4;
   }
   .report-content :deep(h3) {
-    @apply text-lg font-semibold mt-4 mb-2;
+    @apply text-[16px] font-semibold mt-4 mb-4;
   }
   .report-content :deep(p) {
-    @apply text-base leading-relaxed mb-3 text-gray-800 dark:text-gray-200;
+    @apply text-base text-[16px] leading-relaxed mb-4 text-primary-brandTextPrimary ;
   }
   .report-content :deep(a) {
-    @apply text-blue-600 dark:text-blue-400 underline;
+    @apply text-blue-600  underline;
   }
   
   /* CITATIONS: We do smaller text overall */
   .citations-container .citation-card {
-    @apply text-sm;
+    @apply text-[16px];
   }
   .citations-container .citation-card h3 {
     /* text-sm or smaller as needed */
-    @apply text-sm;
+    @apply text-[16px];
   }
   
   /* line-clamp utility if you want to clamp text somewhere */
@@ -329,6 +330,10 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  ul,li{
+    font-size: 16px!important;
   }
   </style>
   

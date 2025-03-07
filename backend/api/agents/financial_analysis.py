@@ -20,9 +20,12 @@ from config.model_registry import model_registry
 from services.financial_user_prompt_extractor_service import FinancialPromptExtractor
 
 from ..data_types import (
+    AgentEnum,
     AgentRequest,
     AgentStructuredResponse,
     APIKeys,
+    AssistantResponse,
+    ErrorResponse,
 )
 from utils.logging import logger
 
@@ -76,6 +79,21 @@ class FinancialAnalysisAgent(RoutedAgent):
                 f"Processing financial analysis request for company: '{message.parameters.company_name}'"
             ))
 
+            if message.parameters.ticker == "":
+                response = AgentStructuredResponse(
+                    agent_type=AgentEnum.Error,
+                    data=ErrorResponse(
+                        error=f"Could not find a ticker for {message.parameters.company_name}"
+                    ),
+                    message=f"Could not find a ticker for {message.parameters.company_name}",
+                    message_id=message.message_id,
+                )
+                await self.publish_message(
+                    response,
+                    DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+                )
+                return
+
             # Initialize crew
             crew = FinancialAnalysisCrew(
                 llm_api_key=getattr(self.api_keys, model_registry.get_api_key_env(provider=message.provider)),
@@ -84,13 +102,18 @@ class FinancialAnalysisAgent(RoutedAgent):
                 serper_key=self.api_keys.serper_key,
                 user_id=user_id,
                 run_id=conversation_id,
-                docs_included=False,
-                verbose=False
+                docs_included=True if message.docs else False,
+                verbose=False,
+                message_id=message.message_id
             )
+
+            parameters = message.parameters.model_dump()
+            if message.docs:
+                parameters["docs"] = "\n\n".join(message.docs)
 
             # Execute analysis
             raw_result, usage_stats = await self.execute_financial(
-                crew, message.parameters.model_dump(), message.provider
+                crew, parameters, message.provider
             )
 
             financial_analysis_result = FinancialAnalysisResult.model_validate(
@@ -101,20 +124,13 @@ class FinancialAnalysisAgent(RoutedAgent):
                 "Successfully parsed financial analysis result"
             ))
 
-        except Exception as e:
-            logger.error(logger.format_message(
-                ctx.topic_id.source,
-                f"Failed to process financial analysis request: {str(e)}"
-            ), exc_info=True)
-            financial_analysis_result = FinancialAnalysisResult()
-
-        try:
             # Send response back
             response = AgentStructuredResponse(
                 agent_type=self.id.type,
                 data=financial_analysis_result,
                 message=message.parameters.model_dump_json(),
-                metadata=usage_stats
+                metadata=usage_stats,
+                message_id=message.message_id
             )
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -124,8 +140,19 @@ class FinancialAnalysisAgent(RoutedAgent):
                 response,
                 DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
             )
+
         except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
-                f"Failed to publish response: {str(e)}"
+                f"Failed to process financial analysis request: {str(e)}"
             ), exc_info=True)
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to assist with financial analysis, try again later."),
+                message=f"Error processing financial analysis request: {str(e)}",
+                message_id=message.message_id
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )

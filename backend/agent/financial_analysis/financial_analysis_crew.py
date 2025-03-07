@@ -2,9 +2,12 @@ import os
 import sys
 import uuid
 import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 import numpy as np
+from redis import Redis
 import yfinance as yf
+
+from services.structured_output_parser import CustomConverter
 
 # Ensure our parent directories are in sys.path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -16,8 +19,10 @@ if parent_of_parent_dir not in sys.path:
 
 from dotenv import load_dotenv
 
-from langtrace_python_sdk import langtrace
-langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
+# Only import and initialize langtrace if API key is set
+if os.getenv("LANGTRACE_API_KEY"):
+    from langtrace_python_sdk import langtrace
+    langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 
 # crewai imports
 from crewai import Agent, Task, Crew, LLM, Process
@@ -32,7 +37,9 @@ from config.model_registry import model_registry
 
 
 ###################### NEWS MODELS & (SERPER) WRAPPER ######################
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic import field_validator
+from datetime import datetime, timedelta
 
 class NewsItem(BaseModel):
     title: str
@@ -105,7 +112,7 @@ class TechnicalData(BaseModel):
 
 class RiskDailyReturns(BaseModel):
     date: str
-    daily_return: str
+    daily_return: Union[str, float]
 
 class RiskData(BaseModel):
     beta: float
@@ -113,7 +120,19 @@ class RiskData(BaseModel):
     value_at_risk_95: str
     max_drawdown: str
     volatility: str
-    daily_returns: List[RiskDailyReturns] = []
+    daily_returns: List[RiskDailyReturns] = Field(default_factory=list)
+
+    @field_validator('daily_returns', mode='before')
+    @classmethod
+    def validate_daily_returns(cls, v):
+        try:
+            if not v:
+                return []
+            if all(isinstance(x, dict) for x in v):
+                return [RiskDailyReturns(**x) for x in v]
+            return []
+        except:
+            return []
 
 class CompetitorInfo(BaseModel):
     ticker: str
@@ -135,11 +154,20 @@ class CompetitorBlock(BaseModel):
 
 class WeeklyPriceData(BaseModel):
     date: str
-    open: str
-    high: str
-    low: str
-    close: str
-    volume: str
+    open: Union[str, float]
+    high: Union[str, float]
+    low: Union[str, float]
+    close: Union[str, float]
+    volume: Union[str, float]
+
+
+class NewsItem(BaseModel):
+    title: str
+    link: str
+
+class News(BaseModel):
+    news_items: List[NewsItem] = []
+    news_summary: str = ""
 
 class FinancialAnalysisResult(BaseModel):
     ticker: str
@@ -148,6 +176,7 @@ class FinancialAnalysisResult(BaseModel):
     fundamental: FundamentalData
     risk: RiskData
     stock_price_data: List[WeeklyPriceData] = []
+    news: News
     comprehensive_summary: str = ""
 
 ########################### The Main Crew Class ###########################
@@ -175,6 +204,8 @@ class FinancialAnalysisCrew:
         user_id: str = "",
         run_id: str = "",
         docs_included: bool = False,
+        redis_client: Redis = None,
+        message_id: str = None,
         verbose: bool = True
     ):
         model_info = model_registry.get_model_info(model_key="llama-3.1-8b", provider=provider)
@@ -184,7 +215,7 @@ class FinancialAnalysisCrew:
             max_tokens=8192,
             api_key=llm_api_key,
         )
-        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.1-70b", provider=provider)
+        aggregator_model_info = model_registry.get_model_info(model_key="llama-3.3-70b", provider=provider)
         self.aggregator_llm = LLM(
             model=aggregator_model_info["crewai_prefix"] + "/" + aggregator_model_info["model"],
             temperature=0.0,
@@ -197,6 +228,8 @@ class FinancialAnalysisCrew:
         self.run_id = run_id
         self.docs_included = docs_included
         self.verbose = verbose
+        self.redis_client = redis_client
+        self.message_id = message_id
         self._init_agents()
         self._init_tasks()
 
@@ -300,6 +333,8 @@ class FinancialAnalysisCrew:
             agent_name="Enhanced Competitor Finder Agent",
             workflow_name="Financial Analysis",
             llm_name=self.enhanced_competitor_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         self.competitor_analysis_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -307,34 +342,44 @@ class FinancialAnalysisCrew:
             agent_name="Competitor Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.competitor_analysis_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         self.fundamental_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Fundamental Agent",
+            agent_name="Fundamental Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.fundamental_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         self.technical_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Technical Agent",
+            agent_name="Technical Analysis Agent",
             workflow_name="Financial Analysis",
             llm_name=self.technical_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         self.risk_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="Risk Agent",
+            agent_name="Risk Assessment Agent",
             workflow_name="Financial Analysis",
             llm_name=self.risk_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         self.news_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
             run_id=self.run_id,
-            agent_name="News Agent",
+            agent_name="Financial News Agent",
             workflow_name="Financial Analysis",
             llm_name=self.news_agent.llm.model,
+            redis_client=self.redis_client,
+            message_id=self.message_id
         )
         if self.docs_included:
             self.document_summarizer_agent.step_callback = RedisConversationLogger(
@@ -343,6 +388,8 @@ class FinancialAnalysisCrew:
                 agent_name="Document Summarizer Agent",
                 workflow_name="Financial Analysis",
                 llm_name=self.document_summarizer_agent.llm.model,
+                redis_client=self.redis_client,
+                message_id=self.message_id
             )
         self.aggregator_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -350,7 +397,9 @@ class FinancialAnalysisCrew:
             agent_name="Aggregator Agent",
             workflow_name="Financial Analysis",
             llm_name=self.aggregator_agent.llm.model,
-        )
+            redis_client=self.redis_client,
+            message_id=self.message_id
+            )
 
     def _init_tasks(self):
         # 1) competitor tasks => sequential
@@ -410,7 +459,7 @@ class FinancialAnalysisCrew:
         # 3) aggregator => sequential
         self.aggregator_task = Task(
             description=(
-                "Aggregate all previous steps => final JSON with fields: ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary. Comprehensive Summary should be ~700 words referencing everything. Must match FinancialAnalysisResult exactly. You MUST focus on recent news and events that may affect the stock price or metrics of {ticker} not just financial data. Name entities that are mentioned in the news."
+                "Aggregate all previous steps => final JSON with fields: ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary. Comprehensive Summary should be ~700 words referencing everything. For the news section, you must include the title, the link and the summary of the news. Must match FinancialAnalysisResult exactly. You MUST focus on recent news and events that may affect the stock price or metrics of {ticker} not just financial data. Name entities that are mentioned in the news."
             ),
             agent=self.aggregator_agent,
             context=[
@@ -420,9 +469,10 @@ class FinancialAnalysisCrew:
                 self.risk_task, 
                 self.news_task,
             ] + ([self.document_summarizer_task] if self.docs_included else []),
-            expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, comprehensive_summary",
+            expected_output="Valid JSON with ticker, company_name, competitor, fundamental, risk, stock_price_data, news, comprehensive_summary",
             max_iterations=1,
-            output_pydantic=FinancialAnalysisResult
+            output_pydantic=FinancialAnalysisResult,
+            converter_cls=CustomConverter
         )
 
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:

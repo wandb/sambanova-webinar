@@ -14,12 +14,13 @@ from autogen_core import (
     type_subscription,
 )
 from autogen_core.models import SystemMessage, UserMessage, CreateResult
+from autogen_core.models import AssistantMessage as AssistantMessageCore
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from fastapi import WebSocket
 import redis
 
+from api.websocket_interface import WebSocketInterface
 from config.model_registry import model_registry
-from services.query_router_service import QueryRouterService, QueryType
+from services.query_router_service import QueryRouterServiceChat, QueryType
 
 from api.data_types import (
     APIKeys,
@@ -28,7 +29,7 @@ from api.data_types import (
     AssistantMessage,
     DeepResearch,
     EndUserMessage,
-    HandoffMessage,
+    ErrorResponse,
     AgentEnum,
 )
 from api.registry import AgentRegistry
@@ -55,7 +56,7 @@ class SemanticRouterAgent(RoutedAgent):
         self,
         name: str,
         session_manager: SessionStateManager,
-        websocket: WebSocket,
+        websocket_manager: WebSocketInterface,
         redis_client: redis.Redis,
         api_keys: APIKeys,
     ) -> None:
@@ -64,7 +65,7 @@ class SemanticRouterAgent(RoutedAgent):
         self._name = name
         self.api_keys = api_keys
 
-        _reasoning_model_name = "llama-3.1-70b"
+        _reasoning_model_name = "llama-3.3-70b"
 
         self._reasoning_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=_reasoning_model_name)["model"],
@@ -78,11 +79,12 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        self._structure_extraction_model_name = "llama-3.1-70b"
+        self._structure_extraction_model_name = "llama-3.3-70b"
         self._structure_extraction_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._structure_extraction_model_name)["url"],
             api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
+            temperature=0.0,
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -91,11 +93,12 @@ class SemanticRouterAgent(RoutedAgent):
             },
         )
 
-        self._context_summary_model_name = "llama-3.1-70b"
+        self._context_summary_model_name = "llama-3.3-70b"
         self._context_summary_model = lambda provider: OpenAIChatCompletionClient(
             model=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["model"],
             base_url=model_registry.get_model_info(provider=provider, model_key=self._context_summary_model_name)["url"],
             api_key=getattr(api_keys, model_registry.get_api_key_env(provider=provider)),
+            temperature=0.0,
             model_info={
                 "json_output": False,
                 "function_calling": True,
@@ -105,7 +108,7 @@ class SemanticRouterAgent(RoutedAgent):
         )
 
         self._session_manager = session_manager
-        self.websocket = websocket
+        self.websocket_manager = websocket_manager
         self.redis_client = redis_client
 
     @message_handler
@@ -147,9 +150,10 @@ class SemanticRouterAgent(RoutedAgent):
             {
                 "agent_type": agent_type,
                 "parameters": parameters,
-                "document_ids": message.document_ids,
+                "docs": message.docs,
                 "query": message.content,
                 "provider": message.provider,
+                "message_id": message.message_id,
             }
         )
 
@@ -165,59 +169,80 @@ class SemanticRouterAgent(RoutedAgent):
             message (EndUserMessage): The incoming user message.
             ctx (MessageContext): Context information for the message.
         """
-        logger.info(logger.format_message(
-            ctx.topic_id.source,
-            f"Using query router for message: '{message.content[:100]}...'"
-        ))
-
-        user_id, conversation_id = ctx.topic_id.source.split(":")
-        history = self._session_manager.get_history(conversation_id)
-
-        last_content = {}
-        if len(history) > 0:
-            try:
-                last_content = json.loads(history[-1].content)
-            except json.JSONDecodeError:
-                pass
-                
-        if "deep_research_question" in last_content:
-            logger.info(logger.format_message(
-                ctx.topic_id.source,
-                "Deep research feedback received, routing to deep research"
-            ))
-            deep_research_request = AgentRequest(
-                agent_type=AgentEnum.DeepResearch,
-                parameters=DeepResearch(deep_research_topic=""),
-                query=message.content,
-                provider=message.provider,
-            )
-            await self.publish_message(
-                deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
-            return
-
-
-        api_key = getattr(self.api_keys, model_registry.get_api_key_env(message.provider))
-        router = QueryRouterService(llm_api_key=api_key, provider=message.provider, websocket=self.websocket, redis_client=self.redis_client, user_id=user_id, conversation_id=conversation_id)
-
-        history = self._session_manager.get_history(conversation_id)
-
-        if len(history) > 0:
-            model_response = await self._context_summary_model(message.provider).create(
-                list(history)
-                + [UserMessage(content="Summarize the messages so far in a few sentences.", source="user")]
-            )
-            context_summary = model_response.content
-        else:
-            context_summary = ""
-
-        route_result: QueryType = await router.route_query(message.content, context_summary)
-
-        self._session_manager.add_to_history(
-                conversation_id,
-                UserMessage(content=message.content, source="user")
-        )
 
         try:
+
+            logger.info(logger.format_message(
+                ctx.topic_id.source,
+                f"Using query router for message: '{message.content[:100]}...'"
+            ))
+
+            user_id, conversation_id = ctx.topic_id.source.split(":")
+            history = self._session_manager.get_history(conversation_id)
+
+            last_content = {}
+            if len(history) > 0:
+                try:
+                    last_content = json.loads(history[-1].content)
+                except json.JSONDecodeError:
+                    pass
+
+            if "deep_research_question" in last_content:
+                logger.info(logger.format_message(
+                    ctx.topic_id.source,
+                    "Deep research feedback received, routing to deep research"
+                ))
+                deep_research_request = AgentRequest(
+                    agent_type=AgentEnum.DeepResearch,
+                    parameters=DeepResearch(deep_research_topic=""),
+                    query=message.content,
+                    provider=message.provider,
+                    docs=message.docs,
+                    message_id=message.message_id,
+                )
+                await self.publish_message(
+                    deep_research_request, DefaultTopicId(type="deep_research", source=ctx.topic_id.source))
+                return
+
+            api_key = getattr(self.api_keys, model_registry.get_api_key_env(message.provider))
+            router = QueryRouterServiceChat(
+                llm_api_key=api_key,
+                provider=message.provider,
+                model_name=message.planner_model,
+                websocket_manager=self.websocket_manager,
+                redis_client=self.redis_client,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                message_id=message.message_id
+            )
+
+            history = self._session_manager.get_history(conversation_id)
+
+            if len(history) > 0:
+                model_response = await self._context_summary_model(message.provider).create(
+                    [SystemMessage(content=f"""You are a helpful assistant that summarises conversations for other processes to use as a context. 
+                                   Follow the instructions below to create the summary:
+                                   - Mention the user has uploaded {len(message.docs) if message.docs else 0} documents, do not mention the content of the documents.
+                                   - Include the topics and entities discussed in the conversation.
+                                   - Include the main points discussed in the conversation.
+                                   - Include the summary of the questions asked by the user.
+                                   - Include the summary of the responses provided by the assistant.
+                                   - Include the overall summary of the conversation.
+                                   """, source="system")]
+                    + list(history)
+                    + [UserMessage(content="Summarize the messages so far in a few sentences including your responses. Focus on including the topis", source="user")]
+                )
+                context_summary = model_response.content
+            else:
+                context_summary = ""
+
+            route_result: QueryType = await router.route_query(message.content, context_summary, len(message.docs) if message.docs else 0)
+
+            self._session_manager.add_to_history(
+                    conversation_id,
+                    UserMessage(content=message.content, source="user")
+            )
+
             request_obj = self._create_request(
                 route_result.type, route_result.parameters, message
             )
@@ -231,11 +256,23 @@ class SemanticRouterAgent(RoutedAgent):
                 f"Successfully published request to {request_obj.agent_type.value}"
             ))
 
-        except ValueError as e:
+        except Exception as e:
             logger.error(logger.format_message(
                 ctx.topic_id.source,
                 f"Error processing request: {str(e)}"
             ), exc_info=True)
+
+            # Send response back
+            response = AgentStructuredResponse(
+                agent_type=AgentEnum.Error,
+                data=ErrorResponse(error=f"Unable to route message, try again later."),
+                message=f"Error processing message routing: {str(e)}",
+                message_id=message.message_id
+            )
+            await self.publish_message(
+                response,
+                DefaultTopicId(type="user_proxy", source=ctx.topic_id.source),
+            )
             return
 
     def _reconcile_plans(self, plans: list) -> list:
@@ -262,7 +299,6 @@ class SemanticRouterAgent(RoutedAgent):
         else:
             return [plans[0]]
 
-
     async def _publish_message(
         self, request_obj: AgentRequest, ctx: MessageContext
     ) -> None:
@@ -274,6 +310,7 @@ class SemanticRouterAgent(RoutedAgent):
                 agent_type=request_obj.agent_type,
                 data=request_obj.parameters,
                 message=request_obj.parameters.model_dump_json(),
+                message_id=request_obj.message_id
             )
             await self.publish_message(
                 response,
@@ -311,7 +348,7 @@ class SemanticRouterAgent(RoutedAgent):
                 last_content = json.loads(history[-1].content)
             except json.JSONDecodeError:
                 pass
-                
+
         if "deep_research_question" in last_content:
             logger.info(logger.format_message(
                 ctx.topic_id.source,
@@ -354,7 +391,6 @@ class SemanticRouterAgent(RoutedAgent):
                 ))
                 raise ValueError("No WebSocket connection found")
 
-
             planner_metadata = {
                 "llm_name": self._reasoning_model(message.provider)._resolved_model,
                 "llm_provider": message.provider,
@@ -365,6 +401,7 @@ class SemanticRouterAgent(RoutedAgent):
                 "data": json.dumps({"metadata": planner_metadata}),
                 "user_id": user_id,
                 "conversation_id": conversation_id,
+                "message_id": message.message_id,
                 "timestamp": datetime.now().isoformat(),
             }
 
@@ -376,11 +413,12 @@ class SemanticRouterAgent(RoutedAgent):
                     message_data = {
                         "event": "planner_chunk",
                         "data": chunk,
+                        "message_id": message.message_id,
                     }
                     await self.websocket.send_text(json.dumps(message_data))
                 elif isinstance(chunk, CreateResult):
                     planner_final_response = chunk.content
-            
+
             end_time = time.time()
             processing_time = end_time - start_time
             planner_metadata["duration"] = processing_time
@@ -393,6 +431,7 @@ class SemanticRouterAgent(RoutedAgent):
                     "data": json.dumps({"response": planner_final_response, "metadata": planner_metadata}),
                     "user_id": user_id,
                     "conversation_id": conversation_id,
+                    "message_id": message.message_id,
                     "timestamp": datetime.now().isoformat(),
                 }
                 self.redis_client.rpush(message_key, json.dumps(final_message_data))

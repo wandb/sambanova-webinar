@@ -1,7 +1,9 @@
 <template>
   <!-- This entire sidebar is collapsible. The container must have enough height to scroll internally. -->
-  <div class="flex flex-col p-1 overflow-y-auto overflow-x-hidden  border border-primary-brandFrame bg-white rounded-lg h-full border-l  transition-all duration-300 "
-  :class="collapsed ? 'w-[64px]  ' : 'w-80'">
+  <div ref="agentContainer"  v-if="agentThoughtsData.length"  class="flex flex-col p-1 overflow-y-auto overflow-x-hidden 
+   border border-primary-brandFrame bg-white rounded-lg h-full border-l 
+    transition-all duration-300 "
+  :class="collapsed ? 'w-[64px]  ' : 'w-[280px]'">
       <!-- Collapse/Expand Button -->
       <button
       :class="collapsed?'w-100 h-[36px]  mx-auto':' ' "
@@ -39,13 +41,13 @@
    
   </div>
  
-     <div>
-
-
-
+   <div class="mx-2">
+    <ol class="relative pl-2">  
       <TimelineItem  
       v-for="(thought, index) in agentThoughtsData"
+      :key="index"
       :data="thought"
+      :isLast="index === agentThoughtsData.length - 1"
     period="Researcher"
     title="Search the internet with Exa Search the internet with Exa"
     description="The company has high expectations and using OKRs there is a mutual understanding of expectations and performance."
@@ -61,15 +63,17 @@
     }"
     />
 
-
+</ol>
 
     <template v-if="metadata&&!collapsed">
  
       <!-- Render only available metadata fields -->
       <MetaData :presentMetadata="presentMetadata"/>
+      
+      <Fastest/>
+      <MaximizeBox   :token_savings="presentMetadata?.token_savings"/>
 
 </template>
-
 
 
 </div>   
@@ -87,8 +91,11 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick ,computed} from 'vue'
 // import AgentTimeline from './AgentTimeline.vue'  
 import TimelineItem from '@/components/ChatMain/TimelineItem.vue' 
 import MetaData from '@/components/ChatMain/MetaData.vue'
+import Fastest from '@/components/ChatMain/Fastest.vue'
+import MaximizeBox from '@/components/ChatMain/MaximizeBox.vue'
 
- 
+const agentContainer = ref(null);
+
 // Reactive variables to store parsed data from the WebSocket.
 const agentName = ref('')
 const timestamp = ref(0)
@@ -271,7 +278,18 @@ watch(
     
 
       agentThoughtsData.value = ((newAgentData)) || []    
+      nextTick(() => {
+  setTimeout(() => {
+    if (agentContainer.value) {
+      agentContainer.value.scrollTo({
+        top: agentContainer.value.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  }, 100); // Adjust the delay (in ms) as needed
+});
 
+      
   },
   { deep: true } // If you want to detect nested mutations
 )

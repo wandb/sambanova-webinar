@@ -1,8 +1,12 @@
 ########## NEW CODE ##########
+import json
 import os
+import re
+from typing import List
 from autogen_core import SingleThreadedAgentRuntime, TypeSubscription
 from autogen_core import DefaultSubscription
 from fastapi import WebSocket
+from fastapi.responses import JSONResponse
 import redis
 
 from api.agents.financial_analysis import FinancialAnalysisAgent
@@ -13,6 +17,7 @@ from api.agents.sales_leads import SalesLeadsAgent
 from autogen_agentchat.agents import AssistantAgent
 
 from api.otlp_tracing import configure_oltp_tracing
+from api.websocket_interface import WebSocketInterface
 from utils.logging import logger
 from api.session_state import SessionStateManager
 from api.agents.user_proxy import UserProxyAgent
@@ -27,13 +32,19 @@ session_state_manager = SessionStateManager()
 
 tracer = configure_oltp_tracing()
 
+class DocumentContextLengthError(Exception):
+    """Exception raised when document(s) exceed the maximum context length."""
+    def __init__(self, total_tokens: int, max_tokens: int):
+        self.total_tokens = total_tokens
+        self.max_tokens = max_tokens
+        super().__init__(f"Combined documents exceed maximum context window size of {max_tokens} tokens (got {total_tokens} tokens). Please reduce the number or size of documents.")
 
 async def initialize_agent_runtime(
-    websocket: WebSocket,
     redis_client: redis.Redis,
     api_keys: APIKeys,
     user_id: str,
     conversation_id: str,
+    websocket_manager: WebSocketInterface
 ) -> SingleThreadedAgentRuntime:
     """
     Initializes the agent runtime with the required agents and tools.
@@ -43,7 +54,7 @@ async def initialize_agent_runtime(
     """
     global session_state_manager, aoai_model_client
 
-    #load back session state
+    # load back session state
     session_state_manager.init_conversation(redis_client, user_id, conversation_id)
 
     agent_runtime = SingleThreadedAgentRuntime(tracer_provider=tracer)
@@ -61,7 +72,7 @@ async def initialize_agent_runtime(
         lambda: SemanticRouterAgent(
             name="SemanticRouterAgent",
             session_manager=session_state_manager,
-            websocket=websocket,
+            websocket_manager=websocket_manager,
             redis_client=redis_client,
             api_keys=api_keys,
         ),
@@ -73,7 +84,7 @@ async def initialize_agent_runtime(
         lambda: FinancialAnalysisAgent(api_keys=api_keys),
     )
 
-    # Keep old educational content agent for “basic” usage
+    # Keep old educational content agent for "basic" usage
     await EducationalContentAgent.register(
         agent_runtime,
         "educational_content",
@@ -87,14 +98,17 @@ async def initialize_agent_runtime(
     )
 
     await AssistantAgentWrapper.register(
-        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys, websocket=websocket, redis_client=redis_client)
+        agent_runtime, "assistant", lambda: AssistantAgentWrapper(api_keys=api_keys, redis_client=redis_client)
     )
 
     # Register the new deep research agent:
     await DeepResearchAgent.register(
         agent_runtime,
         "deep_research",
-        lambda: DeepResearchAgent(api_keys=api_keys, websocket=websocket),
+        lambda: DeepResearchAgent(
+            api_keys=api_keys,
+            redis_client=redis_client,
+        ),
     )
 
     # Register the UserProxyAgent instance with the AgentRuntime
@@ -103,7 +117,7 @@ async def initialize_agent_runtime(
         "user_proxy",
         lambda: UserProxyAgent(
             session_manager=session_state_manager,
-            websocket=websocket,
+            websocket_manager=websocket_manager,
             redis_client=redis_client,
         ),
     )
@@ -114,3 +128,34 @@ async def initialize_agent_runtime(
     logger.info("Agent runtime initialized successfully.")
 
     return agent_runtime
+
+def estimate_tokens_regex(text: str) -> int:
+        return len(re.findall(r"\w+|\S", text))
+
+
+def load_documents(user_id: str, document_ids: List[str], redis_client: redis.Redis, context_length_summariser: int) -> List[str]:
+    documents = []
+    total_tokens = 0
+
+    for doc_id in document_ids:
+        # Verify document exists and belongs to user
+        user_docs_key = f"user_documents:{user_id}"
+        if not redis_client.sismember(user_docs_key, doc_id):
+            continue  # Skip if document doesn't belong to user
+
+        chunks_key = f"document_chunks:{doc_id}"
+        chunks_data = redis_client.get(chunks_key)
+
+        if chunks_data:
+            chunks = json.loads(chunks_data)
+            doc_text = "\n".join([chunk['text'] for chunk in chunks])
+            token_count = estimate_tokens_regex(doc_text)
+            
+            # Update total token count and check if it would exceed the limit
+            if total_tokens + token_count > context_length_summariser:
+                raise DocumentContextLengthError(total_tokens + token_count, context_length_summariser)
+            
+            total_tokens += token_count
+            documents.append(doc_text)
+
+    return documents

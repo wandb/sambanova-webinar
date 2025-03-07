@@ -22,14 +22,11 @@
       :is="chatMode ? chatSidebarComp : sideBarComp"
       @selectReport="handleSavedReportSelect"       
       @selectConversation="handleSelectConversation"
-      ref="chatSideBarRef"
-      
-
-    />
+      ref="chatSideBarRef" />
     
 
       <!-- MAIN CONTENT WRAPPER -->
-      <main class="overflow-hidden  border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
+      <main class="overflow-hidden transition-all duration-300 border border-primary-brandFrame rounded-lg relative flex-1 flex flex-col  h-full">
 
         <div class="flex-1  h-full bg-white  ">
         <!-- If chatMode => show chat UI, else show old workflow UI -->
@@ -76,8 +73,8 @@
           />
 
           <!-- RESULTS SECTION -->
-          <div  v-if="hasResults" class="mt-6 w-full h-full space-y-6">
-            <div class="grid grid-cols-1 gap-6">
+          <div  v-if="hasResults" class="mt-6  w-full h-full space-y-6">
+            <div class="grid grid-cols-1 pb-[200px] gap-6">
               <!-- SALES LEADS Results -->
               <template v-if="queryType === 'sales_leads'">
                 <CompanyResultCard
@@ -172,7 +169,7 @@ import { useReportStore } from '@/stores/reportStore'
 
 
 // Create a reactive property for the selected option.
-const selectedOption = ref({ label: 'Sambanova', value: 'sambanova' })
+const selectedOption = ref({ label: 'SambaNova', value: 'sambanova' })
 
 // Provide the state so that descendant components can access it.
 provide('selectedOption', selectedOption)

@@ -9,11 +9,11 @@ The Agents application routes requests to four different agents: General assista
 - Intelligently routing queries to the appropriate service.
 - Supporting voice input for natural interaction.
 
-The basic process of the Agent application is described below.
+The basic process of the Agents application is described below.
 
 1. User query processing
    - User submits a query via text or voice input.
-   - The application analyzes the query to determine its category (general assistance, sales lead, research, or financial analysis).
+   - The application analyzes the query to determine its category (general assistance, sales leads, research, or financial analysis).
 
 1. Agent assignment
    - The query is routed to the appropriate agent based on content and intent.
@@ -38,7 +38,7 @@ Ensure to install the prerequisites.
    - [Node.js 16 or later](https://nodejs.org/en/download)
    - [Yarn](https://classic.yarnpkg.com/en/docs/install)
 
-Get the following API keys to setup the Agent application.
+Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
    - [Serper API key](https://serper.dev/) for web search
    - [Exa API key](https://exa.co/) for company data
@@ -50,19 +50,18 @@ You can setup and run the application in two ways - Cloud hosted version or loca
 
 ## Cloud hosted version
 
-This version is hosted on SambaNova Cloud. It eliminates the need for local installation.
+This version is hosted on SambaNova Cloud. No need to install dependencies locally.
 
-1. To access the platform, go to the [Agents application](https://aiskagents.cloud.snova.ai/) login page.
-1. When you create a login using available options, the following screen shows the sign-in authentication via **Clerk**, a third-party authentication service.
-1. You will receive an email from the Clerk application with login instructions. Follow the steps to log in to the Agent application. This is a one-time setup process required during initial login.
+1. Go to the [Agents application](https://aiskagents.cloud.snova.ai/) login page.
+1. Sign in using Clerk authentication (you will receive an email with login instructions).
 1. Once you login, go to settings and add the API keys.
-1. You can now use the application to enhance sales workflows, conduct research, and gain actionable insights.
+1. Start using the application to enhance sales workflows, conduct research, and gain actionable insights.
 
 ## Locally hosted version
 
 ### Frontend setup
 
-Follow the steps below to install the frontend for the Agent application.
+Follow the steps below to install the frontend for the Agents application.
 
 > **Note**: For the following commands, go to `/frontend/sales-agent-crew/` directory.
 
@@ -86,7 +85,7 @@ Follow the steps below to install the frontend for the Agent application.
 
 ### Backend setup
 
-Follow the steps below to install the backend for the Agent application.
+Follow the steps below to install the backend for the Agents application.
 
 > **Note**: For the following commands, go to `/backend/` directory.
 
@@ -135,8 +134,6 @@ Follow the steps below to install the backend for the Agent application.
    http://localhost:5174/
    ```
 
-> **Note**: Update the URL in the LeadGenerationAPI CORS API if it's different.
-
 ### API keys setup
 
 1. Access the settings modal to configure the API keys mentioned in the [prerequisites](#prerequisites) section.
@@ -161,14 +158,14 @@ The stack is designed to offer high-performance and scalability for both fronten
 <table style="width:40%; border: 1px solid #000; border-collapse: collapse;">
   <thead>
       <tr style="background-color: #f0f0f0;"> <!-- Shading applied here -->
-      <th style="border: 1px solid #000; width: 30%;">Category</th>
-      <th style="border: 1px solid #000; width: 80%;">Technologies used</th>
+      <th style="border: 1px solid #000; width: 30%; text-align: left; vertical-align: top;">Category</th>
+      <th style="border: 1px solid #000; width: 80%; text-align: left; vertical-align: top;">Technologies used</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Frontend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
+      <td style="border: 1px solid #000; width: 30%; text-align: left; vertical-align: top;"><strong>Frontend</strong></td>
+      <td style="border: 1px solid #000; width: 80%; text-align: left; vertical-align: top;">
         <ul>
           <li>Vue.js 3 (Composition API)</li>
           <li>TailwindCSS for styling</li>
@@ -178,8 +175,8 @@ The stack is designed to offer high-performance and scalability for both fronten
       </td>
     </tr>
     <tr>
-      <td style="border: 1px solid #000; width: 30%;"><strong>Backend</strong></td>
-      <td style="border: 1px solid #000; width: 80%;">
+      <td style="border: 1px solid #000; width: 30%; text-align: left; vertical-align: top;"><strong>Backend</strong></td>
+      <td style="border: 1px solid #000; width: 80%; text-align: left; vertical-align: top;">
         <ul>
           <li>FastAPI</li>
           <li>CrewAI</li>
@@ -192,13 +189,14 @@ The stack is designed to offer high-performance and scalability for both fronten
   </tbody>
 </table>
 
+
 # Features
 
 This section describes the agents and feature capabilities of the application. 
 
-## General Assistant
+## General assistant
 
-The **General Assistant** agent helps with:
+The General assistant agent helps with:
 
 - Answering basic questions and queries.
 - Providing explanations and clarifications.
@@ -215,9 +213,9 @@ Example queries for general assistance are listed below.
 - "How do I optimize database queries?"
 - "Explain the concept of containerization"
 
-## Sales Lead
+## Sales leads
 
-The application uses the **Sales Lead** agent to:
+The application uses the Sales leads agent to:
 
 - Find relevant companies matching your criteria.
 - Extract key company information.
@@ -226,7 +224,7 @@ The application uses the **Sales Lead** agent to:
 
 ### Example queries
 
-Example queries for sales lead information are listed below.
+Example queries for sales leads information are listed below.
 
 - "Find AI startups in Silicon Valley with Series B funding"
 - "Which healthcare companies in Boston are working on drug discovery?"
@@ -234,9 +232,9 @@ Example queries for sales lead information are listed below.
 - "Find sustainable energy startups in Nordic countries"
 - "Show me B2B SaaS companies in Singapore with over 100 employees"
 
-## Deep Research
+## Deep research
 
-For research queries, the application uses the **Deep Research** agent to:
+For research queries, the application uses the Deep research agent to:
 
 - Analyze topics in-depth
 - Create structured research reports
@@ -254,9 +252,9 @@ Example queries for research and content generation are listed below.
 - "How do machine learning algorithms handle natural language processing?"
 - "What are the latest developments in fusion energy research?"
 
-## Financial Analysis
+## Financial analysis
 
-For financial queries, the application uses the **Financial Analysis** agent to:
+For financial queries, the application uses the Financial analysis agent to:
 
 - Analyze company financial performance
 - Track market trends and competitive positioning

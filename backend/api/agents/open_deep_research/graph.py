@@ -717,24 +717,18 @@ def get_graph(api_key: str, provider: str):
         documents: Optional list of documents to process
     """
     model_name = "llama-3.3-70b"
-    planner_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
-        "model"
-    ] 
-    writer_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
-        "model"
-    ]
-    summary_model: str = model_registry.get_model_info(model_key=model_name, provider=provider)[
-        "model"
-    ]
+    planner_model_config: str = model_registry.get_model_info(model_key=model_name, provider=provider)
+    writer_model_config: str = model_registry.get_model_info(model_key=model_name, provider=provider)
+    summary_model_config: str = model_registry.get_model_info(model_key=model_name, provider=provider)
 
     if provider == "fireworks":    
-        writer_model = ChatFireworks(model=writer_model, temperature=0, max_tokens=8192, api_key=api_key)
-        planner_model = ChatFireworks(model=planner_model, temperature=0, max_tokens=8192, api_key=api_key)
-        summary_model = ChatFireworks(model=summary_model, temperature=0, max_tokens=8192, api_key=api_key)
+        writer_model = ChatFireworks(base_url=writer_model_config["url"], model=writer_model_config["model"], temperature=0, max_tokens=8192, api_key=api_key)
+        planner_model = ChatFireworks(base_url=planner_model_config["url"], model=planner_model_config["model"], temperature=0, max_tokens=8192, api_key=api_key)
+        summary_model = ChatFireworks(base_url=summary_model_config["url"], model=summary_model_config["model"], temperature=0, max_tokens=8192, api_key=api_key)
     elif provider == "sambanova":
-        writer_model = ChatSambaNovaCloud(model=writer_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
-        planner_model = ChatSambaNovaCloud(model=planner_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
-        summary_model = ChatSambaNovaCloud(model=summary_model, temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        writer_model = ChatSambaNovaCloud(sambanova_url=writer_model_config["long_url"], model=writer_model_config["model"], temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        planner_model = ChatSambaNovaCloud(sambanova_url=planner_model_config["long_url"], model=planner_model_config["model"], temperature=0, max_tokens=8192, sambanova_api_key=api_key)
+        summary_model = ChatSambaNovaCloud(sambanova_url=summary_model_config["long_url"], model=summary_model_config["model"], temperature=0, max_tokens=8192, sambanova_api_key=api_key)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

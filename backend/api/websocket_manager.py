@@ -10,6 +10,7 @@ from starlette.websockets import WebSocketState
 from api.data_types import APIKeys, EndUserMessage, AgentEnum, AgentStructuredResponse, ErrorResponse
 from api.utils import initialize_agent_runtime, load_documents, DocumentContextLengthError
 from api.websocket_interface import WebSocketInterface
+from api.services.redis_service import SecureRedisService
 
 from .otlp_tracing import logger
 
@@ -19,7 +20,7 @@ class WebSocketConnectionManager(WebSocketInterface):
     Manages WebSocket connections for user sessions.
     """
 
-    def __init__(self, redis_client: redis.Redis, context_length_summariser: int):
+    def __init__(self, redis_client: SecureRedisService, context_length_summariser: int):
         # Use user_id:conversation_id as the key
         self.connections: Dict[str, WebSocket] = {}
         self.redis_client = redis_client
@@ -188,7 +189,7 @@ class WebSocketConnectionManager(WebSocketInterface):
             # Initial setup tasks that can run concurrently
             setup_tasks = [
                 asyncio.to_thread(self.redis_client.exists, meta_key),
-                asyncio.to_thread(self.redis_client.hgetall, api_keys_key),
+                asyncio.to_thread(self.redis_client.hgetall, api_keys_key, user_id),
             ]
 
             # Wait for all setup tasks to complete
@@ -300,11 +301,12 @@ class WebSocketConnectionManager(WebSocketInterface):
 
                 # Prepare tasks for parallel execution
                 tasks = [
-                    self._update_metadata(meta_key, user_message_input["data"]),
+                    self._update_metadata(meta_key, user_message_input["data"], user_id),
                     asyncio.to_thread(
                         self.redis_client.rpush,
                         message_key,
-                        json.dumps(message_data)
+                        json.dumps(message_data),
+                        user_id,
                     )
                 ]
 
@@ -386,10 +388,10 @@ class WebSocketConnectionManager(WebSocketInterface):
             if session_key in self.session_last_active:
                 self.session_last_active[session_key] = datetime.now()
 
-    async def _update_metadata(self, meta_key: str, message_data: str):
+    async def _update_metadata(self, meta_key: str, message_data: str, user_id: str):
         """Helper method to update metadata asynchronously"""
         try:
-            meta_data = await asyncio.to_thread(self.redis_client.get, meta_key)
+            meta_data = await asyncio.to_thread(self.redis_client.get, meta_key, user_id)
             if meta_data:
                 metadata = json.loads(meta_data)
                 if "name" not in metadata:
@@ -397,7 +399,8 @@ class WebSocketConnectionManager(WebSocketInterface):
                     await asyncio.to_thread(
                         self.redis_client.set,
                         meta_key,
-                        json.dumps(metadata)
+                        json.dumps(metadata),
+                        user_id
                     )
         except Exception as e:
             logger.error(f"Error updating metadata: {str(e)}")
@@ -446,7 +449,8 @@ class WebSocketConnectionManager(WebSocketInterface):
                             await asyncio.to_thread(
                                 self.redis_client.rpush,
                                 message_key,
-                                json.dumps(message_data)
+                                json.dumps(message_data),
+                                user_id,
                             )
 
                             # Then try to send via WebSocket if still active

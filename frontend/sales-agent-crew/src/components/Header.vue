@@ -94,9 +94,9 @@ import SelectProvider from '@/components/ChatMain/SelectProvider.vue'
 // import Dropdown from './Dropdown.vue'
 
 
-const isWorkflowEnabled = computed(() => {
-  return import.meta.env.VITE_ENABLE_WORKFLOW_TOGGLE === 'true'
-})
+// const isWorkflowEnabled = computed(() => {
+//   return import.meta.env.VITE_ENABLE_WORKFLOW_TOGGLE === 'true'
+// })
 
   
 

@@ -1,4 +1,6 @@
 import logging
+import os
+from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 from opentelemetry import metrics, trace
@@ -20,6 +22,7 @@ class UnifiedLogger:
     """
     _instance = None
     _initialized = False
+    _file_handler = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -47,13 +50,62 @@ class UnifiedLogger:
         )
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
+        
+        # Add file handler for local disk logging
+        self._file_handler = self._setup_file_logging()
+        
+        # Configure uvicorn access logger to use our file handler
+        uvicorn_access_logger = logging.getLogger("uvicorn.access")
+        if self._file_handler and not any(isinstance(h, RotatingFileHandler) for h in uvicorn_access_logger.handlers):
+            uvicorn_access_logger.addHandler(self._file_handler)
+        
         self.logger.propagate = False
 
         self._initialized = True
+        
+    def _setup_file_logging(self):
+        """Set up file logging to store logs on disk."""
+        # Get log directory from environment variable or use default
+        log_dir = os.getenv("LOG_DIR", "logs")
+        log_level = os.getenv("LOG_LEVEL", "INFO")
+        max_log_size_mb = int(os.getenv("MAX_LOG_SIZE_MB", "10"))
+        backup_count = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+        
+        # Create log directory if it doesn't exist
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # Set up log file path
+        log_file = os.path.join(log_dir, "aiskagents-backend.log")
+        
+        # Create rotating file handler
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_log_size_mb * 1024 * 1024,  # Convert MB to bytes
+            backupCount=backup_count
+        )
+        
+        # Set log level from environment or default to INFO
+        level = getattr(logging, log_level.upper(), logging.INFO)
+        file_handler.setLevel(level)
+        
+        # Use the same formatter as console
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # Add file handler to logger
+        self.logger.addHandler(file_handler)
+        
+        # Log that file logging has been set up
+        self.logger.info(f"File logging enabled. Logs will be stored in {os.path.abspath(log_file)}")
+        
+        return file_handler
 
     def configure_otlp(
         self,
-        service_name: str = "co-pilot",
+        service_name: str = "aiskagents-backend",
         endpoint: str = "http://localhost:4317",
         insecure: bool = True
     ) -> trace.TracerProvider:
@@ -95,7 +147,7 @@ class UnifiedLogger:
     def format_message(self, session_id: Optional[str], message: str) -> str:
         """Format log message with session ID if provided."""
         if session_id:
-            return f"[{session_id[:5]}...{session_id[-5:]}] {message}"
+            return f"[{session_id[28:32]}-{session_id[-4:]}] {message}"
         return message
 
     def debug(self, message: str) -> None:
@@ -119,4 +171,34 @@ class UnifiedLogger:
         self.logger.critical(message)
 
 # Create singleton instance
-logger = UnifiedLogger() 
+logger = UnifiedLogger()
+
+# Function to configure uvicorn logging to use our file handler
+def configure_uvicorn_logging():
+    """Configure uvicorn and FastAPI loggers to use our file handler."""
+    if logger._file_handler:
+        # Get log level from environment or default to INFO
+        log_level_name = os.getenv("LOG_LEVEL", "INFO")
+        log_level = getattr(logging, log_level_name.upper(), logging.INFO)
+        
+        # Configure uvicorn loggers
+        uvicorn_access_logger = logging.getLogger("uvicorn.access")
+        uvicorn_access_logger.setLevel(log_level)
+        uvicorn_access_logger.addHandler(logger._file_handler)
+        uvicorn_access_logger.propagate = False  # Disable propagation to prevent duplicates
+        
+        uvicorn_error_logger = logging.getLogger("uvicorn.error")
+        uvicorn_error_logger.setLevel(log_level)
+        uvicorn_error_logger.addHandler(logger._file_handler)
+        uvicorn_error_logger.propagate = False  # Disable propagation to prevent duplicates
+        
+        # Configure FastAPI logger
+        fastapi_logger = logging.getLogger("fastapi")
+        fastapi_logger.setLevel(log_level)
+        fastapi_logger.addHandler(logger._file_handler)
+        fastapi_logger.propagate = False  # Disable propagation to prevent duplicates
+        
+        # We don't need to configure the root logger since we're handling specific loggers
+        # and disabling propagation
+        
+        logger.info(f"Added file handler to uvicorn and FastAPI loggers with level {log_level_name}") 

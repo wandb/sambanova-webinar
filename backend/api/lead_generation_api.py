@@ -1074,5 +1074,15 @@ def create_app():
     return api.app
 
 if __name__ == "__main__":
+    # Configure logging for uvicorn
+    from utils.logging import configure_uvicorn_logging
+    configure_uvicorn_logging()
+    
+    # Create and run the application
     app = create_app()
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(
+        app, 
+        host="127.0.0.1", 
+        port=8000,
+        log_config=None  # Disable uvicorn's default logging config
+    )

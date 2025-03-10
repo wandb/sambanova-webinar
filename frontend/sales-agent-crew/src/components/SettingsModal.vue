@@ -87,7 +87,7 @@
           </div>
 
           <!-- Exa API Key -->
-          <div>
+          <div v-if="isUserKeysEnabled">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Exa API Key <span v-if="missingKeys.exa" class="text-red-500 text-sm mt-1">(*Required Key)</span>
 
@@ -148,7 +148,7 @@
           </div>
 
           <!-- Serper API Key -->
-          <div>
+          <div v-if="isUserKeysEnabled">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Serper API Key <span v-if="missingKeys.serper" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
@@ -191,7 +191,7 @@
           </div>
 
           <!-- Fireworks API Key -->
-          <div>
+          <div v-if="isUserKeysEnabled">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Fireworks API Key <span v-if="missingKeys.fireworks" class="text-red-500 text-sm mt-1">(*Required Key)</span>
               <a 
@@ -248,27 +248,35 @@
               <option value="llama-3.1-tulu-3-405b">Llama-3.1-Tulu-3-405B - 16K</option>
             </select>
           </div>
+
+          <div class="mt-6 border-t pt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Select provider
+            </label>
+            <SelectProvider  v-model:selectedOption="selectedOption" />
+
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
 <script setup>
-import { ref, watch, defineProps, defineExpose, defineEmits, onMounted, computed } from 'vue'
+import { ref, watch, defineProps, defineExpose, defineEmits, onMounted, computed,inject } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { encryptKey, decryptKey } from '../utils/encryption'
 import axios from 'axios'
 import emitterMitt from '@/utils/eventBus.js';
+import SelectProvider from '@/components/ChatMain/SelectProvider.vue'
 
-const enabledUserKeys = computed(() => {
-  const keysStr = import.meta.env.VITE_ENABLE_USER_KEYS
-  return keysStr ? keysStr.split(',').map(key => key.trim()) : []
+const selectedOption = inject('selectedOption')
+
+const isUserKeysEnabled = computed(() => {
+  return import.meta.env.VITE_ENABLE_USER_KEYS === 'true'
 })
 
-// Example usage: check if a specific key is enabled
-function isKeyEnabled(key) {
-  return enabledUserKeys.value.includes(key)
-}
+
+
 
 const props = defineProps({
   provider: String, // Current provider name passed from parent
@@ -322,31 +330,50 @@ watch([exaKey, serperKey, sambanovaKey, fireworksKey], () => {
 
 // ✅ Function to load saved keys
 const loadKeys = async () => {
+  let savedExaKey = '';
+  let savedSerperKey = '';
+  let savedFireworksKey = '';
+
+  console.log(isUserKeysEnabled.value,isUserKeysEnabled.value)
+  if (!isUserKeysEnabled.value) {
+
+    
+
+  } else {
+    savedExaKey = localStorage.getItem(`exa_key_${userId.value}`);
+    savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`);
+    savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`);
+  }
+
   try {
-    const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`)
-    const savedExaKey = localStorage.getItem(`exa_key_${userId.value}`)
-    const savedSerperKey = localStorage.getItem(`serper_key_${userId.value}`)
-    const savedFireworksKey = localStorage.getItem(`fireworks_key_${userId.value}`)
-    const savedModel = localStorage.getItem(`selected_model_${userId.value}`)
+    const savedModel = localStorage.getItem(`selected_model_${userId.value}`);
+    const savedSambanovaKey = localStorage.getItem(`sambanova_key_${userId.value}`);
+    console.log("Try savedExaKey,savedSerperKey,savedFireworksKey",savedExaKey,savedSerperKey,savedFireworksKey)
 
-    sambanovaKey.value = savedSambanovaKey ? await decryptKey(savedSambanovaKey) : ''
-    exaKey.value = savedExaKey ? await decryptKey(savedExaKey) : ''
-    serperKey.value = savedSerperKey ? await decryptKey(savedSerperKey) : ''
-    fireworksKey.value = savedFireworksKey ? await decryptKey(savedFireworksKey) : ''
+    sambanovaKey.value = savedSambanovaKey ? await decryptKey(savedSambanovaKey) : '';
+    exaKey.value = savedExaKey 
+      ? (!isUserKeysEnabled.value ? savedExaKey : await decryptKey(savedExaKey))
+      : '';
+    serperKey.value = savedSerperKey 
+      ? (!isUserKeysEnabled.value ? savedSerperKey : await decryptKey(savedSerperKey))
+      : '';
+    fireworksKey.value = savedFireworksKey 
+      ? (!isUserKeysEnabled.value ? savedFireworksKey : await decryptKey(savedFireworksKey))
+      : '';
 
-     // If no model was saved, save the default
-     if (!savedModel) {
-      localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value)
+
+    // If no model was saved, save the default
+    if (!savedModel) {
+      localStorage.setItem(`selected_model_${userId.value}`, selectedModel.value);
     } else {
-      selectedModel.value = savedModel
+      selectedModel.value = savedModel;
     }
-
-    // checkRequiredKeys() // Check if modal should be open
   } catch (error) {
-    console.error('Failed to load keys:', error)
-    errorMessage.value = 'Failed to load saved keys'
+    console.error('Failed to load keys:', error);
+    errorMessage.value = 'Failed to load saved keys';
   }
 }
+
 // Toggle key visibility
 const toggleSambanovaKeyVisibility = () => {
   sambanovaKeyVisible.value = !sambanovaKeyVisible.value
@@ -370,11 +397,13 @@ const handleModelSelection = () => {
 }
 // ✅ Function to check if required keys are missing
 const checkRequiredKeys = () => {
+
+
   missingKeys.value = {
-    exa: !exaKey.value,
-    serper: !serperKey.value,
+    exa: !exaKey.value&&isUserKeysEnabled.value,
+    serper: !serperKey.value&&isUserKeysEnabled.value,
     sambanova: props.provider === 'sambanova' && !sambanovaKey.value,
-    fireworks: props.provider === 'fireworks' && !fireworksKey.value
+    fireworks: props.provider === 'fireworks' && !fireworksKey.value&&isUserKeysEnabled.value
   }
 
   isOpen.value = Object.values(missingKeys.value).some((missing) => missing)
@@ -499,6 +528,7 @@ const updateBackendKeys = async () => {
     const response = await axios.post(url, postParams, {
       headers: {
         'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+
       }
     })
     if (response.status === 200) {

@@ -4,7 +4,7 @@ metadata:
   name: aiskagents-backend
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: aiskagents-backend
@@ -82,7 +82,7 @@ spec:
         - name: OTEL_SDK_DISABLED
           value: "true"
         - name: LOG_DIR
-          value: "/app/logs/$(POD_NAME)"
+          value: "/app/logs"
         - name: POD_NAME
           valueFrom:
             fieldRef:

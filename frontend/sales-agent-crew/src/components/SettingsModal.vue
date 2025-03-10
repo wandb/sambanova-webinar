@@ -237,6 +237,10 @@
           <div class="mt-6 border-t pt-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Planner Model Selection
+              <br>
+              <span class="text-red-500 text-sm">
+                (DeepSeek R1 8K Requires early access to API)
+              </span>
             </label>
             <select
               v-model="selectedModel"

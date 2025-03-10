@@ -7,14 +7,15 @@ from agent.lead_generation_crew import OutreachList, ResearchCrew
 from config.model_registry import model_registry
 from services.user_prompt_extractor_service import UserPromptExtractor
 from utils.logging import logger
-
+from api.services.redis_service import SecureRedisService
 
 @type_subscription(topic_type="sales_leads")
 class SalesLeadsAgent(RoutedAgent):
-    def __init__(self, api_keys: APIKeys):
+    def __init__(self, api_keys: APIKeys, redis_client: SecureRedisService):
         super().__init__("SalesLeadsAgent")
         logger.info(logger.format_message(None, f"Initializing SalesLeadsAgent with ID: {self.id}"))
         self.api_keys = api_keys
+        self.redis_client = redis_client
 
     @message_handler
     async def handle_sales_leads_request(
@@ -34,7 +35,8 @@ class SalesLeadsAgent(RoutedAgent):
                 run_id=conversation_id,
                 verbose=False,
                 provider=message.provider,
-                message_id=message.message_id
+                message_id=message.message_id,
+                redis_client=self.redis_client
             )
             parameters_dict = {k: v if v is not None else "" for k, v in message.parameters.model_dump().items()}
             logger.info(logger.format_message(

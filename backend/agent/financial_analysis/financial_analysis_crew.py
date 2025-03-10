@@ -4,7 +4,7 @@ import uuid
 import json
 from typing import Dict, Any, List, Optional, Tuple, Union
 import numpy as np
-from redis import Redis
+from api.services.redis_service import SecureRedisService
 import yfinance as yf
 
 from services.structured_output_parser import CustomConverter
@@ -204,7 +204,7 @@ class FinancialAnalysisCrew:
         user_id: str = "",
         run_id: str = "",
         docs_included: bool = False,
-        redis_client: Redis = None,
+        redis_client: SecureRedisService = None,
         message_id: str = None,
         verbose: bool = True
     ):
@@ -214,6 +214,7 @@ class FinancialAnalysisCrew:
             temperature=0.0,
             max_tokens=8192,
             api_key=llm_api_key,
+            base_url=model_info["url"],
         )
         aggregator_model_info = model_registry.get_model_info(model_key="llama-3.3-70b", provider=provider)
         self.aggregator_llm = LLM(
@@ -221,6 +222,7 @@ class FinancialAnalysisCrew:
             temperature=0.0,
             max_tokens=8192,
             api_key=llm_api_key,
+            base_url=aggregator_model_info["url"],
         )
         self.exa_key = exa_key
         self.serper_key = serper_key

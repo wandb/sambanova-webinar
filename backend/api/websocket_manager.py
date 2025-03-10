@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 from autogen_core import DefaultTopicId
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -10,6 +11,7 @@ from starlette.websockets import WebSocketState
 from api.data_types import APIKeys, EndUserMessage, AgentEnum, AgentStructuredResponse, ErrorResponse
 from api.utils import initialize_agent_runtime, load_documents, DocumentContextLengthError
 from api.websocket_interface import WebSocketInterface
+from api.services.redis_service import SecureRedisService
 
 from .otlp_tracing import logger
 
@@ -19,7 +21,7 @@ class WebSocketConnectionManager(WebSocketInterface):
     Manages WebSocket connections for user sessions.
     """
 
-    def __init__(self, redis_client: redis.Redis, context_length_summariser: int):
+    def __init__(self, redis_client: SecureRedisService, context_length_summariser: int):
         # Use user_id:conversation_id as the key
         self.connections: Dict[str, WebSocket] = {}
         self.redis_client = redis_client
@@ -28,8 +30,12 @@ class WebSocketConnectionManager(WebSocketInterface):
         self.active_sessions: Dict[str, dict] = {}
         # Track last activity time for each session
         self.session_last_active: Dict[str, datetime] = {}
-        # Session timeout (30 minutes)
-        self.SESSION_TIMEOUT = timedelta(minutes=30)
+        # Session timeout (5 minutes)
+        self.SESSION_TIMEOUT = timedelta(minutes=5)
+        # Store pubsub instances
+        self.pubsub_instances: Dict[str, redis.client.PubSub] = {}
+        # Add cleanup task
+        self.cleanup_task: Optional[asyncio.Task] = None
 
     def add_connection(self, websocket: WebSocket, user_id: str, conversation_id: str) -> None:
         """
@@ -75,11 +81,18 @@ class WebSocketConnectionManager(WebSocketInterface):
         sessions_to_cleanup = []
 
         for session_key, last_active in self.session_last_active.items():
+            # Only clean up if:
+            # 1. Session has exceeded timeout AND
+            # 2. Session exists in active_sessions AND is marked as inactive
             if current_time - last_active > self.SESSION_TIMEOUT:
-                sessions_to_cleanup.append(session_key)
+                session = self.active_sessions.get(session_key)
+                if session is not None and not session.get('is_active', False):
+                    sessions_to_cleanup.append(session_key)
+                    logger.info(f"Session {session_key} marked for cleanup: last_active={last_active}, is_active={session.get('is_active', False)}")
 
         for session_key in sessions_to_cleanup:
             await self._cleanup_session(session_key)
+            logger.info(f"Cleaned up inactive session: {session_key}")
 
     async def _cleanup_session(self, session_key: str):
         """Clean up a specific session and its resources"""
@@ -91,11 +104,14 @@ class WebSocketConnectionManager(WebSocketInterface):
                 session['background_task'].cancel()
                 cleanup_tasks.append(session['background_task'])
 
-            if 'pubsub' in session and session['pubsub'] is not None:
-                cleanup_tasks.extend([
-                    asyncio.create_task(asyncio.to_thread(session['pubsub'].unsubscribe)),
-                    asyncio.create_task(asyncio.to_thread(session['pubsub'].close))
-                ])
+            # Clean up pubsub from session
+            if 'pubsub' in session:
+                try:
+                    session['pubsub'].close()
+                except:
+                    pass
+                # Also remove from pubsub_instances
+                self.pubsub_instances.pop(session_key, None)
 
             if 'agent_runtime' in session and session['agent_runtime'] is not None:
                 cleanup_tasks.append(asyncio.create_task(session['agent_runtime'].close()))
@@ -105,57 +121,80 @@ class WebSocketConnectionManager(WebSocketInterface):
 
             del self.active_sessions[session_key]
             self.session_last_active.pop(session_key, None)
-            logger.info(f"Cleaned up inactive session: {session_key}")
+
+    async def start_cleanup_task(self):
+        """Start the background task for cleaning up inactive sessions"""
+        if self.cleanup_task is None or self.cleanup_task.done():
+            self.cleanup_task = asyncio.create_task(self.periodic_cleanup())
+
+    async def periodic_cleanup(self):
+        """Periodically check and cleanup inactive sessions"""
+        while True:
+            await self.cleanup_inactive_sessions()
+            await asyncio.sleep(30)  # Check every 30 seconds
 
     async def handle_websocket(self, websocket: WebSocket, user_id: str, conversation_id: str):
         """
         Handles incoming WebSocket messages and manages connection lifecycle.
         """
+        # Start the cleanup task when the first connection is established
+        await self.start_cleanup_task()
+        
         agent_runtime = None
-        pubsub = None
         background_task = None
         session_key = f"{user_id}:{conversation_id}"
+        channel = f"agent_thoughts:{user_id}:{conversation_id}"
 
         try:
+            # Initialize or update session state
+            if session_key not in self.active_sessions:
+                # Create new pubsub instance for new session
+                pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
+                await asyncio.to_thread(pubsub.subscribe, channel)
+                self.pubsub_instances[session_key] = pubsub
+                
+                self.active_sessions[session_key] = {
+                    'agent_runtime': None,
+                    'background_task': None,
+                    'websocket': websocket,
+                    'is_active': True,
+                    'pubsub': pubsub
+                }
+            else:
+                # Reuse existing pubsub if session exists
+                pubsub = self.active_sessions[session_key].get('pubsub')
+                if not pubsub:
+                    # Create new pubsub if somehow missing
+                    pubsub = self.redis_client.pubsub(ignore_subscribe_messages=True)
+                    await asyncio.to_thread(pubsub.subscribe, channel)
+                    self.active_sessions[session_key]['pubsub'] = pubsub
+                    self.pubsub_instances[session_key] = pubsub
+                
+                self.active_sessions[session_key]['websocket'] = websocket
+                self.active_sessions[session_key]['is_active'] = True
+
             # Update session activity time
             self.session_last_active[session_key] = datetime.now()
 
-            # Check if we have an existing session
-            if session_key in self.active_sessions:
-                # Restore previous session state
-                session = self.active_sessions[session_key]
-                agent_runtime = session.get('agent_runtime')
-                pubsub = session.get('pubsub')
-                background_task = session.get('background_task')
-
-                # Update the websocket reference without recreating the agent runtime
-                session['websocket'] = websocket
-                session['is_active'] = True
+            # Check if we have an existing session state to restore
+            session = self.active_sessions[session_key]
+            agent_runtime = session.get('agent_runtime')
+            background_task = session.get('background_task')
+            pubsub = session['pubsub']  # We know this exists now
 
             # Pre-compute keys that will be used throughout the session
             meta_key = f"chat_metadata:{user_id}:{conversation_id}"
             message_key = f"messages:{user_id}:{conversation_id}"
             api_keys_key = f"api_keys:{user_id}"
-            source = f"{user_id}:{conversation_id}"
-            channel = f"agent_thoughts:{source}"
 
             # Initial setup tasks that can run concurrently
             setup_tasks = [
                 asyncio.to_thread(self.redis_client.exists, meta_key),
-                asyncio.to_thread(self.redis_client.hgetall, api_keys_key),
+                asyncio.to_thread(self.redis_client.hgetall, api_keys_key, user_id),
             ]
 
-            # Only create new pubsub if not restored from session
-            if not pubsub:
-                setup_tasks.append(asyncio.to_thread(
-                    lambda: self.redis_client.pubsub(ignore_subscribe_messages=True)
-                ))
-
             # Wait for all setup tasks to complete
-            results = await asyncio.gather(*setup_tasks)
-            exists, redis_api_keys = results[:2]
-            if not pubsub and len(results) > 2:
-                pubsub = results[2]
+            exists, redis_api_keys = await asyncio.gather(*setup_tasks)
 
             if not exists:
                 await websocket.close(code=4004, reason="Conversation not found")
@@ -165,20 +204,25 @@ class WebSocketConnectionManager(WebSocketInterface):
                 await websocket.close(code=4006, reason="No API keys found")
                 return
 
-            # Accept connection and subscribe to channel
+            # Accept connection
             self.add_connection(websocket, user_id, conversation_id)
 
-            # Subscribe to channel if not already subscribed
-            if not pubsub.patterns:
-                await asyncio.to_thread(pubsub.subscribe, channel)
 
-            # Initialize API keys object
-            api_keys = APIKeys(
-                sambanova_key=redis_api_keys.get("sambanova_key", ""),
-                fireworks_key=redis_api_keys.get("fireworks_key", ""),
-                serper_key=redis_api_keys.get("serper_key", ""),
-                exa_key=redis_api_keys.get("exa_key", "")
-            )
+            if os.getenv("ENABLE_USER_KEYS") == "true":
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    fireworks_key=redis_api_keys.get("fireworks_key", ""),
+                    serper_key=redis_api_keys.get("serper_key", ""),
+                    exa_key=redis_api_keys.get("exa_key", "")
+                )
+            else:
+                # Initialize API keys object
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    fireworks_key=os.getenv("FIREWORKS_KEY", ""),
+                    serper_key=os.getenv("SERPER_KEY", ""),
+                    exa_key=os.getenv("EXA_KEY", "")
+                )
 
             # Initialize agent runtime if not restored from session
             if not agent_runtime:
@@ -204,10 +248,10 @@ class WebSocketConnectionManager(WebSocketInterface):
             # Store session state
             self.active_sessions[session_key] = {
                 'agent_runtime': agent_runtime,
-                'pubsub': pubsub,
                 'background_task': background_task,
                 'websocket': websocket,  # Store websocket reference
-                'is_active': True  # Track connection state
+                'is_active': True,  # Track connection state
+                'pubsub': pubsub
             }
 
             # Send connection established message
@@ -267,11 +311,12 @@ class WebSocketConnectionManager(WebSocketInterface):
 
                 # Prepare tasks for parallel execution
                 tasks = [
-                    self._update_metadata(meta_key, user_message_input["data"]),
+                    self._update_metadata(meta_key, user_message_input["data"], user_id),
                     asyncio.to_thread(
                         self.redis_client.rpush,
                         message_key,
-                        json.dumps(message_data)
+                        json.dumps(message_data),
+                        user_id,
                     )
                 ]
 
@@ -302,7 +347,7 @@ class WebSocketConnectionManager(WebSocketInterface):
                     )
                     await agent_runtime.publish_message(
                         response,
-                        DefaultTopicId(type="user_proxy", source=source),
+                        DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
                     )
                     continue
 
@@ -325,7 +370,7 @@ class WebSocketConnectionManager(WebSocketInterface):
                 # This must be awaited as it affects the conversation flow
                 await agent_runtime.publish_message(
                     user_message,
-                    DefaultTopicId(type="user_proxy", source=source),
+                    DefaultTopicId(type="user_proxy", source=f"{user_id}:{conversation_id}"),
                 )
 
         except WebSocketDisconnect:
@@ -349,18 +394,14 @@ class WebSocketConnectionManager(WebSocketInterface):
             except Exception as e:
                 logger.error(f"Error closing websocket: {str(e)}")
 
-            # Don't cleanup immediately on disconnect
-            # Only check for truly inactive sessions based on timeout
+            # Update last active time on disconnect
             if session_key in self.session_last_active:
-                current_time = datetime.now()
-                last_active = self.session_last_active[session_key]
-                if current_time - last_active > self.SESSION_TIMEOUT:
-                    await self.cleanup_inactive_sessions()
+                self.session_last_active[session_key] = datetime.now()
 
-    async def _update_metadata(self, meta_key: str, message_data: str):
+    async def _update_metadata(self, meta_key: str, message_data: str, user_id: str):
         """Helper method to update metadata asynchronously"""
         try:
-            meta_data = await asyncio.to_thread(self.redis_client.get, meta_key)
+            meta_data = await asyncio.to_thread(self.redis_client.get, meta_key, user_id)
             if meta_data:
                 metadata = json.loads(meta_data)
                 if "name" not in metadata:
@@ -368,7 +409,8 @@ class WebSocketConnectionManager(WebSocketInterface):
                     await asyncio.to_thread(
                         self.redis_client.set,
                         meta_key,
-                        json.dumps(metadata)
+                        json.dumps(metadata),
+                        user_id
                     )
         except Exception as e:
             logger.error(f"Error updating metadata: {str(e)}")
@@ -417,7 +459,8 @@ class WebSocketConnectionManager(WebSocketInterface):
                             await asyncio.to_thread(
                                 self.redis_client.rpush,
                                 message_key,
-                                json.dumps(message_data)
+                                json.dumps(message_data),
+                                user_id,
                             )
 
                             # Then try to send via WebSocket if still active

@@ -27,7 +27,7 @@
         
         <SelectProvider  v-model:selectedOption="selectedOption" />
         <!-- NEW: Chat Mode Toggle -->
-        <div v-if="process?.env?.VITE_ENABLE_WORKFLOW_TOGGLE" class="flex items-center space-x-2">
+        <div  class="flex items-center space-x-2">
           <ToggleSwitch v-model:chatMode="chatMode" label="" />
 
           <!-- <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>
@@ -92,8 +92,6 @@ import SettingsModal from './SettingsModal.vue'
 import ToggleSwitch from '@/components/Common/UIComponents/ToggleSwitch.vue'
 import SelectProvider from '@/components/ChatMain/SelectProvider.vue'
 // import Dropdown from './Dropdown.vue'
-
-
 
 // Inject the shared state provided in MainLayout.vue.
 const selectedOption = inject('selectedOption')

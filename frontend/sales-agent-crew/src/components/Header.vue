@@ -27,7 +27,7 @@
         
         <SelectProvider  v-model:selectedOption="selectedOption" />
         <!-- NEW: Chat Mode Toggle -->
-        <div v-if="isWorkflowEnabled" class="flex items-center space-x-2">
+        <div  class="flex items-center space-x-2">
           <ToggleSwitch v-model:chatMode="chatMode" label="" />
 
           <!-- <label for="modeToggle" class="text-sm text-right text-gray-600">Chat Mode</label>

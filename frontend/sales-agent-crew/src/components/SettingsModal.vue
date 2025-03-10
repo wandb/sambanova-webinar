@@ -260,6 +260,16 @@ import { encryptKey, decryptKey } from '../utils/encryption'
 import axios from 'axios'
 import emitterMitt from '@/utils/eventBus.js';
 
+const enabledUserKeys = computed(() => {
+  const keysStr = import.meta.env.VITE_ENABLE_USER_KEYS
+  return keysStr ? keysStr.split(',').map(key => key.trim()) : []
+})
+
+// Example usage: check if a specific key is enabled
+function isKeyEnabled(key) {
+  return enabledUserKeys.value.includes(key)
+}
+
 const props = defineProps({
   provider: String, // Current provider name passed from parent
 })

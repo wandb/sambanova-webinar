@@ -2,6 +2,8 @@ import sys
 import os
 import uuid
 
+from api.services.redis_service import SecureRedisService
+
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
@@ -77,6 +79,7 @@ class ResearchCrew:
         user_id: str = "",
         run_id: str = "",
         message_id: str = "",
+        redis_client: SecureRedisService = None,
         verbose: bool = True,
     ):
 
@@ -93,6 +96,7 @@ class ResearchCrew:
         self.run_id = run_id
         self.message_id = message_id
         self.verbose = verbose
+        self.redis_client = redis_client
 
         self._initialize_agents()
         self._initialize_tasks()
@@ -149,7 +153,8 @@ class ResearchCrew:
             agent_name="Aggregator Search Agent",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
-            message_id=self.message_id
+            message_id=self.message_id,
+            redis_client=self.redis_client
         )
         self.data_extraction_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -157,7 +162,8 @@ class ResearchCrew:
             agent_name="Data Extraction Agent",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
-            message_id=self.message_id
+            message_id=self.message_id,
+            redis_client=self.redis_client
         )
         self.market_trends_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -165,7 +171,8 @@ class ResearchCrew:
             agent_name="Market Trends Analyst",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
-            message_id=self.message_id
+            message_id=self.message_id,
+            redis_client=self.redis_client
         )
         self.outreach_agent.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -173,7 +180,8 @@ class ResearchCrew:
             agent_name="Outreach Specialist",
             workflow_name="Lead Generation",
             llm_name=self.llm.model,
-            message_id=self.message_id
+            message_id=self.message_id,
+            redis_client=self.redis_client
         )
 
     def _initialize_tasks(self) -> None:

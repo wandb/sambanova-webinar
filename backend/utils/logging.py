@@ -16,6 +16,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+
 class UnifiedLogger:
     """
     Unified logging class for FastAPI that combines standard Python logging with OpenTelemetry.
@@ -71,37 +72,59 @@ class UnifiedLogger:
         max_log_size_mb = int(os.getenv("MAX_LOG_SIZE_MB", "10"))
         backup_count = int(os.getenv("LOG_BACKUP_COUNT", "5"))
         
-        # Create log directory if it doesn't exist
-        os.makedirs(log_dir, exist_ok=True)
+        # Get pod name from environment if available
+        pod_name = os.getenv("POD_NAME", "")
         
-        # Set up log file path
-        log_file = os.path.join(log_dir, "aiskagents-backend.log")
+        # Create log directory if it doesn't exist
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+        except PermissionError:
+            # Fall back to a directory we can write to
+            fallback_dir = "/tmp/aiskagents-logs"
+            self.logger.warning(f"Cannot create log directory at {log_dir}. Falling back to {fallback_dir}")
+            os.makedirs(fallback_dir, exist_ok=True)
+            log_dir = fallback_dir
+        
+        # Set up log file path with pod name if available
+        if pod_name:
+            log_filename = f"aiskagents-backend-{pod_name}.log"
+        else:
+            log_filename = "aiskagents-backend.log"
+            
+        log_file = os.path.join(log_dir, log_filename)
         
         # Create rotating file handler
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=max_log_size_mb * 1024 * 1024,  # Convert MB to bytes
-            backupCount=backup_count
-        )
-        
-        # Set log level from environment or default to INFO
-        level = getattr(logging, log_level.upper(), logging.INFO)
-        file_handler.setLevel(level)
-        
-        # Use the same formatter as console
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(formatter)
-        
-        # Add file handler to logger
-        self.logger.addHandler(file_handler)
-        
-        # Log that file logging has been set up
-        self.logger.info(f"File logging enabled. Logs will be stored in {os.path.abspath(log_file)}")
-        
-        return file_handler
+        try:
+            file_handler = RotatingFileHandler(
+                log_file,
+                maxBytes=max_log_size_mb * 1024 * 1024,  # Convert MB to bytes
+                backupCount=backup_count
+            )
+            
+            # Set log level from environment or default to INFO
+            level = getattr(logging, log_level.upper(), logging.INFO)
+            file_handler.setLevel(level)
+            
+            # Use the same formatter as console
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(formatter)
+            
+            # Add the file handler to our logger
+            self.logger.addHandler(file_handler)
+            
+            # Store the file handler for later use
+            self._file_handler = file_handler
+            
+            # Log that file logging has been set up
+            self.logger.info(f"File logging set up at {log_file}")
+            
+            return file_handler
+        except Exception as e:
+            self.logger.error(f"Failed to set up file logging: {str(e)}")
+            return None
 
     def configure_otlp(
         self,
@@ -201,4 +224,6 @@ def configure_uvicorn_logging():
         # We don't need to configure the root logger since we're handling specific loggers
         # and disabling propagation
         
-        logger.info(f"Added file handler to uvicorn and FastAPI loggers with level {log_level_name}") 
+        logger.info(f"Added file handler to uvicorn and FastAPI loggers with level {log_level_name}")
+    else:
+        logger.warning("No file handler available. Uvicorn and FastAPI logs will only go to console.") 

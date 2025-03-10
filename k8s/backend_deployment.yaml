@@ -69,6 +69,15 @@ spec:
           value: redis.redis.svc.cluster.local
         - name: REDIS_PORT
           value: "6379"
+        - name: ENABLE_TRACING
+          value: "false"
+        - name: OTEL_SDK_DISABLED
+          value: "true"
+        - name: REDIS_MASTER_SALT
+          valueFrom:
+            secretKeyRef:
+              name: aiskagents-backend-secrets
+              key: REDIS_MASTER_SALT
         - name: LANGTRACE_API_KEY
           valueFrom:
             secretKeyRef:

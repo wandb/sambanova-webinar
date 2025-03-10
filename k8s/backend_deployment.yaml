@@ -83,6 +83,8 @@ spec:
           value: "true"
         - name: LOG_DIR
           value: "/app/logs"
+        - name: ENABLE_USER_KEYS
+          value: "true"
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -107,3 +109,18 @@ spec:
             secretKeyRef:
               name: aiskagents-backend-secrets
               key: CLERK_JWT_ISSUER
+        - name: EXA_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aiskagents-backend-secrets
+              key: EXA_KEY
+        - name: SERPER_KEY
+          valueFrom: 
+            secretKeyRef:
+              name: aiskagents-backend-secrets
+              key: SERPER_KEY
+        - name: FIREWORKS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aiskagents-backend-secrets
+              key: FIREWORKS_KEY

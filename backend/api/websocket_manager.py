@@ -209,6 +209,13 @@ class WebSocketConnectionManager(WebSocketInterface):
 
 
             if os.getenv("ENABLE_USER_KEYS") == "true":
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    fireworks_key=redis_api_keys.get("fireworks_key", ""),
+                    serper_key=redis_api_keys.get("serper_key", ""),
+                    exa_key=redis_api_keys.get("exa_key", "")
+                )
+            else:
                 # Initialize API keys object
                 api_keys = APIKeys(
                     sambanova_key=redis_api_keys.get("sambanova_key", ""),
@@ -216,14 +223,6 @@ class WebSocketConnectionManager(WebSocketInterface):
                     serper_key=os.getenv("SERPER_KEY", ""),
                     exa_key=os.getenv("EXA_KEY", "")
                 )
-            else:
-                api_keys = APIKeys(
-                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
-                    fireworks_key=redis_api_keys.get("fireworks_key", ""),
-                    serper_key=redis_api_keys.get("serper_key", ""),
-                    exa_key=redis_api_keys.get("exa_key", "")
-                )
-
 
             # Initialize agent runtime if not restored from session
             if not agent_runtime:

@@ -25,7 +25,9 @@
       <!-- Right: Chat mode toggle, date/time, settings, user -->
       <div class="flex items-center space-x-4">
         
-        <SelectProvider  v-model:selectedOption="selectedOption" />
+        <span class="invisible">
+        <SelectProvider   v-model:selectedOption="selectedOption" />
+      </span>
         <!-- NEW: Chat Mode Toggle -->
         <div v-if="isWorkflowEnabled" class="flex items-center space-x-2">
           <ToggleSwitch v-model:chatMode="chatMode" label="" />

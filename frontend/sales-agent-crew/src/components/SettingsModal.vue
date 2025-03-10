@@ -337,10 +337,7 @@ const loadKeys = async () => {
   console.log(isUserKeysEnabled.value,isUserKeysEnabled.value)
   if (!isUserKeysEnabled.value) {
 
-    savedExaKey = import.meta.env.VITE_EXA_KEY;
-    savedSerperKey = import.meta.env.VITE_SERPER_KEY;
-    savedFireworksKey = import.meta.env.VITE_FIREWORKS_KEY;
-    console.log("savedExaKey,savedSerperKey,savedFireworksKey",savedExaKey,savedSerperKey,savedFireworksKey)
+    
 
   } else {
     savedExaKey = localStorage.getItem(`exa_key_${userId.value}`);
@@ -400,11 +397,13 @@ const handleModelSelection = () => {
 }
 // ✅ Function to check if required keys are missing
 const checkRequiredKeys = () => {
+
+
   missingKeys.value = {
-    exa: !exaKey.value,
-    serper: !serperKey.value,
+    exa: !exaKey.value&&isUserKeysEnabled.value,
+    serper: !serperKey.value&&isUserKeysEnabled.value,
     sambanova: props.provider === 'sambanova' && !sambanovaKey.value,
-    fireworks: props.provider === 'fireworks' && !fireworksKey.value
+    fireworks: props.provider === 'fireworks' && !fireworksKey.value&&isUserKeysEnabled.value
   }
 
   isOpen.value = Object.values(missingKeys.value).some((missing) => missing)
@@ -529,6 +528,7 @@ const updateBackendKeys = async () => {
     const response = await axios.post(url, postParams, {
       headers: {
         'Authorization': `Bearer ${await window.Clerk.session.getToken()}`
+
       }
     })
     if (response.status === 200) {

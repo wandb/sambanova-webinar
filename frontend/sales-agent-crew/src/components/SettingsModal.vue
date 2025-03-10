@@ -254,7 +254,7 @@
   </div>
 </template>
 <script setup>
-import { ref, watch, defineProps, defineExpose, defineEmits, onMounted } from 'vue'
+import { ref, watch, defineProps, defineExpose, defineEmits, onMounted,computed } from 'vue'
 import { useAuth } from '@clerk/vue'
 import { encryptKey, decryptKey } from '../utils/encryption'
 import axios from 'axios'

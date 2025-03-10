@@ -31,22 +31,38 @@ The basic process of the Agents application is described below.
    - The user reviews the response and may refine the query.
    - The system continuously learns from interactions to improve future responses.
 
+> **Note**: View the **Agent Reasoning** panel on the right side of the application to see the real-time thought output.
+
 # Prerequisites
 
 Ensure to install the prerequisites.
-   - [Python 3.8 or later](https://www.python.org/downloads/)
+   - [Python 3.11](https://www.python.org/downloads/release/python-31111/) (exact version required)
    - [Node.js 16 or later](https://nodejs.org/en/download)
    - [Yarn](https://classic.yarnpkg.com/en/docs/install)
+   - [Redis](https://redis.io/download) (via Docker or Homebrew)
+     
+      ```bash
+      # Install Redis with Docker
+      docker run --name redis -p 6379:6379 -d redis
+      ```
+      ```bash
+      # Install Redis with Homebrew on macOS
+      brew install redis
+      brew services start redis
+      ```
 
 Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
    - [Serper API key](https://serper.dev/) for web search
    - [Exa API key](https://exa.co/) for company data
-   - [Fireworks API key](https://fireworks.ai/) 
+   - [Tavily API key](https://tavily.com/) for deep research capabilities
+   - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)
+
+>**Note**: The DeepSeek-R1-8K model is supported in the application provided you have access to it.
 
 # Setup and run the application
 
-You can setup and run the application in two ways - Cloud hosted version or locally hosted version.
+You can setup and run the application in two ways: Cloud hosted version or locally hosted version.
 
 ## Cloud hosted version
 
@@ -65,19 +81,19 @@ Follow the steps below to install the frontend for the Agents application.
 
 > **Note**: For the following commands, go to `/frontend/sales-agent-crew/` directory.
 
-1. Install Vue.js dependencies
+1. Install Vue.js dependencies.
 
    ```bash
    yarn install
    ```
 
-1. Run a local development environment
+1. Run a local development environment.
 
    ```bash
    yarn dev
    ```
 
-1. Create a production build
+1. Create a production build.
 
    ```bash
    yarn build
@@ -89,15 +105,15 @@ Follow the steps below to install the backend for the Agents application.
 
 > **Note**: For the following commands, go to `/backend/` directory.
 
-1. Install Python dependencies - Create and activate a virtual environment (for example with venv) and install the project dependencies inside it.
+1. Install Python dependencies: Create and activate a virtual environment (for example with venv) and install the project dependencies inside it. Make sure to use Python 3.11.
 
    ```bash
-   python -m venv venv
+   python3.11 -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
    ```
 
-2. Run the application
+1. Run the application.
 
    ```bash
    uvicorn api.main:app --reload
@@ -105,11 +121,33 @@ Follow the steps below to install the backend for the Agents application.
 
 ### Environment variables setup
 
+#### Frontend environment variables
+
 > **Note**: For the frontend environment variables, go to `/frontend/sales-agent-crew/`.
 
-1. Create a `.env` file.
+1. Create a `.env` file with the following variables.
    ```bash
-   VITE_API_URL=your_api_url
+   VITE_API_URL=/api
+   VITE_WEBSOCKET_URL=ws://localhost:8000
+   VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   ```
+
+#### Backend environment variables
+
+> **Note**: For the backend environment variables, go to `/backend/`.
+
+1. Create a `.env` file with the following required variables.
+   ```bash
+   # Authentication
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   CLERK_JWT_ISSUER=https://your-clerk-instance.clerk.accounts.dev/.well-known/jwks.json
+   
+   # API Keys for Services
+   SERPER_API_KEY=your_serper_api_key
+   TAVILY_API_KEY=your_tavily_api_key  # Required for Deep Research agent
+   
+   # Optional: For usage tracking
+   LANGTRACE_API_KEY=your_langtrace_api_key  # Optional for usage tracking
    ```
 
 1. Start the FastAPI backend server.
@@ -120,7 +158,7 @@ Follow the steps below to install the backend for the Agents application.
    uvicorn api.main:app --reload
    ```
 
-2. Start the Vue.js frontend development server.
+1. Start the Vue.js frontend development server.
 
    ```bash
    # From the project root
@@ -128,7 +166,7 @@ Follow the steps below to install the backend for the Agents application.
    yarn dev
    ```
 
-3. Open your browser and navigate to:
+1. Open your browser and navigate to:
 
    ```bash
    http://localhost:5174/
@@ -136,8 +174,23 @@ Follow the steps below to install the backend for the Agents application.
 
 ### API keys setup
 
-1. Access the settings modal to configure the API keys mentioned in the [prerequisites](#prerequisites) section.
-1. Ensure that API keys are encrypted before storing them in localStorage.
+You can access the settings modal to configure the API keys mentioned in the [prerequisites](#prerequisites) section.
+
+### Clerk authentication setup
+
+1. Sign up for a Clerk account at [clerk.com](https://clerk.com/).
+1. Create a new application in the Clerk dashboard.
+1. Get your publishable key and secret key.
+1. Configure your JWT issuer URL.
+1. Add these values to your environment variables as shown above.
+
+### (Optional) LangTrace integration
+
+If you want to track usage and monitor the application's performance:
+
+1. Sign up for a LangTrace account
+1. Add your LangTrace API key to the backend `.env` file
+1. The application will automatically log traces (disabled by default)
 
 # Architecture
 
@@ -182,6 +235,8 @@ The stack is designed to offer high-performance and scalability for both fronten
           <li>CrewAI</li>
           <li>SambaNova Agentic Cloud</li>
           <li>Exa Search API</li>
+          <li>Tavily API for research</li>
+          <li>Redis for caching</li>
           <li>Financial Data APIs</li>
         </ul>
       </td>
@@ -236,10 +291,10 @@ Example queries for sales leads information are listed below.
 
 For research queries, the application uses the Deep research agent to:
 
-- Analyze topics in-depth
-- Create structured research reports
-- Provide educational content
-- Include relevant citations and sources
+- Analyze topics in-depth.
+- Create structured research reports.
+- Provide educational content.
+- Include relevant citations and sources.
 
 ### Example queries
 
@@ -256,12 +311,12 @@ Example queries for research and content generation are listed below.
 
 For financial queries, the application uses the Financial analysis agent to:
 
-- Analyze company financial performance
-- Track market trends and competitive positioning
-- Evaluate stock performance and valuation metrics
-- Generate investment insights
-- Monitor industry-specific metrics
-- Compare companies within sectors
+- Analyze company financial performance.
+- Track market trends and competitive positioning.
+- Evaluate stock performance and valuation metrics.
+- Generate investment insights.
+- Monitor industry-specific metrics.
+- Compare companies within sectors.
 
 ### Example queries
 
@@ -304,19 +359,19 @@ Additional features of the application are listed below.
 
 # Usage
 
-1. **Configure API Keys**
+1. **Configure API keys**
 
    - Open settings
    - Enter your API keys
    - Keys are securely encrypted
 
-2. **Start Searching**
+1. **Start searching**
 
    - Type your query or use voice input
    - System automatically determines query type
    - Receive structured results
 
-3. **View Results**
+1. **View results**
    - Sales information displayed as cards
    - Research shown as structured reports
    - Export functionality available
@@ -325,10 +380,10 @@ Additional features of the application are listed below.
 # Contributing
 
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+1. Create your feature branch
+1. Commit your changes
+1. Push to the branch
+1. Create a new pull request
 
 # License
 

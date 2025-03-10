@@ -98,7 +98,7 @@ async def initialize_agent_runtime(
     await SalesLeadsAgent.register(
         agent_runtime,
         "sales_leads",
-        lambda: SalesLeadsAgent(api_keys=api_keys),
+        lambda: SalesLeadsAgent(api_keys=api_keys, redis_client=redis_client),
     )
 
     await AssistantAgentWrapper.register(
@@ -144,7 +144,7 @@ def load_documents(user_id: str, document_ids: List[str], redis_client: SecureRe
     for doc_id in document_ids:
         # Verify document exists and belongs to user
         user_docs_key = f"user_documents:{user_id}"
-        if not redis_client.sismember(user_docs_key, doc_id, user_id):
+        if not redis_client.sismember(user_docs_key, doc_id):
             continue  # Skip if document doesn't belong to user
 
         chunks_key = f"document_chunks:{doc_id}"

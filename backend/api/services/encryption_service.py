@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 import os
 from typing import Any, Optional, Dict, TypeVar
+import hmac
 
 T = TypeVar('T')
 
@@ -117,4 +118,4 @@ class EncryptionService:
         Returns:
             dict: Dictionary with decrypted values
         """
-        return {k: self.decrypt(v, user_id) for k, v in data.items()} 
+        return {k: self.decrypt(v, user_id) for k, v in data.items()}

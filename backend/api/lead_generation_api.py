@@ -90,14 +90,9 @@ async def lifespan(app: FastAPI):
         health_check_interval=30  # Add health check to remove stale connections
     )
     
-    # Create Redis client with connection pool
-    redis_client = redis.Redis(
-        connection_pool=pool,
-        decode_responses=True
-    )
-    
+   
     # Create SecureRedisService with Redis client
-    app.state.redis_client = SecureRedisService(redis_client)
+    app.state.redis_client = SecureRedisService(connection_pool=pool, decode_responses=True)
     
     print(f"[LeadGenerationAPI] Using Redis at {redis_host}:{redis_port} with connection pool")
 
@@ -463,9 +458,7 @@ class LeadGenerationAPI:
 
                 # Add to user's conversation list
                 user_chats_key = f"user_chats:{user_id}"
-                self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp}, user_id)
-
-                # TODO: init autogen agent
+                self.app.state.redis_client.zadd(user_chats_key, {conversation_id: timestamp})
 
                 return JSONResponse(
                     status_code=200,
@@ -497,7 +490,6 @@ class LeadGenerationAPI:
                 conversation_id (str): The ID of the conversation
                 token_data (HTTPAuthorizationCredentials): The authentication token data
             """
-            # Verify the authenticated user matches the requested user_id
             user_id = get_user_id_from_token(token_data)
             if not user_id:
                 return JSONResponse(
@@ -553,7 +545,6 @@ class LeadGenerationAPI:
                 token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -561,9 +552,9 @@ class LeadGenerationAPI:
                         content={"error": "Invalid authentication token"}
                     )
 
-                # Get conversation IDs from sorted set, newest first
+                # Get all conversation IDs for the user, sorted by most recent
                 user_chats_key = f"user_chats:{user_id}"
-                conversation_ids = self.app.state.redis_client.zrevrange(user_chats_key, 0, -1, user_id)
+                conversation_ids = self.app.state.redis_client.zrevrange(user_chats_key, 0, -1)
 
                 if not conversation_ids:
                     return JSONResponse(
@@ -608,7 +599,6 @@ class LeadGenerationAPI:
                 token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -639,7 +629,7 @@ class LeadGenerationAPI:
 
                 # Remove from user's chat list
                 user_chats_key = f"user_chats:{user_id}"
-                self.app.state.redis_client.zrem(user_chats_key, conversation_id, user_id)
+                self.app.state.redis_client.zrem(user_chats_key, conversation_id)
 
                 return JSONResponse(
                     status_code=200,
@@ -794,7 +784,7 @@ class LeadGenerationAPI:
 
                 # Add to user's document list
                 user_docs_key = f"user_documents:{user_id}"
-                self.app.state.redis_client.sadd(user_docs_key, document_id, user_id)
+                self.app.state.redis_client.sadd(user_docs_key, document_id)
 
                 # Store document chunks
                 chunks_key = f"document_chunks:{document_id}"
@@ -828,8 +818,6 @@ class LeadGenerationAPI:
         ):
             """Retrieve all documents for a user."""
             try:
-                # Verify the authenticated user matches the requested user_id
-
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -839,7 +827,7 @@ class LeadGenerationAPI:
 
                 # Get all document IDs for the user
                 user_docs_key = f"user_documents:{user_id}"
-                doc_ids = self.app.state.redis_client.smembers(user_docs_key, user_id)
+                doc_ids = self.app.state.redis_client.smembers(user_docs_key)
 
                 if not doc_ids:
                     return JSONResponse(
@@ -850,10 +838,16 @@ class LeadGenerationAPI:
                 # Get metadata for each document
                 documents = []
                 for doc_id in doc_ids:
+                    # For deterministically encrypted values, we need to use the same method
+                    # when checking for document existence
                     doc_key = f"document:{doc_id}"
                     doc_data = self.app.state.redis_client.get(doc_key, user_id)
                     if doc_data:
-                        documents.append(json.loads(doc_data))
+                        try:
+                            documents.append(json.loads(doc_data))
+                        except json.JSONDecodeError:
+                            # Skip invalid JSON
+                            continue
 
                 return JSONResponse(
                     status_code=200,
@@ -871,7 +865,6 @@ class LeadGenerationAPI:
         ):
             """Retrieve chunks for a specific document."""
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -913,7 +906,6 @@ class LeadGenerationAPI:
         ):
             """Delete a document and its associated data from the database."""
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -923,7 +915,7 @@ class LeadGenerationAPI:
 
                 # Verify document belongs to user
                 user_docs_key = f"user_documents:{user_id}"
-                if not self.app.state.redis_client.sismember(user_docs_key, document_id, user_id):
+                if not self.app.state.redis_client.sismember(user_docs_key, document_id):
                     return JSONResponse(
                         status_code=404,
                         content={"error": "Document not found or access denied"}
@@ -938,7 +930,7 @@ class LeadGenerationAPI:
                 self.app.state.redis_client.delete(chunks_key)
 
                 # Remove from user's document list
-                self.app.state.redis_client.srem(user_docs_key, document_id, user_id)
+                self.app.state.redis_client.srem(user_docs_key, document_id)
 
                 return JSONResponse(
                     status_code=200,
@@ -963,7 +955,6 @@ class LeadGenerationAPI:
                 token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(
@@ -1008,7 +999,6 @@ class LeadGenerationAPI:
                 token_data (HTTPAuthorizationCredentials): The authentication token data
             """
             try:
-                # Verify the authenticated user matches the requested user_id
                 user_id = get_user_id_from_token(token_data)
                 if not user_id:
                     return JSONResponse(

@@ -107,7 +107,7 @@ class FinancialAnalysisAgent(RoutedAgent):
                 docs_included=True if message.docs else False,
                 verbose=False,
                 message_id=message.message_id, 
-                redis_client=redis_client
+                redis_client=self.redis_client
             )
 
             parameters = message.parameters.model_dump()

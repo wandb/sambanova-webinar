@@ -28,6 +28,11 @@ spec:
               topologyKey: kubernetes.io/hostname
       imagePullSecrets:
       - name: regcred
+      volumes:
+      - name: logs-volume
+        hostPath:
+          path: /data/aiskagents-logs  # Directory on the host machine
+          type: DirectoryOrCreate  # Creates the directory if it doesn't exist
       containers:
       - name: aiskagents-backend-container
         image: {{DOCKER_IMAGE}}
@@ -38,6 +43,9 @@ spec:
               command: ["/bin/sh", "-c", "sleep 10"]
         ports:
         - containerPort: 8000
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
         resources:
           limits:
             cpu: "1"
@@ -73,6 +81,12 @@ spec:
           value: "false"
         - name: OTEL_SDK_DISABLED
           value: "true"
+        - name: LOG_DIR
+          value: "/app/logs/$(POD_NAME)"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: REDIS_MASTER_SALT
           valueFrom:
             secretKeyRef:

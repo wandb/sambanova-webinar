@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 from autogen_core import DefaultTopicId
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -206,13 +207,23 @@ class WebSocketConnectionManager(WebSocketInterface):
             # Accept connection
             self.add_connection(websocket, user_id, conversation_id)
 
-            # Initialize API keys object
-            api_keys = APIKeys(
-                sambanova_key=redis_api_keys.get("sambanova_key", ""),
-                fireworks_key=redis_api_keys.get("fireworks_key", ""),
-                serper_key=redis_api_keys.get("serper_key", ""),
-                exa_key=redis_api_keys.get("exa_key", "")
-            )
+
+            if os.getenv("ENABLE_USER_KEYS") == "true":
+                # Initialize API keys object
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    fireworks_key=os.getenv("FIREWORKS_KEY", ""),
+                    serper_key=os.getenv("SERPER_KEY", ""),
+                    exa_key=os.getenv("EXA_KEY", "")
+                )
+            else:
+                api_keys = APIKeys(
+                    sambanova_key=redis_api_keys.get("sambanova_key", ""),
+                    fireworks_key=redis_api_keys.get("fireworks_key", ""),
+                    serper_key=redis_api_keys.get("serper_key", ""),
+                    exa_key=redis_api_keys.get("exa_key", "")
+                )
+
 
             # Initialize agent runtime if not restored from session
             if not agent_runtime:

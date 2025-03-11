@@ -9,6 +9,7 @@ from pydantic import BaseModel
 import redis
 import requests
 from fastapi.websockets import WebSocketState
+import re  # Added for quick pattern matching to detect multiple companies
 
 from api.websocket_interface import WebSocketInterface
 from utils.json_utils import extract_json_from_string
@@ -176,13 +177,18 @@ class QueryRouterService:
         if "s-1" in query_lower or "s1" in query_lower or "ipo" in query_lower:
             return "deep_research"
 
-        # If user references "S&P" in a context that implies multiple companies
-        if "s&p" in query_lower:
+        # Additional pattern checks for "S&P" (multiple companies in an index)
+        if "s&p" in query_lower or "s & p" in query_lower:
             return "deep_research"
 
         # Check if there's an obvious multi-company or compare scenario => deep_research
         multi_keywords = ["compare", " vs ", " between "]
         if any(mk in query_lower for mk in multi_keywords):
+            return "deep_research"
+
+        # Also check if the user specifically requests "X companies" => deep_research
+        num_companies_match = re.search(r'(\d+)\s+companies', query_lower)
+        if num_companies_match:
             return "deep_research"
 
         # Quick check if the user explicitly references multiple known big companies/tickers
@@ -225,8 +231,8 @@ class QueryRouterService:
         we force 'financial_analysis'.
 
         Also, if we've chosen 'financial_analysis' but we detect
-        it's either an S-1 scenario or multiple companies,
-        revert to 'deep_research'.
+        it's either an S-1 scenario, multiple companies, or references
+        to S&P, revert to 'deep_research'.
         """
         qlower = user_query.lower()
 
@@ -237,17 +243,23 @@ class QueryRouterService:
 
         # Additional logic: if chosen type is financial_analysis,
         # but there's an S-1/IPO or multiple companies, or user
-        # is comparing, override to deep_research
+        # is comparing, or referencing S&P, override to deep_research
         if chosen_type == "financial_analysis":
             if "s-1" in qlower or "s1" in qlower or "ipo" in qlower:
                 return "deep_research"
-            if "s&p" in qlower:
+            if "s&p" in qlower or "s & p" in qlower:
                 return "deep_research"
 
             multi_keywords = ["compare", " vs ", " between "]
             if any(mk in qlower for mk in multi_keywords):
                 return "deep_research"
 
+            # Also check if user says "X companies"
+            num_companies_match = re.search(r'(\d+)\s+companies', qlower)
+            if num_companies_match:
+                return "deep_research"
+
+            # If multiple known big cos are recognized
             count_known_cos = sum(1 for co in self.known_big_companies + self.known_tickers if co in qlower)
             if count_known_cos > 1:
                 return "deep_research"
@@ -562,27 +574,29 @@ class QueryRouterServiceChat:
 
     def _detect_query_type(self, query: str) -> str:
         """
-        Score-based approach for edu, sales, finance, with special handling for 
-        'analysis' or 'analyze' + big-company/ticker or explicit finance terms.
+        Score-based approach for edu, sales, finance, with some logic 
+        for multi-company or specialized triggers => deep_research,
+        but this short version is typically overshadowed by the LLM route in practice.
         """
         query_lower = query.lower()
 
-        # 1) If user explicitly says "fundamental analysis" or "technical analysis" => finance
+        # If user explicitly says "fundamental analysis" or "technical analysis" => finance
         if "fundamental analysis" in query_lower or "technical analysis" in query_lower:
             return "financial_analysis"
 
-        # 2) Tally normal keywords (but remove "analysis" from direct financial scoring)
+        # Tally normal keywords
         edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
 
-        # 3) Special logic for the words 'analysis' or 'analyze'
+        # Additional check if "analysis"/"analyze" plus big co/ticker => finance
         if ("analysis" in query_lower or "analyze" in query_lower):
             if any(big_co in query_lower for big_co in self.known_big_companies + self.known_tickers):
                 fin_score += 5
             elif any(x in query_lower for x in ["stock", "price target", "investment strategy"]):
                 fin_score += 5
 
+        # Basic fallback
         if fin_score > edu_score and fin_score > sales_score:
             return "financial_analysis"
         if edu_score >= sales_score:
@@ -766,7 +780,7 @@ class QueryRouterServiceChat:
 
         "type": "assistant",
         "description": "Use this agent if,
-        - The query do not fit into other specific categories
+        - The query does not fit into other specific categories
         - The query is general and does not specify a destination or service
         - The query is a factual question or quick information about a company person or product
         - The user is asking about current affairs
@@ -790,8 +804,8 @@ class QueryRouterServiceChat:
         }}
 
         "type": "financial_analysis"
-        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers."
-        "examples": "Tell me about Apples financials, What's the financial statement of Tesla?, Market trends in the tech sector?"
+        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name, and it must be a single public company. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick info or if the user references multiple companies or IPO/S-1.",
+        "examples": "Tell me about Apple's financials, What's the financial statement of Tesla?, Market trends in the tech sector for a single company?"
 
         Query: "Analyze Google"
         {{
@@ -843,9 +857,9 @@ class QueryRouterServiceChat:
 
         "type": "deep_research",
         "description": "Handles educational or multi-step research style queries (including multi-company financial comparisons or S-1/IPO references).",
-        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps, Compare the financials of multiple companies, Analyze S-1 filings or IPO data."
+        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps, Compare the financials of multiple companies, Analyze an S-1 or IPO scenario, or referencing an index with multiple companies (like S&P).",
 
-        Query: "Write me a report on the future of AI" 
+        Query: "Write me a report on the future of AI"
         {{
           "type": "deep_research",
           "parameters": {{
@@ -893,6 +907,14 @@ class QueryRouterServiceChat:
           }}
         }}
 
+        Query: "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
+          }}
+        }}
+
         "type": "user_proxy",
         "description": "Handles questions that require a response from the user. This agent is used for queries that require a response from the user. If the query is vague or unclear, use this agent.",
         "examples": "What are the best ways to save money?, Write a financial report on my local bank?",
@@ -912,10 +934,10 @@ class QueryRouterServiceChat:
            - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
-           - Only valid for single public companies.
+           - Only valid for single public companies
         3. For 'deep_research':
            - Provide 'deep_research_topic' (the user's full research query)
-           - Use if multiple companies or S-1/IPO references
+           - Use if multiple companies or S-1/IPO references or indexes like S&P
         4. For 'assistant':
            - Provide 'query' (the user's full query)
         5. For 'user_proxy':

@@ -35,6 +35,13 @@ spec:
         hostPath:
           path: {{ .Values.backend.volumes.logs.hostPath }}
           type: DirectoryOrCreate
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod -R 777 /app/logs"]
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
       containers:
       - name: {{ .Values.backend.name }}-container
         image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"

@@ -1,6 +1,6 @@
 # Variables
 ENV ?= dev
-TAG ?= $(ENV)-$(shell date '+%Y%m%d-%H%M%S')
+TAG ?= $(ENV)-$(shell date '+%Y%m%d')
 
 # Environment-specific file paths
 VALUES_FILE = ./aiskagents/values.$(ENV).yaml

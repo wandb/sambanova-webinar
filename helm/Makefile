@@ -1,5 +1,6 @@
 # Variables
 ENV ?= dev
+TAG ?= $(ENV)-$(shell date '+%Y%m%d-%H%M%S')
 
 # Environment-specific file paths
 VALUES_FILE = ./aiskagents/values.$(ENV).yaml
@@ -13,7 +14,6 @@ VITE_API_URL = $(shell grep -A20 "frontend:" $(VALUES_FILE) | grep "VITE_API_URL
 VITE_CLERK_PUBLISHABLE_KEY = $(shell grep -A20 "frontend:" $(VALUES_FILE) | grep "VITE_CLERK_PUBLISHABLE_KEY:" | sed 's/.*VITE_CLERK_PUBLISHABLE_KEY: *//;s/"//g')
 
 # Common variables
-TAG ?= $(ENV)-$(shell date '+%Y%m%d-%H%M%S')
 BACKEND_DOCKER_IMAGE = $(BACKEND_REPO)
 FRONTEND_DOCKER_IMAGE = $(FRONTEND_REPO)
 CHART_PATH = ./aiskagents
@@ -93,9 +93,10 @@ clean:
 
 # Help message
 help:
-	@echo "Usage: make [target] [ENV=dev|prod]"
+	@echo "Usage: make [target] [ENV=dev|prod] [TAG=custom-tag]"
 	@echo ""
 	@echo "Current environment: $(ENV)"
+	@echo "Current tag: $(TAG)"
 	@echo "Using values file: $(VALUES_FILE)"
 	@echo "Backend repository: $(BACKEND_REPO)"
 	@echo "Frontend repository: $(FRONTEND_REPO)"
@@ -117,9 +118,10 @@ help:
 	@echo "  help            Display this help message"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make deploy               # Deploy to dev environment (default)"
-	@echo "  make deploy ENV=prod      # Deploy to production environment"
-	@echo "  make build ENV=prod       # Build images for production"
+	@echo "  make deploy                           # Deploy to dev environment with auto-generated tag"
+	@echo "  make deploy ENV=prod                  # Deploy to production environment with auto-generated tag"
+	@echo "  make build ENV=prod TAG=v1.0.0        # Build images for production with custom tag"
+	@echo "  make deploy ENV=dev TAG=feature-123   # Deploy to dev with custom tag"
 	@echo ""
 
 # Default target

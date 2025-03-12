@@ -13,7 +13,7 @@ VITE_API_URL = $(shell grep -A20 "frontend:" $(VALUES_FILE) | grep "VITE_API_URL
 VITE_CLERK_PUBLISHABLE_KEY = $(shell grep -A20 "frontend:" $(VALUES_FILE) | grep "VITE_CLERK_PUBLISHABLE_KEY:" | sed 's/.*VITE_CLERK_PUBLISHABLE_KEY: *//;s/"//g')
 
 # Common variables
-TAG ?= $(ENV)-$(shell date '+%Y%m%d')
+TAG ?= $(ENV)-$(shell date '+%Y%m%d-%H%M%S')
 BACKEND_DOCKER_IMAGE = $(BACKEND_REPO)
 FRONTEND_DOCKER_IMAGE = $(FRONTEND_REPO)
 CHART_PATH = ./aiskagents

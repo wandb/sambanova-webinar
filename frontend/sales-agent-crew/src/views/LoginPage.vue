@@ -13,16 +13,47 @@
           <p class="text-lg text-primary-brandTextSecondary">Agent Powered Intelligence</p>
         </div>
         
-        <SignIn 
-          afterSignInUrl="/"
-          :appearance="{ 
-            elements: {
-              // headerTitle: 'hidden',
-              // headerSubtitle: 'hidden',
-              // footerAction: 'hidden'
-            }
-          }"
-        />
+        <!-- Sign Up component (default) -->
+        <div v-if="showSignUp">
+          <SignUp 
+            afterSignUpUrl="/"
+            :appearance="{ 
+              elements: {
+                formButtonPrimary: 'bg-primary-600 hover:bg-primary-700',
+                footerActionLink: 'text-primary-600 hover:text-primary-700'
+              }
+            }"
+          />
+          <div class="text-center mt-4">
+            <p class="text-sm text-gray-600">
+              Already have an account? 
+              <button @click="showSignUp = false" class="text-primary-600 font-medium hover:underline">
+                Sign in
+              </button>
+            </p>
+          </div>
+        </div>
+        
+        <!-- Sign In component -->
+        <div v-else>
+          <SignIn 
+            afterSignInUrl="/"
+            :appearance="{ 
+              elements: {
+                formButtonPrimary: 'bg-primary-600 hover:bg-primary-700',
+                footerActionLink: 'text-primary-600 hover:text-primary-700'
+              }
+            }"
+          />
+          <div class="text-center mt-4">
+            <p class="text-sm text-gray-600">
+              Don't have an account? 
+              <button @click="showSignUp = true" class="text-primary-600 font-medium hover:underline">
+                Sign up
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Video - below login on screens < 1180px, on right side for larger screens -->
@@ -44,8 +75,13 @@
 </template>
 
 <script setup>
-import { SignIn } from '@clerk/vue'
+import { SignIn, SignUp } from '@clerk/vue'
+import { ref } from 'vue'
+
+// State to toggle between sign-in and sign-up, defaulting to sign-up
+const showSignUp = ref(true)
 </script>
+
 <style>
 .cl-footer{
   display: none;

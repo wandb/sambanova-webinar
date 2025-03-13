@@ -9,13 +9,14 @@ from pydantic import BaseModel
 import redis
 import requests
 from fastapi.websockets import WebSocketState
+import re  # Added for quick pattern matching to detect multiple companies
 
 from api.websocket_interface import WebSocketInterface
 from utils.json_utils import extract_json_from_string
 from config.model_registry import model_registry
 
 class QueryType(BaseModel):
-    # Possible types: "sales_leads", "educational_content", or "financial_analysis"
+    # Possible types: "sales_leads", "educational_content", "financial_analysis", or "deep_research"
     type: str
     parameters: Dict[str, Any]
 
@@ -83,74 +84,6 @@ class QueryRouterService:
             "nflx", "meta", "nvda", "amd", "intc"
         ]
 
-    def _detect_query_type(self, query: str) -> str:
-        """
-        Score-based approach for edu, sales, finance, with special handling for 
-        'analysis' or 'analyze' + big-company/ticker or explicit finance terms.
-        """
-        query_lower = query.lower()
-
-        # 1) If user explicitly says "fundamental analysis" or "technical analysis" => finance
-        if "fundamental analysis" in query_lower or "technical analysis" in query_lower:
-            return "financial_analysis"
-
-        # 2) Tally normal keywords (but remove "analysis" from direct financial scoring)
-        edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
-        sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
-        fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
-
-        # 3) Special logic for the words 'analysis' or 'analyze' 
-        #    => check if they appear alongside strong finance signals
-        if ("analysis" in query_lower or "analyze" in query_lower):
-            # If user also mentions known big cos, tickers, or finance words like 'stock'
-            # or explicit finance terms, treat as finance:
-            if any(big_co in query_lower for big_co in self.known_big_companies + self.known_tickers):
-                fin_score += 5  # strongly finance
-            elif any(x in query_lower for x in ["stock", "price target", "investment strategy"]):
-                fin_score += 5  # strongly finance
-            # If none of these appear, do NOT boost finance
-
-        # 4) Decide based on highest score
-        if fin_score > edu_score and fin_score > sales_score:
-            return "financial_analysis"
-        if edu_score >= sales_score:
-            return "educational_content"
-        return "sales_leads"
-
-    def _call_llm(self, system_message: str, user_message: str) -> str:
-        """
-        Make an API call to SambaNova's LLM, returning raw string content.
-        """
-        headers = {
-            "Authorization": f"Bearer {self.sambanova_key}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": "Meta-Llama-3.1-8B-Instruct",
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message}
-            ],
-            "temperature": 0.0,
-            "stream": False
-        }
-
-        try:
-            response = requests.post(self.api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            json_response = response.json()
-            
-            if "choices" not in json_response or len(json_response["choices"]) == 0:
-                return self._get_default_response(self._detect_query_type(user_message))
-
-            content = json_response["choices"][0]["message"]["content"].strip()
-            return content.replace("```json", "").replace("```", "").strip()
-            
-        except Exception as e:
-            print(f"Error calling LLM: {str(e)}")
-            return self._get_default_response(self._detect_query_type(user_message))
-
     def _get_default_response(self, detected_type: str) -> str:
         """Return a default structured JSON string based on the detected type."""
         if detected_type == "educational_content":
@@ -169,6 +102,13 @@ class QueryRouterService:
                     "query_text": "",
                     "ticker": "",
                     "company_name": ""
+                }
+            })
+        elif detected_type == "deep_research":
+            return json.dumps({
+                "type": "deep_research",
+                "parameters": {
+                    "deep_research_topic": ""
                 }
             })
         # else, fallback => sales
@@ -220,19 +160,145 @@ class QueryRouterService:
             "company_name": params.get("company_name","")
         }
 
+    def _normalize_deep_research_params(self, params: Dict) -> Dict:
+        """Normalize deep research parameters with safe defaults."""
+        return {
+            "deep_research_topic": params.get("deep_research_topic", "")
+        }
+
+    def _detect_query_type(self, query: str) -> str:
+        """
+        Score-based approach for edu, sales, finance, plus
+        special checks for multi-company or IPO/S-1 => 'deep_research'.
+        """
+        query_lower = query.lower()
+
+        # Quick checks for S-1 or IPO => deep_research
+        if "s-1" in query_lower or "s1" in query_lower or "ipo" in query_lower:
+            return "deep_research"
+
+        # Additional pattern checks for "S&P" (multiple companies in an index)
+        if "s&p" in query_lower or "s & p" in query_lower:
+            return "deep_research"
+
+        # Check if there's an obvious multi-company or compare scenario => deep_research
+        multi_keywords = ["compare", " vs ", " between "]
+        if any(mk in query_lower for mk in multi_keywords):
+            return "deep_research"
+
+        # Also check if the user specifically requests "X companies" => deep_research
+        num_companies_match = re.search(r'(\d+)\s+companies', query_lower)
+        if num_companies_match:
+            return "deep_research"
+
+        # Quick check if the user explicitly references multiple known big companies/tickers
+        count_known_cos = sum(1 for co in self.known_big_companies + self.known_tickers if co in query_lower)
+        # If more than 1 recognized => deep_research
+        if count_known_cos > 1:
+            return "deep_research"
+
+        # 1) If user explicitly says "fundamental analysis" or "technical analysis" => finance
+        if "fundamental analysis" in query_lower or "technical analysis" in query_lower:
+            return "financial_analysis"
+
+        # 2) Tally normal keywords (but remove "analysis" from direct financial scoring)
+        edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
+        sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
+        fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
+
+        # 3) Special logic for the words 'analysis' or 'analyze' 
+        #    => check if they appear alongside strong finance signals
+        if ("analysis" in query_lower or "analyze" in query_lower):
+            # If user also mentions known big cos, tickers, or finance words like 'stock'
+            # or explicit finance terms, treat as finance:
+            if any(big_co in query_lower for big_co in self.known_big_companies + self.known_tickers):
+                fin_score += 5  # strongly finance
+            elif any(x in query_lower for x in ["stock", "price target", "investment strategy"]):
+                fin_score += 5  # strongly finance
+            # If none of these appear, do NOT boost finance
+
+        # 4) Decide based on highest score
+        if fin_score > edu_score and fin_score > sales_score:
+            return "financial_analysis"
+        if edu_score >= sales_score:
+            return "educational_content"
+        return "sales_leads"
+
     def _final_override(self, user_query: str, chosen_type: str) -> str:
         """
         If user query explicitly mentions certain override phrases 
         (like 'fundamental analysis' or 'technical analysis'),
         we force 'financial_analysis'.
+
+        Also, if we've chosen 'financial_analysis' but we detect
+        it's either an S-1 scenario, multiple companies, or references
+        to S&P, revert to 'deep_research'.
         """
         qlower = user_query.lower()
 
+        # Always override with fundamental/technical analysis if found
         for phrase in self.override_phrases:
             if phrase in qlower:
                 return "financial_analysis"
 
+        # Additional logic: if chosen type is financial_analysis,
+        # but there's an S-1/IPO or multiple companies, or user
+        # is comparing, or referencing S&P, override to deep_research
+        if chosen_type == "financial_analysis":
+            if "s-1" in qlower or "s1" in qlower or "ipo" in qlower:
+                return "deep_research"
+            if "s&p" in qlower or "s & p" in qlower:
+                return "deep_research"
+
+            multi_keywords = ["compare", " vs ", " between "]
+            if any(mk in qlower for mk in multi_keywords):
+                return "deep_research"
+
+            # Also check if user says "X companies"
+            num_companies_match = re.search(r'(\d+)\s+companies', qlower)
+            if num_companies_match:
+                return "deep_research"
+
+            # If multiple known big cos are recognized
+            count_known_cos = sum(1 for co in self.known_big_companies + self.known_tickers if co in qlower)
+            if count_known_cos > 1:
+                return "deep_research"
+
         return chosen_type
+
+    def _call_llm(self, system_message: str, user_message: str) -> str:
+        """
+        Make an API call to SambaNova's LLM, returning raw string content.
+        """
+        headers = {
+            "Authorization": f"Bearer {self.sambanova_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "Meta-Llama-3.1-8B-Instruct",
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message}
+            ],
+            "temperature": 0.0,
+            "stream": False
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            json_response = response.json()
+            
+            if "choices" not in json_response or len(json_response["choices"]) == 0:
+                return self._get_default_response(self._detect_query_type(user_message))
+
+            content = json_response["choices"][0]["message"]["content"].strip()
+            return content.replace("```json", "").replace("```", "").strip()
+            
+        except Exception as e:
+            print(f"Error calling LLM: {str(e)}")
+            return self._get_default_response(self._detect_query_type(user_message))
 
     def route_query(self, query: str) -> QueryType:
         """
@@ -249,7 +315,7 @@ class QueryRouterService:
         You are a query routing expert that categorizes queries and extracts structured information.
         Always return a valid JSON object with 'type' and 'parameters'.
 
-        We have three possible types: 'sales_leads', 'educational_content', or 'financial_analysis'.
+        We have four possible types: 'sales_leads', 'educational_content', 'financial_analysis', or 'deep_research'.
 
         Rules:
         1. For 'educational_content':
@@ -262,6 +328,10 @@ class QueryRouterService:
            - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
+           - This route is only for single public companies. 
+             If the query references multiple companies, or a not-yet-public company (S-1), revert to 'deep_research'.
+        4. For 'deep_research':
+           - Provide 'deep_research_topic' (the user's full query for in-depth or multi-company research)
 
         Examples:
 
@@ -297,16 +367,6 @@ class QueryRouterService:
           }}
         }}
 
-        Query: "Explain how memory bandwidth impacts GPU performance"
-        {{
-          "type": "educational_content",
-          "parameters": {{
-            "topic": "memory bandwidth impacts GPU performance",
-            "audience_level": "intermediate",
-            "focus_areas": ["key concepts", "practical applications"]
-          }}
-        }}
-
         Query: "Analyze Google"
         {{
           "type": "financial_analysis",
@@ -324,6 +384,30 @@ class QueryRouterService:
             "query_text": "Perform a fundamental analysis on Tesla stock",
             "ticker": "TSLA",
             "company_name": "Tesla"
+          }}
+        }}
+
+        Query: "Compare cloud revenue growth between Microsoft Azure and AWS only"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Compare cloud revenue growth between Microsoft Azure and AWS only"
+          }}
+        }}
+
+        Query: "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
+          }}
+        }}
+
+        Query: "Analyze Coreweave and the S-1"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Analyze Coreweave and the S-1"
           }}
         }}
 
@@ -374,6 +458,10 @@ class QueryRouterService:
                 parsed_result["parameters"] = self._normalize_financial_params(
                     parsed_result.get("parameters", {})
                 )
+            elif parsed_result["type"] == "deep_research":
+                parsed_result["parameters"] = self._normalize_deep_research_params(
+                    parsed_result.get("parameters", {})
+                )
             else:
                 parsed_result["parameters"] = self._normalize_sales_params(
                     parsed_result.get("parameters", {})
@@ -393,6 +481,7 @@ class QueryRouterService:
             # also final override
             fallback_dict["type"] = self._final_override(query, fallback_dict["type"])
             return QueryType(**fallback_dict)
+
 
 class QueryRouterServiceChat:
 
@@ -485,32 +574,29 @@ class QueryRouterServiceChat:
 
     def _detect_query_type(self, query: str) -> str:
         """
-        Score-based approach for edu, sales, finance, with special handling for 
-        'analysis' or 'analyze' + big-company/ticker or explicit finance terms.
+        Score-based approach for edu, sales, finance, with some logic 
+        for multi-company or specialized triggers => deep_research,
+        but this short version is typically overshadowed by the LLM route in practice.
         """
         query_lower = query.lower()
 
-        # 1) If user explicitly says "fundamental analysis" or "technical analysis" => finance
+        # If user explicitly says "fundamental analysis" or "technical analysis" => finance
         if "fundamental analysis" in query_lower or "technical analysis" in query_lower:
             return "financial_analysis"
 
-        # 2) Tally normal keywords (but remove "analysis" from direct financial scoring)
+        # Tally normal keywords
         edu_score = sum(1 for keyword in self.edu_keywords if keyword in query_lower)
         sales_score = sum(1 for keyword in self.sales_keywords if keyword in query_lower)
         fin_score = sum(1 for keyword in self.financial_keywords if keyword in query_lower)
 
-        # 3) Special logic for the words 'analysis' or 'analyze'
-        #    => check if they appear alongside strong finance signals
+        # Additional check if "analysis"/"analyze" plus big co/ticker => finance
         if ("analysis" in query_lower or "analyze" in query_lower):
-            # If user also mentions known big cos, tickers, or finance words like 'stock'
-            # or explicit finance terms, treat as finance:
             if any(big_co in query_lower for big_co in self.known_big_companies + self.known_tickers):
-                fin_score += 5  # strongly finance
+                fin_score += 5
             elif any(x in query_lower for x in ["stock", "price target", "investment strategy"]):
-                fin_score += 5  # strongly finance
-            # If none of these appear, do NOT boost finance
+                fin_score += 5
 
-        # 4) Decide based on highest score
+        # Basic fallback
         if fin_score > edu_score and fin_score > sales_score:
             return "financial_analysis"
         if edu_score >= sales_score:
@@ -538,10 +624,10 @@ class QueryRouterServiceChat:
 
         # If we have a websocket, send the response to the client
         planner_metadata = {
-                "llm_name": payload["model"],
-                "llm_provider": self.provider,
-                "task": "planning",
-            }   
+            "llm_name": payload["model"],
+            "llm_provider": self.provider,
+            "task": "planning",
+        }   
         planner_event = {
             "event": "planner",
             "data": json.dumps({"metadata": planner_metadata}),
@@ -556,7 +642,6 @@ class QueryRouterServiceChat:
 
         async with aiohttp.ClientSession() as session:
             start_time = time.time()
-            # Streaming mode
             accumulated_content = ""
             async with session.post(api_url, headers=headers, json=payload) as response:
                 response.raise_for_status()
@@ -695,7 +780,7 @@ class QueryRouterServiceChat:
 
         "type": "assistant",
         "description": "Use this agent if,
-        - The query do not fit into other specific categories
+        - The query does not fit into other specific categories
         - The query is general and does not specify a destination or service
         - The query is a factual question or quick information about a company person or product
         - The user is asking about current affairs
@@ -719,8 +804,8 @@ class QueryRouterServiceChat:
         }}
 
         "type": "financial_analysis"
-        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick information or factual answers."
-        "examples": "Tell me about Apples financials, What's the financial statement of Tesla?, Market trends in the tech sector?"
+        "description": "Handles complex financial analysis queries ONLY, including company reports, company financials, financial statements, and market trends. This is NOT for quick information or factual answers about STOCK PRICES. For this agent to work you need at least one ticker or company name, and it must be a single public company. If the query is a factual answer or quick information about a company person or product, ALWAYS use the assistant agent instead. This is a specialized agent for complex financial analysis and NEVER use this agent for quick info or if the user references multiple companies or IPO/S-1.",
+        "examples": "Tell me about Apple's financials, What's the financial statement of Tesla?, Market trends in the tech sector for a single company?"
 
         Query: "Analyze Google"
         {{
@@ -771,10 +856,10 @@ class QueryRouterServiceChat:
         }}
 
         "type": "deep_research",
-        "description": "Handles educational content queries with a multi-step research flow. For queries that require a more in-depth or structured approach.",
-        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps.",
+        "description": "Handles educational or multi-step research style queries (including multi-company financial comparisons or S-1/IPO references).",
+        "examples": "Generate a thorough technical report on quantum entanglement with references, Provide a multi-section explanation with research steps, Compare the financials of multiple companies, Analyze an S-1 or IPO scenario, or referencing an index with multiple companies (like S&P).",
 
-        Query: Write me a report on the future of AI 
+        Query: "Write me a report on the future of AI"
         {{
           "type": "deep_research",
           "parameters": {{
@@ -786,7 +871,7 @@ class QueryRouterServiceChat:
         {{
           "type": "deep_research",
           "parameters": {{
-            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics",
+            "deep_research_topic": "Dark Matter, Black Holes and Quantum Physics"
           }}
         }}
 
@@ -794,7 +879,7 @@ class QueryRouterServiceChat:
         {{
           "type": "deep_research",
           "parameters": {{
-            "deep_research_topic": "relationship between quantum entanglement and teleportation",
+            "deep_research_topic": "relationship between quantum entanglement and teleportation"
           }}
         }}
 
@@ -802,23 +887,31 @@ class QueryRouterServiceChat:
         {{
           "type": "deep_research",
           "parameters": {{
-            "deep_research_topic": "Prepare a syllabus for a course on flowers",
+            "deep_research_topic": "Prepare a syllabus for a course on flowers"
           }}
         }}
 
-        Query: "Explain how memory bandwidth impacts GPU performance"
+        Query: "Analyze Coreweave and the S-1"
         {{
           "type": "deep_research",
           "parameters": {{
-            "deep_research_topic": "memory bandwidth impacts GPU performance",
+            "deep_research_topic": "Analyze Coreweave and the S-1"
           }}
         }}
 
-        Query: "Write me a report on the second world war"
+        Query: "Compare cloud revenue growth between Microsoft Azure and AWS only"
         {{
           "type": "deep_research",
           "parameters": {{
-            "deep_research_topic": "Write me a report on the second world war",
+            "deep_research_topic": "Compare cloud revenue growth between Microsoft Azure and AWS only"
+          }}
+        }}
+
+        Query: "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
+        {{
+          "type": "deep_research",
+          "parameters": {{
+            "deep_research_topic": "Analyze the stock market sell off today and tell me three S&P companies I should not invest in based on their stock price"
           }}
         }}
 
@@ -841,8 +934,10 @@ class QueryRouterServiceChat:
            - Provide 'query_text' (the user's full finance question)
            - Provide 'ticker' if recognized
            - Provide 'company_name' if recognized
+           - Only valid for single public companies
         3. For 'deep_research':
            - Provide 'deep_research_topic' (the user's full research query)
+           - Use if multiple companies or S-1/IPO references or indexes like S&P
         4. For 'assistant':
            - Provide 'query' (the user's full query)
         5. For 'user_proxy':

@@ -18,6 +18,7 @@ The queries should:
 
 1. Be related to the topic of the report
 2. Help satisfy the requirements specified in the report organization
+3. Be specific enough to find high-quality, relevant sources while covering the breadth needed for the report structure. 
 
 Make the queries specific enough to find high-quality, relevant sources while covering the breadth needed for the report structure.
 </Task>"""

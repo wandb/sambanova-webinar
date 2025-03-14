@@ -2,6 +2,9 @@
 import functools
 import json
 import time
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, List, Optional, Tuple, Any, Callable
 import os
 import re
@@ -40,7 +43,7 @@ from .prompts import (
     final_section_writer_instructions,
     section_grader_instructions,
 )
-from .configuration import Configuration
+from .configuration import Configuration, SearchAPI
 from .utils import tavily_search_async, deduplicate_and_format_sources, format_sections, perplexity_search
 
 # We import our data models
@@ -76,6 +79,12 @@ class UsageCallback(BaseCallbackHandler):
                                 self.usage.append(metadata_usage)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
+
+class LLMTimeoutError(Exception):
+    """Custom exception for LLM timeout."""
+    def __init__(self, message="LLM request timed out after the specified duration"):
+        self.message = message
+        super().__init__(self.message)
 
 def get_model_name(llm):
     if hasattr(llm, 'model_name'):
@@ -295,18 +304,13 @@ async def generate_report_plan(writer_model, planner_model, state: ReportState, 
     query_list = [q.search_query for q in results.queries]
     logger.info(logger.format_message(session_id, f"Generated {len(query_list)} search queries"))
 
-    # do web search if needed
-    if isinstance(configurable.search_api, str):
-        search_api = configurable.search_api
-    else:
-        search_api = configurable.search_api.value
-
-    logger.info(logger.format_message(session_id, f"Using search API: {search_api}"))
-    if search_api == "tavily":
-        search_results = await tavily_search_async(query_list)
+    logger.info(logger.format_message(session_id, f"Using search API: {configurable.search_api}"))
+    if configurable.search_api == SearchAPI.TAVILY:
+        logger.info(logger.format_message(session_id, f"Using Tavily API with key rotation for {len(query_list)} queries"))
+        search_results = await tavily_search_async(query_list, configurable.api_key_rotator)
         source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1500, include_raw_content=False)
-    elif search_api == "perplexity":
-        search_results = perplexity_search(query_list)
+    elif configurable.search_api == SearchAPI.PERPLEXITY:
+        search_results = perplexity_search(query_list, configurable.api_key_rotator)
         source_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1000, include_raw_content=False)
     else:
         logger.error(logger.format_message(session_id, f"Unsupported search API: {configurable.search_api}"))
@@ -410,17 +414,13 @@ async def search_web(state: SectionState, config: RunnableConfig):
     query_list = [q.search_query for q in sq]
     logger.info(logger.format_message(session_id, f"Executing web search with {len(query_list)} queries"))
 
-    if isinstance(configurable.search_api, str):
-        search_api = configurable.search_api
-    else:
-        search_api = configurable.search_api.value
-
-    logger.info(logger.format_message(session_id, f"Using search API: {search_api}"))
-    if search_api == "tavily":
-        search_results = await tavily_search_async(query_list)
+    logger.info(logger.format_message(session_id, f"Using search API: {configurable.search_api}"))
+    if configurable.search_api == SearchAPI.TAVILY:
+        logger.info(logger.format_message(session_id, f"Using Tavily API with key rotation for {len(query_list)} queries"))
+        search_results = await tavily_search_async(query_list, configurable.api_key_rotator)
         src_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=1500, include_raw_content=True)
-    elif search_api == "perplexity":
-        search_results = perplexity_search(query_list)
+    elif configurable.search_api == SearchAPI.PERPLEXITY:
+        search_results = perplexity_search(query_list, configurable.api_key_rotator)
         src_str = deduplicate_and_format_sources(search_results, max_tokens_per_source=5000, include_raw_content=False)
     else:
         logger.error(logger.format_message(session_id, f"Unsupported search API: {configurable.search_api}"))
@@ -440,7 +440,8 @@ def invoke_llm_with_tracking(
     config: RunnableConfig,
     usage_handler: UsageCallback,
     configurable: Configuration,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    timeout_seconds: int = 120 
 ) -> Any:
     """Helper function to invoke LLM with timing and usage tracking.
     
@@ -452,15 +453,60 @@ def invoke_llm_with_tracking(
         usage_handler: UsageCallback instance to track usage
         configurable: Configuration instance
         session_id: Optional session ID for logging
+        timeout_seconds: Maximum time in seconds to wait for LLM response
     
     Returns:
         The LLM response
+        
+    Raises:
+        LLMTimeoutError: If the LLM request exceeds the timeout duration
     """
     start_time = time.time()
-    response = llm.invoke(messages, config=config)
+    
+    # Create an event to signal completion
+    completion_event = threading.Event()
+    response_container = []
+    exception_container = []
+    
+    # Function to run in a separate thread
+    def invoke_llm_thread():
+        try:
+            result = llm.invoke(messages, config=config)
+            response_container.append(result)
+        except Exception as e:
+            exception_container.append(e)
+        finally:
+            completion_event.set()
+    
+    # Start the thread
+    thread = threading.Thread(target=invoke_llm_thread)
+    thread.daemon = True  # Allow the thread to be terminated when the main thread exits
+    thread.start()
+    
+    # Wait for completion or timeout
+    if not completion_event.wait(timeout=timeout_seconds):
+        error_msg = f"LLM {llm_name} request timed out after {timeout_seconds} seconds for task {task}"
+        logger.error(logger.format_message(session_id, error_msg))
+        # Thread will continue running but we'll ignore its result
+        raise LLMTimeoutError(error_msg)
+    
+    # Check if there was an exception
+    if exception_container:
+        raise exception_container[0]
+    
+    # Get the response
+    if not response_container:
+        raise RuntimeError(f"No response received from LLM {llm_name} for task {task}")
+    
+    response = response_container[0]
     duration = time.time() - start_time
+    
+    if duration > 10:
+        logger.warning(logger.format_message(session_id, f"Deep Research - LLM {llm_name} took {duration:.2f} seconds to complete task {task}"))
+    else:
+        logger.info(logger.format_message(session_id, f"Deep Research - LLM {llm_name} took {duration:.2f} seconds to complete task {task}"))
 
-    if len(usage_handler.usage) > 1:
+    if usage_handler.usage and len(usage_handler.usage) > 1:
         logger.warning(logger.format_message(session_id, f"Multiple usage objects found in callback. Using the first one."))
 
     if isinstance(response, AIMessage):
@@ -468,14 +514,27 @@ def invoke_llm_with_tracking(
     else:
         text = response.model_dump()
     
-    configurable.callback(
-        message=text,
-        task=task,
-        llm_name=llm_name,
-        llm_provider=configurable.provider,
-        usage=usage_handler.usage[0],
-        duration=duration
-    )
+    # Only call the callback if we have usage data
+    if usage_handler.usage:
+        configurable.callback(
+            message=text,
+            task=task,
+            llm_name=llm_name,
+            llm_provider=configurable.provider,
+            usage=usage_handler.usage[0],
+            duration=duration
+        )
+    else:
+        # Log that we're missing usage data but still call the callback with empty usage
+        logger.warning(logger.format_message(session_id, f"No usage data available for {llm_name} on task {task}"))
+        configurable.callback(
+            message=text,
+            task=task,
+            llm_name=llm_name,
+            llm_provider=configurable.provider,
+            usage={},
+            duration=duration
+        )
 
     return response
 

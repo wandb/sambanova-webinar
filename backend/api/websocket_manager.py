@@ -31,7 +31,7 @@ class WebSocketConnectionManager(WebSocketInterface):
         # Track last activity time for each session
         self.session_last_active: Dict[str, datetime] = {}
         # Session timeout (5 minutes)
-        self.SESSION_TIMEOUT = timedelta(minutes=5)
+        self.SESSION_TIMEOUT = timedelta(minutes=10)
         # Store pubsub instances
         self.pubsub_instances: Dict[str, redis.client.PubSub] = {}
         # Add cleanup task
@@ -507,7 +507,7 @@ class WebSocketConnectionManager(WebSocketInterface):
             websocket = self.connections.get(session_key)
 
             if not websocket:
-                logger.error(f"No WebSocket connection found for {session_key}")
+                logger.info(f"No WebSocket connection found for {session_key}")
                 return False
 
             if (websocket.client_state != WebSocketState.DISCONNECTED and 

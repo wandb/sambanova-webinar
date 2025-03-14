@@ -61,17 +61,25 @@
             :provider=provider
              :messageId="currentMsgId"
           />
+
+
           <!-- End Chat Bubble -->
         <!-- </ul> -->
       </transition-group>
-
-      </div>
+          </div>
 
       <!-- Documents Section -->
       <div class="sticky z-1000 bottom-0 left-0 right-0 bg-white p-2">
-        <div class="sticky bottom-0 z-10 ">
+        <div class="sticky bottom-0 z-10  ">
+
+        
+
           <!-- Textarea -->
           <div class="max-w-4xl mx-auto lg:px-0">
+            <div v-if="errorMessage" class="m-1  w-full mx-auto space-y-5">
+        <ErrorComponent  :parsed="{ data: { error: errorMessage } }" />
+
+      </div>
             <!-- <div class="flex items-start mb-3">
               <StatusText v-if="isLoading" :text="statusText" />
             </div> -->
@@ -341,6 +349,10 @@ import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import HorizontalScroll from '@/components/Common/UIComponents/HorizontalScroll.vue'
 import emitterMitt from '@/utils/eventBus.js';
 import { data } from 'autoprefixer'
+import ErrorComponent from '@/components/ChatMain/ResponseTypes/ErrorComponent.vue'
+
+
+
 
 // Inject the shared selectedOption from MainLayout.vue.
 const selectedOption = inject('selectedOption')
@@ -375,6 +387,7 @@ console.log("PDF gen error",e)
 
 async function createNewChat() {
 
+  selectedDocuments.value=[]
   
   try {
     const resp = await axios.post(
@@ -390,7 +403,10 @@ async function createNewChat() {
     router.push(`/${cid}`)
   } catch (err) {
     console.error('Error creating new chat:', err)
-    alert('Failed to create new conversation. Check keys or console.')
+    errorMessage.value = 'Failed to create new conversation. Check keys or console.';
+    isLoading.value=false
+
+    // alert('Failed to create new conversation. Check keys or console.')
   }
 }
 
@@ -499,7 +515,9 @@ const messagesContainer = ref(null)
 watch(
   () => route.params.id,
   (newId, oldId) => {
-    if (oldId && newId !== oldId) {
+    if ( newId !== oldId) {
+
+      errorMessage.value=''
     completionMetaData.value = null;
     isLoading.value = false;
     messagesData.value = [];
@@ -510,7 +528,7 @@ watch(
   currentId.value = newId;
   
   if (socket.value) {
-    socket.value.close();
+    closeSocket()
   }
   connectWebSocket();
   }
@@ -547,7 +565,7 @@ const checkAndOpenSettings = () => {
 
 async function loadPreviousChat(convId) {
   try {
-    isLoading.value = true
+    // isLoading.value = true
     const resp = await axios.get(
       `${import.meta.env.VITE_API_URL}/chat/history/${convId}`,
       {
@@ -563,6 +581,7 @@ async function loadPreviousChat(convId) {
   } catch (err) {
     console.error('Error creating new chat:', err)
     alert('Failed to create new conversation. Check keys or console.')
+    isLoading.value = false
   }
 }
 const currentId = ref(route.params.id || '')
@@ -710,6 +729,7 @@ const uploadStatus = ref(null)
 // Document-related reactive state
 const uploadedDocuments = ref([])
 const selectedDocuments = ref([])
+const manualSocketClose = ref(false);
 
 // Clerk
 const { userId } = useAuth()
@@ -748,6 +768,7 @@ async function loadKeys() {
     console.error('Error loading keys:', error)
     errorMessage.value = 'Error loading API keys'
     showErrorModal.value = true
+    isLoading.value = false
   }
 }
 
@@ -1040,11 +1061,7 @@ function toggleDocumentSelection(docId) {
   }
 }
 
-onBeforeUnmount(() => {
-  if (socket.value) {
-    socket.value.close()
-  }
-})
+
 
 function waitForSocketOpen(timeout = 5000) {
   return new Promise((resolve, reject) => {
@@ -1058,6 +1075,8 @@ function waitForSocketOpen(timeout = 5000) {
       elapsed += interval
       if (elapsed >= timeout) {
         clearInterval(checkInterval)
+        errorMessage.value = 'WebSocket connection error occurred.';
+        isLoading.value=false
         reject(new Error("Socket connection timeout"))
       }
     }, interval)
@@ -1067,6 +1086,7 @@ function waitForSocketOpen(timeout = 5000) {
 const  currentMsgId=ref('')
 const addMessage = async () => {
 
+errorMessage.value=''
 
   workflowData.value=[]
  
@@ -1078,9 +1098,7 @@ const addMessage = async () => {
     currentId.value = route.params.id; // update currentId from router params
   }
 
-  if(messagesData.value.length===0){
-    chatName.value=searchQuery.value
-  }
+  
 
   completionMetaData.value = null
   // plannerText.value = null
@@ -1109,23 +1127,31 @@ const addMessage = async () => {
   } else {
     messagePayload.document_ids = [];
   }
-  messagesData.value.push(messagePayload)
+  
   if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
     try {
       console.log("Socket not connected. Connecting...")
       connectWebSocket()
       await waitForSocketOpen()
+      if(messagesData.value.length===0){
+    chatName.value=searchQuery.value
+  }
       socket.value.send(JSON.stringify(messagePayload))
+      messagesData.value.push(messagePayload)
       isLoading.value = true
       console.log('Message sent after connecting:', messagePayload)
     } catch (error) {
+      errorMessage.value = 'WebSocket connection error occurred.';
+      isLoading.value=false
       console.error('Failed to connect and send message:', error)
     }
   } else {
     try {
       isLoading.value = true
       socket.value.send(JSON.stringify(messagePayload))
-      searchQuery.value = ''
+      messagesData.value.push(messagePayload)
+       chatName.value=searchQuery.value
+       searchQuery.value = ''
     } catch (e) {
       console.error("ChatView error", e)
     }
@@ -1251,6 +1277,9 @@ async function connectWebSocket() {
     }
     socket.value.onerror = (error) => {
       console.error('WebSocket error:', error)
+      if (!manualSocketClose.value) 
+      errorMessage.value = 'WebSocket connection error occurred.';
+
       isLoading.value = false
     }
     socket.value.onclose = () => {
@@ -1262,7 +1291,15 @@ async function connectWebSocket() {
   }
 }
 
-
+function closeSocket() {
+  manualSocketClose.value = true;
+  if (socket.value) {
+    socket.value.close();
+  }
+}
+onBeforeUnmount(() => {
+  closeSocket();
+});
 function addOrUpdatePlannerText(newEntry) {
   // Find the index of an existing entry with the same message_id
   const index = plannerTextData.value.findIndex(

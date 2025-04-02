@@ -7,7 +7,7 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 
 # Tools
-from crewai_tools import SerperDevTool
+#from crewai_tools import SerperDevTool
 
 # For logging user <-> agent conversation in Redis (optional but recommended)
 from agent.crewai_llm import CustomLLM
@@ -74,7 +74,7 @@ class ConvoNewsletterCrew:
             config=self.agents_config.get("synthesizer", {}),
             verbose=True,
             llm=self.llm,
-            tools=[SerperDevTool()],
+            #tools=[SerperDevTool()],
         )
         synthesizer.step_callback = RedisConversationLogger(
             user_id=self.user_id,
@@ -92,10 +92,10 @@ class ConvoNewsletterCrew:
         """
         # Attach a search tool (SerperDevTool) plus your WordCounterTool
 
-        serper_tool = SerperDevTool()
+        #serper_tool = SerperDevTool()
         newsletter_writer = Agent(
             config=self.agents_config.get("newsletter_writer", {}),
-            tools=[serper_tool],
+            #tools=[serper_tool],
             verbose=True,
             llm=self.llm,
         )

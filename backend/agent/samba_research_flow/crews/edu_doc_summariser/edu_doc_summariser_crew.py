@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import SerperDevTool
+#from crewai_tools import SerperDevTool
 from pydantic import BaseModel
 from agent.crewai_llm import CustomLLM
 from config.model_registry import model_registry

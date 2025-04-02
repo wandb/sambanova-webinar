@@ -29,7 +29,7 @@ if os.getenv("LANGTRACE_API_KEY"):
 from crewai import Agent, Task, Crew, LLM, Process
 from utils.agent_thought import RedisConversationLogger
 from crewai.tools import tool
-from crewai_tools import SerperDevTool
+#from crewai_tools import SerperDevTool
 from tools.competitor_analysis_tool import competitor_analysis_tool
 from tools.fundamental_analysis_tool import fundamental_analysis_tool
 from tools.technical_analysis_tool import yf_tech_analysis
@@ -296,7 +296,7 @@ class FinancialAnalysisCrew:
             goal="Gather recent news for {ticker}, focusing on recent events that could affect stock price. Must be quick.",
             backstory="Search for top ~10 items, do minimal overhead. Summaries used by aggregator. No re-calls.",
             llm=self.aggregator_llm,
-            tools=[SerperDevTool()],
+            #tools=[SerperDevTool()],
             allow_delegation=False,
             verbose=self.verbose,
             max_iter=2

@@ -18,6 +18,10 @@ if os.getenv("LANGTRACE_API_KEY"):
     from langtrace_python_sdk import langtrace
     langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 
+if os.getenv("WANDB_API_KEY"):
+    import weave 
+    weave.init('sambanova-test')     
+
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool
 from tools.market_research_tool import MarketResearchTool
@@ -343,7 +347,7 @@ class ResearchCrew:
         results = crew.kickoff(inputs=inputs)
         return results.pydantic.model_dump_json(), dict(results.token_usage)
 
-
+@weave.op()
 def main():
     # Example usage with dummy keys
     example_samba_key = "test_samba_key"

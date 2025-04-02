@@ -1,5 +1,10 @@
 ![Samba Agents Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
 
+<p align="center">
+  <img src="./assets/logo-dark.svg#gh-dark-mode-only" width="600" alt="Weights & Biases" />
+  <img src="./assets/logo-light.svg#gh-light-mode-only" width="600" alt="Weights & Biases" />
+</p>
+
 <h1 style="font-size: 3em;">Agents</h1>
 
 The Agents application routes requests to four different agents: General assistant agent, Sales leads agent, Deep research agent, and a Finance analysis agent. The agents process tens of thousands of tokens that generates lightning fast and accurate results. The Agents application helps sales teams and researchers by:

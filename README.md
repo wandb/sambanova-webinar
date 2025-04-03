@@ -58,28 +58,46 @@ Ensure to install the prerequisites.
 
 Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
-   - [Serper API key](https://serper.dev/) for web search
    - [Exa API key](https://exa.co/) for company data
    - [Tavily API key](https://tavily.com/) for deep research capabilities
    - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)
 
->**Note**: The DeepSeek-R1-8K model is supported in the application provided you have access to it.
+>**Note**: The DeepSeek-R1-8K model is supported in the application provided.
 
-# Setup and run the application
+# Application and Environment variables Setup
 
-You can setup and run the application in two ways: Cloud hosted version or locally hosted version.
+## Environment variables setup
 
-## Cloud hosted version
+#### Frontend environment variables
 
-This version is hosted on SambaNova Cloud. No need to install dependencies locally.
+> **Note**: For the frontend environment variables, go to `/frontend/sales-agent-crew/`.
 
-1. Go to the [Agents application](https://aiskagents.cloud.snova.ai/) login page.
-1. Sign in using Clerk authentication (you will receive an email with login instructions).
-1. Once you login, go to settings and add the API keys.
-1. Start using the application to enhance sales workflows, conduct research, and gain actionable insights.
+1. Create a `.env` file with the following variables.
+   ```bash
+   VITE_API_URL=/api
+   VITE_WEBSOCKET_URL=ws://localhost:8000
+   VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   ```
 
-## Locally hosted version
+#### Backend environment variables
 
+> **Note**: For the backend environment variables, go to `/backend/`.
+
+1. Create a `.env` file with the following required variables.
+   ```bash
+   # Authentication
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   CLERK_JWT_ISSUER=https://your-clerk-instance.clerk.accounts.dev/.well-known/jwks.json
+   
+   # API Keys for Services
+   EXA_API_KEY=your_serper_api_key
+   TAVILY_API_KEY=your_tavily_api_key  # Required for Deep Research agent
+   
+   # Optional: For usage tracking
+   LANGTRACE_API_KEY=your_langtrace_api_key  # Optional for usage tracking
+   ```
+## Application Setup
+   
 ### Frontend setup
 
 Follow the steps below to install the frontend for the Agents application.
@@ -124,36 +142,6 @@ Follow the steps below to install the backend for the Agents application.
    uvicorn api.lead_generation_api:create_app --reload --host 127.0.0.1 --port 8000
    ```
 
-### Environment variables setup
-
-#### Frontend environment variables
-
-> **Note**: For the frontend environment variables, go to `/frontend/sales-agent-crew/`.
-
-1. Create a `.env` file with the following variables.
-   ```bash
-   VITE_API_URL=/api
-   VITE_WEBSOCKET_URL=ws://localhost:8000
-   VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-   ```
-
-#### Backend environment variables
-
-> **Note**: For the backend environment variables, go to `/backend/`.
-
-1. Create a `.env` file with the following required variables.
-   ```bash
-   # Authentication
-   CLERK_SECRET_KEY=your_clerk_secret_key
-   CLERK_JWT_ISSUER=https://your-clerk-instance.clerk.accounts.dev/.well-known/jwks.json
-   
-   # API Keys for Services
-   SERPER_API_KEY=your_serper_api_key
-   TAVILY_API_KEY=your_tavily_api_key  # Required for Deep Research agent
-   
-   # Optional: For usage tracking
-   LANGTRACE_API_KEY=your_langtrace_api_key  # Optional for usage tracking
-   ```
 
 1. Start the FastAPI backend server.
 
@@ -189,13 +177,6 @@ You can access the settings modal to configure the API keys mentioned in the [pr
 1. Configure your JWT issuer URL.
 1. Add these values to your environment variables as shown above.
 
-### (Optional) LangTrace integration
-
-If you want to track usage and monitor the application's performance:
-
-1. Sign up for a LangTrace account
-1. Add your LangTrace API key to the backend `.env` file
-1. The application will automatically log traces (disabled by default)
 
 # Architecture
 

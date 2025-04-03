@@ -152,7 +152,7 @@ Follow the steps below to install the backend for the Agents application.
    
 # Lauching the application 
 
-1.Start Redis 
+1. Start Redis 
 
   ```bash
   # From the project root

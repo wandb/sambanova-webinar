@@ -62,6 +62,14 @@ Get the following API keys to setup the Agents application.
    - [Tavily API key](https://tavily.com/) for deep research capabilities
    - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)
 
+### Clerk authentication setup
+
+1. Sign up for a Clerk account at [clerk.com](https://clerk.com/).
+1. Create a new application in the Clerk dashboard.
+1. Get your publishable key and secret key.
+1. Configure your JWT issuer URL.
+1. Add these values to your environment variables as shown above.
+
 >**Note**: The DeepSeek-R1-8K model is supported in the application provided.
 
 # Application and Environment variables Setup
@@ -136,22 +144,29 @@ Follow the steps below to install the backend for the Agents application.
    pip install -r requirements.txt
    ```
 
-1. Run the application.
+2. Run the application.
 
    ```bash
    uvicorn api.lead_generation_api:create_app --reload --host 127.0.0.1 --port 8000
    ```
+   
+# Lauching the application 
 
+1.Start Redis 
 
-1. Start the FastAPI backend server.
+  ```bash
+  # From the project root
+  brew services start redis```
+
+2. Start the FastAPI backend server.
 
    ```bash
    # From the project root
    cd backend
-   uvicorn api.main:app --reload
+   uvicorn api.lead_generation_api:create_app --reload
    ```
 
-1. Start the Vue.js frontend development server.
+3. Start the Vue.js frontend development server.
 
    ```bash
    # From the project root
@@ -159,24 +174,11 @@ Follow the steps below to install the backend for the Agents application.
    yarn dev
    ```
 
-1. Open your browser and navigate to:
+4. Open your browser and navigate to:
 
    ```bash
    http://localhost:5174/
    ```
-
-### API keys setup
-
-You can access the settings modal to configure the API keys mentioned in the [prerequisites](#prerequisites) section.
-
-### Clerk authentication setup
-
-1. Sign up for a Clerk account at [clerk.com](https://clerk.com/).
-1. Create a new application in the Clerk dashboard.
-1. Get your publishable key and secret key.
-1. Configure your JWT issuer URL.
-1. Add these values to your environment variables as shown above.
-
 
 # Architecture
 

@@ -156,7 +156,8 @@ Follow the steps below to install the backend for the Agents application.
 
   ```bash
   # From the project root
-  brew services start redis```
+  brew services start redis
+  ```
 
 2. Start the FastAPI backend server.
 

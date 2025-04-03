@@ -128,7 +128,7 @@ class EduResearchCrew:
         )
         return researcher
 
-
+    @weave.op()
     @agent
     def planner(self) -> Agent:
         """

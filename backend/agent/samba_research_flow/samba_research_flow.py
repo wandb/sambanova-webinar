@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Tuple
 
 from crewai.flow.flow import Flow, listen, start
 from dotenv import load_dotenv
+import weave
 
 load_dotenv()
 
@@ -42,7 +43,7 @@ class SambaResearchFlow(Flow):
     """
 
     input_variables = Dict[str, Any]
-
+    @weave.op()
     def __init__(
         self,
         llm_api_key: str,
@@ -82,7 +83,7 @@ class SambaResearchFlow(Flow):
         self.research_usage = None
         self.content_usage = None
 
-
+    @weave.op()
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:
         """
         Run research and document summarization in parallel.
@@ -128,6 +129,7 @@ class SambaResearchFlow(Flow):
         """
         return await self.run_research_and_summarize()
 
+    @weave.op()
     @listen(generate_reseached_content)
     def generate_educational_content(self, results: Tuple[EducationalPlan, Any]) -> List[Dict]:
         """

@@ -13,11 +13,7 @@ if parent_dir not in sys.path:
 from dotenv import load_dotenv
 load_dotenv()
 
-# Only import and initialize langtrace if API key is set
-if os.getenv("LANGTRACE_API_KEY"):
-    from langtrace_python_sdk import langtrace
-    langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
-
+# Only import and initialize weave if API key is set
 if os.getenv("WANDB_API_KEY"):
     import weave 
     weave.init('sambanova-test')     
@@ -105,7 +101,7 @@ class ResearchCrew:
 
         self._initialize_agents()
         self._initialize_tasks()
-
+    @weave.op
     def _initialize_agents(self) -> None:
         """We define aggregator_agent, data_extraction_agent, market_trends_agent, outreach_agent."""
 
@@ -188,7 +184,7 @@ class ResearchCrew:
             message_id=self.message_id,
             redis_client=self.redis_client
         )
-
+    @weave.op
     def _initialize_tasks(self) -> None:
         """
         5 tasks in sequential order:
@@ -321,7 +317,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
-
+    @weave.op
     def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
@@ -371,7 +367,6 @@ def main():
         "company_stage": "",
         "product": ""
     }
-
     final_output, _ = crew.execute_research(example_inputs)
     print("Crew Output:")
     print(final_output)

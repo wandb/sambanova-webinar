@@ -4,6 +4,7 @@ import os
 import time
 import warnings
 from typing import Any, Dict, List, Optional, Union, cast
+import weave
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", UserWarning)
@@ -76,7 +77,7 @@ class CustomLLM(LLM):
 
         self.set_callbacks(callbacks)
         self.set_env_callbacks()
-
+    @weave.op()
     def call(
         self,
         messages: Union[str, List[Dict[str, str]]],

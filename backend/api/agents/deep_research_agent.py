@@ -4,6 +4,7 @@ import json
 from typing import Any, Union
 import uuid
 from api.services.redis_service import SecureRedisService
+import weave
 
 from autogen_core import MessageContext
 from autogen_core import (
@@ -53,12 +54,12 @@ class DeepResearchAgent(RoutedAgent):
         # memory saver per user session
         self.memory_stores = {}
         self._session_threads = {}
-
+    @weave.op
     def _get_or_create_memory(self, session_id: str) -> MemorySaver:
         if session_id not in self.memory_stores:
             self.memory_stores[session_id] = MemorySaver()
         return self.memory_stores[session_id]
-
+    @weave.op
     def _get_or_create_thread_config(
         self,
         session_id: str,
@@ -93,7 +94,7 @@ class DeepResearchAgent(RoutedAgent):
                 }
             }
         return self._session_threads[session_id]
-
+    @weave.op
     def _update_token_usage(self, session_id: str):
         def update(usage: dict):
             if session_id in self._session_threads:

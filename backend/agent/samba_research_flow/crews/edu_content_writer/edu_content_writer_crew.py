@@ -13,7 +13,7 @@ from crewai.project import CrewBase, agent, crew, task
 from agent.crewai_llm import CustomLLM
 from config.model_registry import model_registry
 from utils.agent_thought import RedisConversationLogger
-
+import weave
 
 @CrewBase
 class EduContentWriterCrew:
@@ -82,6 +82,7 @@ class EduContentWriterCrew:
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
+    
     @agent
     def content_writer(self) -> Agent:
         """
@@ -104,6 +105,7 @@ class EduContentWriterCrew:
         )
         return content_writer
 
+    
     @agent
     def editor(self) -> Agent:
         """
@@ -126,6 +128,7 @@ class EduContentWriterCrew:
         )
         return editor
 
+    
     @agent
     def quality_reviewer(self) -> Agent:
         """

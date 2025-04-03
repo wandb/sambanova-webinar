@@ -28,7 +28,7 @@ from ..data_types import (
     ErrorResponse,
 )
 from utils.logging import logger
-
+import weave
 
 @type_subscription(topic_type="financial_analysis")
 class FinancialAnalysisAgent(RoutedAgent):

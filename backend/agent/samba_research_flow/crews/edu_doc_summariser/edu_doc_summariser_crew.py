@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from agent.crewai_llm import CustomLLM
 from config.model_registry import model_registry
 from utils.agent_thought import RedisConversationLogger
+import weave
 
 current_dir = os.getcwd()
 repo_dir = os.path.abspath(os.path.join(current_dir, "../.."))
@@ -59,6 +60,7 @@ class EduDocSummariserCrew:
         self.run_id = run_id
         self.verbose = verbose
 
+    
     @agent
     def summariser(self) -> Agent:
         """

@@ -101,7 +101,8 @@ class ResearchCrew:
 
         self._initialize_agents()
         self._initialize_tasks()
-    @weave.op
+
+
     def _initialize_agents(self) -> None:
         """We define aggregator_agent, data_extraction_agent, market_trends_agent, outreach_agent."""
 
@@ -184,7 +185,7 @@ class ResearchCrew:
             message_id=self.message_id,
             redis_client=self.redis_client
         )
-    @weave.op
+    
     def _initialize_tasks(self) -> None:
         """
         5 tasks in sequential order:
@@ -317,7 +318,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
-    @weave.op
+    @weave.op()
     def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
@@ -353,7 +354,7 @@ def main():
     example_run_id = str(uuid.uuid4())
     # Hard-coded user for demonstration
     example_user_id = "test_user_123"
-
+    
     crew = ResearchCrew(
         sambanova_key=example_samba_key,
         exa_key=example_exa_key,

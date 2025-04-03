@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Set
 import click
 import redis
 import os
+import weave
 
 from crewai.crew import Crew
 from crewai.llm import LLM
@@ -50,7 +51,7 @@ def save_conversation_data(user_id: str, conversation_id: str, data: Dict[str, A
 ###############################################################################
 # 1) CLI-based chat loop (OLD FUNCTIONALITY)
 ###############################################################################
-
+@weave.op()
 def run_chat():
     """
     Runs an interactive chat loop (like the old CLI).
@@ -198,7 +199,7 @@ def api_init_conversation(
         "conversation_id": conversation_id,
         "assistant_message": introductory_message
     }
-
+@weave.op()
 def api_process_message(
     conversation_id: str,
     user_input: str,

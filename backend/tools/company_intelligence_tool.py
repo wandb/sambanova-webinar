@@ -6,6 +6,7 @@ from pydantic import Field, ConfigDict
 import sys
 import os
 import json
+import weave
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:

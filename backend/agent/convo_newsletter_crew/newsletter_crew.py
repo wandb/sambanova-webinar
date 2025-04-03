@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
+import weave
 
 # Tools
 #from crewai_tools import SerperDevTool
@@ -64,6 +65,8 @@ class ConvoNewsletterCrew:
         self.agents = []
         self.tasks = []
 
+
+
     @agent
     def synthesizer(self) -> Agent:
         """
@@ -84,6 +87,7 @@ class ConvoNewsletterCrew:
             llm_name=synthesizer.llm.model,
         )
         return synthesizer
+
 
     @agent
     def newsletter_writer(self) -> Agent:
@@ -107,6 +111,7 @@ class ConvoNewsletterCrew:
             llm_name=newsletter_writer.llm.model,
         )
         return newsletter_writer
+
 
     @agent
     def newsletter_editor(self) -> Agent:

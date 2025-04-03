@@ -43,7 +43,7 @@ class SambaResearchFlow(Flow):
     """
 
     input_variables = Dict[str, Any]
-    @weave.op()
+
     def __init__(
         self,
         llm_api_key: str,
@@ -83,7 +83,7 @@ class SambaResearchFlow(Flow):
         self.research_usage = None
         self.content_usage = None
 
-    @weave.op()
+
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:
         """
         Run research and document summarization in parallel.
@@ -118,6 +118,7 @@ class SambaResearchFlow(Flow):
             self.summariser_usage = None
             
         return research_result.pydantic, summary_result
+    
 
     @start()
     async def generate_reseached_content(self) -> Tuple[EducationalPlan, Any]:
@@ -129,7 +130,7 @@ class SambaResearchFlow(Flow):
         """
         return await self.run_research_and_summarize()
 
-    @weave.op()
+
     @listen(generate_reseached_content)
     def generate_educational_content(self, results: Tuple[EducationalPlan, Any]) -> List[Dict]:
         """

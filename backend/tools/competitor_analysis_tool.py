@@ -1,10 +1,12 @@
 import yfinance as yf
 from typing import Dict, Any, List
 from crewai.tools import tool
-
+import weave
 
 ###################### COMPETITOR TOOL WITH PROMPT ENGINEERING ######################
+
 @tool('EnhancedCompetitorTool')
+
 def enhanced_competitor_tool(company_name: str, ticker: str) -> Dict[str, Any]:
     """
     Attempt to find 3 best competitor tickers from yfinance, fallback LLM guess if not found.
@@ -28,7 +30,9 @@ def enhanced_competitor_tool(company_name: str, ticker: str) -> Dict[str, Any]:
     }
 
 ###################### COMPETITOR ANALYSIS TOOL ######################
+
 @tool('Competitor Analysis Tool')
+
 def competitor_analysis_tool(tickers: List[str]) -> Dict[str, Any]:
     """
     For each competitor ticker in 'tickers', fetch fundamental info from yfinance.

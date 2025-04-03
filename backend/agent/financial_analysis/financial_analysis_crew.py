@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 import numpy as np
 from api.services.redis_service import SecureRedisService
 import yfinance as yf
+import weave
 
 from agent.crewai_llm import CustomLLM
 from services.structured_output_parser import CustomConverter
@@ -123,6 +124,7 @@ class RiskData(BaseModel):
     volatility: str
     daily_returns: List[RiskDailyReturns] = Field(default_factory=list)
 
+    
     @field_validator('daily_returns', mode='before')
     @classmethod
     def validate_daily_returns(cls, v):
@@ -475,7 +477,7 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult,
             converter_cls=CustomConverter
         )
-
+    @weave.op()
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential
@@ -515,6 +517,7 @@ class FinancialAnalysisCrew:
         return final.pydantic.model_dump_json(), dict(final.token_usage)
 
 ########## EXAMPLE MAIN ##############
+@weave.op()
 def main():
     load_dotenv()
     sambanova_key = os.getenv("SAMBANOVA_API_KEY")

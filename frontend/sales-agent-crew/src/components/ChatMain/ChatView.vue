@@ -579,9 +579,9 @@ async function loadPreviousChat(convId) {
     filterChat(resp.data)
     AutoScrollToBottom(true)
   } catch (err) {
-    console.error('Error creating new chat:', err)
-    alert('Failed to create new conversation. Check keys or console.')
-    isLoading.value = false
+    //console.error('Error creating new chat:', err)
+    //alert('Failed to create new conversation. Check keys or console.')
+    //isLoading.value = false
   }
 }
 const currentId = ref(route.params.id || '')

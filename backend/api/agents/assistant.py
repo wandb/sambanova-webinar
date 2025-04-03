@@ -11,6 +11,7 @@ from autogen_core import (
     message_handler,
     type_subscription,
 )
+import weave
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.base import Response
@@ -140,7 +141,7 @@ class AssistantAgentWrapper(RoutedAgent):
         self.redis_client = redis_client
         self._current_provider = None
         self._assistant_instance = None
-
+    @weave.op()
     def get_assistant(self, provider: str) -> AssistantAgent:
         """Get or create an AssistantAgent instance for the given provider.
         Only creates a new instance if the provider changes.

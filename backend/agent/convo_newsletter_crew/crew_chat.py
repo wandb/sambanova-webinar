@@ -405,7 +405,7 @@ def build_system_message(crew_chat_inputs: ChatInputs) -> str:
         "\nCrew Name: {crew_chat_inputs.crew_name}\n"
         f"Crew Description: {crew_chat_inputs.crew_description}"
     )
-
+@weave.op()
 def create_tool_function(crew: Crew, messages: List[Dict[str, str]]):
     def run_crew_tool_with_messages(**kwargs):
         return run_crew_tool(crew, messages, **kwargs)

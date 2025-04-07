@@ -16,7 +16,7 @@ load_dotenv()
 # Only import and initialize weave if API key is set
 if os.getenv("WANDB_API_KEY"):
     import weave 
-    weave.init('sambanova-test')     
+    weave.init(os.getenv("WANDB_PROJECT"))     
 
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool

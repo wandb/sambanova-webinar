@@ -477,7 +477,6 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult,
             converter_cls=CustomConverter
         )
-    @weave.op()
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential

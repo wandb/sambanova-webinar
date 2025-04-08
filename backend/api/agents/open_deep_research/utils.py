@@ -10,7 +10,8 @@ import httpx
 
 from tavily import TavilyClient, AsyncTavilyClient
 from .state import Section
-from langsmith import traceable
+
+import weave
 
 # Initialize clients
 tavily_client = TavilyClient()
@@ -72,6 +73,7 @@ class APIKeyRotator:
             raise ValueError("No API keys available")
         return random.choice(self.keys)
 
+@weave.op()
 def deduplicate_and_format_sources(search_response, max_tokens_per_source, include_raw_content=True):
     """
     Takes a list of search responses and formats them into a readable string.
@@ -120,7 +122,8 @@ Content:
 """
     return formatted_str
 
-@traceable
+
+@weave.op()
 async def tavily_search_async(search_queries: List[str], key_rotator: APIKeyRotator) -> List[Dict[str, Any]]:
     """
     Performs concurrent web searches using the Tavily API with key rotation.
@@ -208,7 +211,8 @@ async def _tavily_search_with_retry(query: str, client: AsyncTavilyClient, key_r
             logger.error(f"Tavily error (non-HTTP status error): {str(e)}")
             raise
 
-@traceable
+
+@weave.op()
 def perplexity_search(search_queries, key_rotator: APIKeyRotator):
     """
     Search the web using the Perplexity API.

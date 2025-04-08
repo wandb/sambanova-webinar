@@ -29,6 +29,8 @@ from api.data_types import APIKeys
 # NEW IMPORT: our new DeepResearchAgent
 from api.agents.deep_research_agent import DeepResearchAgent
 
+import weave
+
 session_state_manager = SessionStateManager()
 
 # Make tracer optional based on environment variable
@@ -43,6 +45,7 @@ class DocumentContextLengthError(Exception):
         self.max_tokens = max_tokens
         super().__init__(f"Combined documents exceed maximum context window size of {max_tokens} tokens (got {total_tokens} tokens). Please reduce the number or size of documents.")
 
+@weave.op()
 async def initialize_agent_runtime(
     redis_client: SecureRedisService,
     api_keys: APIKeys,

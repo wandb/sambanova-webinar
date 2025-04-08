@@ -3,6 +3,7 @@ import sys
 import warnings
 import os
 from dotenv import load_dotenv
+import weave
 
 load_dotenv()
 # Ensure our parent directories are in sys.path
@@ -23,7 +24,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 # Replace with inputs you want to test with, it will automatically
 # interpolate any tasks and agents information
 
-
+@weave.op()
 def run():
     """
     Run the crew.
@@ -43,7 +44,7 @@ def run():
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 
-
+@weave.op()
 def train():
     """
     Train the crew for a given number of iterations.
@@ -57,7 +58,7 @@ def train():
     except Exception as e:
         raise Exception(f"An error occurred while training the crew: {e}")
 
-
+@weave.op()
 def replay():
     """
     Replay the crew execution from a specific task.
@@ -68,7 +69,7 @@ def replay():
     except Exception as e:
         raise Exception(f"An error occurred while replaying the crew: {e}")
 
-
+@weave.op()
 def test():
     """
     Test the crew execution and returns the results.

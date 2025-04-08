@@ -110,6 +110,7 @@ async def lifespan(app: FastAPI):
     pool.disconnect()
 
     # Cleanup default agent runtime
+    
     await app.state.agent_runtime.close()
 
 def get_user_id_from_token(token: HTTPAuthorizationCredentials) -> str:
@@ -263,6 +264,7 @@ class LeadGenerationAPI:
                     # Just log the error, don't re-raise
 
         @self.app.post("/route")
+        @weave.op()
         async def determine_route(request: Request, query_request: QueryRequest):
             sambanova_key = request.headers.get("x-sambanova-key")
             if not sambanova_key:
@@ -283,8 +285,9 @@ class LeadGenerationAPI:
             except Exception as e:
                 print(f"[/route] Error determining route: {str(e)}")
                 return JSONResponse(status_code=500, content={"error": str(e)})
-        @weave.op()
+
         @self.app.post("/execute/{query_type}")
+        @weave.op()
         async def execute_query(
             request: Request,
             query_type: str,

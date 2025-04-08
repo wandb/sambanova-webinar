@@ -78,7 +78,7 @@ class CustomLLM(LLM):
         self.set_callbacks(callbacks)
         self.set_env_callbacks()
         
-    @weave.op()
+
     def call(
         self,
         messages: Union[str, List[Dict[str, str]]],

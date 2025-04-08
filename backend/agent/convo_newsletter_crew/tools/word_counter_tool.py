@@ -14,7 +14,6 @@ class WordCounterTool(BaseTool):
     name: str = "Word Counter Tool"
     description: str = "Counts the number of words in a given text."
     args_schema: Type[BaseModel] = WordCounterInput
-
     def _run(self, text: str) -> int:
         # Count the number of words in the text
         word_count = len(text.split())

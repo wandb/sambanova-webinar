@@ -66,7 +66,6 @@ class ConvoNewsletterCrew:
         self.tasks = []
 
 
-
     @agent
     def synthesizer(self) -> Agent:
         """
@@ -87,7 +86,6 @@ class ConvoNewsletterCrew:
             llm_name=synthesizer.llm.model,
         )
         return synthesizer
-
 
     @agent
     def newsletter_writer(self) -> Agent:

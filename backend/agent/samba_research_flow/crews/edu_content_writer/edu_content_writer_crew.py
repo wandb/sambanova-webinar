@@ -82,7 +82,6 @@ class EduContentWriterCrew:
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-    
     @agent
     def content_writer(self) -> Agent:
         """
@@ -105,7 +104,6 @@ class EduContentWriterCrew:
         )
         return content_writer
 
-    
     @agent
     def editor(self) -> Agent:
         """
@@ -128,7 +126,6 @@ class EduContentWriterCrew:
         )
         return editor
 
-    
     @agent
     def quality_reviewer(self) -> Agent:
         """
@@ -150,7 +147,6 @@ class EduContentWriterCrew:
             llm_name=quality_reviewer.llm.model,
         )
         return quality_reviewer
-
     @task
     def writing_task(self) -> Task:
         """
@@ -162,7 +158,6 @@ class EduContentWriterCrew:
         return Task(
             config=self.tasks_config["writing_task"],
         )
-
     @task
     def editing_task(self) -> Task:
         """
@@ -181,8 +176,8 @@ class EduContentWriterCrew:
         return Task(
             config=self.tasks_config["editing_task"], output_file=output_file_path
         )
-
-    @task
+    
+    @task  
     def quality_review_task(self) -> Task:
         """
         Define the quality review task.
@@ -193,7 +188,6 @@ class EduContentWriterCrew:
         return Task(
             config=self.tasks_config["quality_review_task"],
         )
-
     @crew
     def crew(self) -> Crew:
         """

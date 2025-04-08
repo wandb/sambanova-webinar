@@ -185,7 +185,7 @@ class ResearchCrew:
             message_id=self.message_id,
             redis_client=self.redis_client
         )
-    
+
     def _initialize_tasks(self) -> None:
         """
         5 tasks in sequential order:
@@ -318,7 +318,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
-    @weave.op()
+    
     def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.

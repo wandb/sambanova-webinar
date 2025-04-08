@@ -23,6 +23,7 @@ from api.data_types import (
     ErrorResponse,
 )
 from utils.logging import logger
+import weave
 
 @type_subscription(topic_type="educational_content")
 class EducationalContentAgent(RoutedAgent):

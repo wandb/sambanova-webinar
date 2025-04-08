@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, List, Optional, Tuple, Any, Callable
 import os
 import re
-
+import weave
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import RunnableConfig

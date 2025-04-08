@@ -318,7 +318,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
-    
+
     def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
@@ -344,7 +344,7 @@ class ResearchCrew:
         results = crew.kickoff(inputs=inputs)
         return results.pydantic.model_dump_json(), dict(results.token_usage)
 
-@weave.op()
+
 def main():
     # Example usage with dummy keys
     example_samba_key = "test_samba_key"

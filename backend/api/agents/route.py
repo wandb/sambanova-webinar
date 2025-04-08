@@ -158,7 +158,7 @@ class SemanticRouterAgent(RoutedAgent):
         )
 
         return request
-
+    
     async def route_message_with_query_router(
         self, message: EndUserMessage, ctx: MessageContext
     ) -> None:

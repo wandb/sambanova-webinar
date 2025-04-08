@@ -73,6 +73,7 @@ async def initialize_agent_runtime(
     )
 
     # Register Semantic Router Agent
+ 
     await SemanticRouterAgent.register(
         agent_runtime,
         "router",
@@ -117,7 +118,7 @@ async def initialize_agent_runtime(
             redis_client=redis_client,
         ),
     )
-
+    
     # Register the UserProxyAgent instance with the AgentRuntime
     await UserProxyAgent.register(
         agent_runtime,

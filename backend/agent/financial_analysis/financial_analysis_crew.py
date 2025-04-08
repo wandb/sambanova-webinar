@@ -477,6 +477,7 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult,
             converter_cls=CustomConverter
         )
+        
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential
@@ -516,7 +517,7 @@ class FinancialAnalysisCrew:
         return final.pydantic.model_dump_json(), dict(final.token_usage)
 
 ########## EXAMPLE MAIN ##############
-@weave.op()
+
 def main():
     load_dotenv()
     sambanova_key = os.getenv("SAMBANOVA_API_KEY")

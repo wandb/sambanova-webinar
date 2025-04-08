@@ -51,7 +51,7 @@ def save_conversation_data(user_id: str, conversation_id: str, data: Dict[str, A
 ###############################################################################
 # 1) CLI-based chat loop (OLD FUNCTIONALITY)
 ###############################################################################
-@weave.op()
+
 def run_chat():
     """
     Runs an interactive chat loop (like the old CLI).
@@ -120,7 +120,7 @@ def _initialize_cli_crew():
     }
 
     return crew_object, messages, crew_tool_schema, available_functions
-@weave.op()
+
 def _get_user_input() -> str:
     """
     Collect multi-line user input with blank line as delimiter (CLI style).
@@ -199,7 +199,7 @@ def api_init_conversation(
         "conversation_id": conversation_id,
         "assistant_message": introductory_message
     }
-@weave.op()
+
 def api_process_message(
     conversation_id: str,
     user_input: str,
@@ -324,7 +324,7 @@ def _parse_function_call(response_text: str):
 ###############################################################################
 # 4) Helper methods from original approach
 ###############################################################################
-@weave.op()
+
 def generate_crew_chat_inputs(crew: Crew, crew_name: str, chat_llm: LLM) -> ChatInputs:
     required_inputs = fetch_required_inputs(crew)
     input_fields = []
@@ -338,7 +338,7 @@ def generate_crew_chat_inputs(crew: Crew, crew_name: str, chat_llm: LLM) -> Chat
         crew_description=crew_description,
         inputs=input_fields
     )
-@weave.op()
+
 def fetch_required_inputs(crew: Crew) -> Set[str]:
     placeholder_pattern = re.compile(r"\{(.+?)\}")
     required_inputs: Set[str] = set()
@@ -352,18 +352,18 @@ def fetch_required_inputs(crew: Crew) -> Set[str]:
         required_inputs.update(placeholder_pattern.findall(text))
 
     return required_inputs
-@weave.op()
+
 def generate_input_description_with_ai(
     input_name: str, crew: Crew, chat_llm: LLM
 ) -> str:
     # For brevity, returning fallback. 
     # Original logic tried to gather context and call the LLM. We'll keep that approach short.
     return f"User input for '{input_name}'."
-@weave.op()
+
 def generate_crew_description_with_ai(crew: Crew, chat_llm: LLM) -> str:
     # For brevity, a fallback:
     return "A specialized newsletter crew."
-@weave.op()
+
 def generate_crew_tool_schema(crew_inputs: ChatInputs) -> dict:
     properties = {}
     for field in crew_inputs.inputs:
@@ -385,7 +385,7 @@ def generate_crew_tool_schema(crew_inputs: ChatInputs) -> dict:
             },
         },
     }
-@weave.op()
+
 def build_system_message(crew_chat_inputs: ChatInputs) -> str:
     required_fields_str = (
         ", ".join(
@@ -405,12 +405,12 @@ def build_system_message(crew_chat_inputs: ChatInputs) -> str:
         "\nCrew Name: {crew_chat_inputs.crew_name}\n"
         f"Crew Description: {crew_chat_inputs.crew_description}"
     )
-@weave.op()
+
 def create_tool_function(crew: Crew, messages: List[Dict[str, str]]):
     def run_crew_tool_with_messages(**kwargs):
         return run_crew_tool(crew, messages, **kwargs)
     return run_crew_tool_with_messages
-@weave.op()
+
 def run_crew_tool(crew: Crew, messages: List[Dict[str, str]], **kwargs) -> str:
     try:
         kwargs["crew_chat_messages"] = json.dumps(messages)

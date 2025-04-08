@@ -73,7 +73,7 @@ class APIKeyRotator:
             raise ValueError("No API keys available")
         return random.choice(self.keys)
 
-@weave.op()
+
 def deduplicate_and_format_sources(search_response, max_tokens_per_source, include_raw_content=True):
     """
     Takes a list of search responses and formats them into a readable string.

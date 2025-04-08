@@ -83,7 +83,7 @@ class SambaResearchFlow(Flow):
         self.research_usage = None
         self.content_usage = None
 
-    @weave.op()
+
     async def run_research_and_summarize(self) -> Tuple[EducationalPlan, Any]:
         """
         Run research and document summarization in parallel.
@@ -121,7 +121,6 @@ class SambaResearchFlow(Flow):
     
 
     @start()
-    @weave.op()
     async def generate_reseached_content(self) -> Tuple[EducationalPlan, Any]:
         """
         Begin the content generation process with parallel research and summarization.
@@ -133,7 +132,7 @@ class SambaResearchFlow(Flow):
 
 
     @listen(generate_reseached_content)
-    @weave.op()
+
     def generate_educational_content(self, results: Tuple[EducationalPlan, Any]) -> List[Dict]:
         """
         Generate educational content based on the research plan and summaries.
@@ -177,13 +176,13 @@ def kickoff() -> None:
     edu_flow = SambaResearchFlow()
     edu_flow.kickoff()
 
-@weave.op()
+
 def plot() -> None:
     """Generate and display a visualization of the flow structure."""
     edu_flow = SambaResearchFlow()
     edu_flow.plot()
 
-@weave.op()
+
 def test_flow() -> List[Dict]:
     """
     Helper function to test the educational flow with predefined inputs.

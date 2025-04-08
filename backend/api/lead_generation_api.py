@@ -122,6 +122,7 @@ def get_user_id_from_token(token: HTTPAuthorizationCredentials) -> str:
         return "anonymous"
 
 class LeadGenerationAPI:
+
     def __init__(self):
         self.app = FastAPI(lifespan=lifespan, root_path="/api")
         self.setup_cors()
@@ -264,7 +265,6 @@ class LeadGenerationAPI:
                     # Just log the error, don't re-raise
 
         @self.app.post("/route")
-        @weave.op()
         async def determine_route(request: Request, query_request: QueryRequest):
             sambanova_key = request.headers.get("x-sambanova-key")
             if not sambanova_key:
@@ -287,7 +287,6 @@ class LeadGenerationAPI:
                 return JSONResponse(status_code=500, content={"error": str(e)})
 
         @self.app.post("/execute/{query_type}")
-        @weave.op()
         async def execute_query(
             request: Request,
             query_type: str,

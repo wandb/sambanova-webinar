@@ -10,7 +10,7 @@ import redis
 import requests
 from fastapi.websockets import WebSocketState
 import re  # Added for quick pattern matching to detect multiple companies
-
+import weave
 from api.websocket_interface import WebSocketInterface
 from utils.json_utils import extract_json_from_string
 from config.model_registry import model_registry

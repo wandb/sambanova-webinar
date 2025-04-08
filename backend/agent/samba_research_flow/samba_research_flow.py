@@ -170,7 +170,7 @@ class SambaResearchFlow(Flow):
 
         return sections_with_content
 
-@weave.op()
+
 def kickoff() -> None:
     """Initialize and start the educational content generation process."""
     edu_flow = SambaResearchFlow()

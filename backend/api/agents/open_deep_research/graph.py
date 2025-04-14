@@ -769,7 +769,7 @@ def summarize_documents(summary_model, state: ReportState, config: RunnableConfi
                 for s in sections
                 if s.research
     ])
-@weave.op
+
 def get_graph(api_key: str, provider: str):
     """
     Create and configure the graph for deep research.

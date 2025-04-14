@@ -235,88 +235,6 @@ The stack is designed to offer high-performance and scalability for both fronten
 
 # Features
 
-This section describes the agents and feature capabilities of the application. 
-
-## General assistant
-
-The General assistant agent helps with:
-
-- Answering basic questions and queries.
-- Providing explanations and clarifications.
-- Offering technical support.
-- Assisting with general research tasks.
-
-### Example queries
-
-Example queries for general assistance are listed below.
-
-- "What's the difference between supervised and unsupervised learning?"
-- "Can you explain how REST APIs work?"
-- "What are the best practices for data visualization?"
-- "How do I optimize database queries?"
-- "Explain the concept of containerization"
-
-## Sales leads
-
-The application uses the Sales leads agent to:
-
-- Find relevant companies matching your criteria.
-- Extract key company information.
-- Provide funding status and insights.
-- Generate customized sales approaches.
-
-### Example queries
-
-Example queries for sales leads information are listed below.
-
-- "Find AI startups in Silicon Valley with Series B funding"
-- "Which healthcare companies in Boston are working on drug discovery?"
-- "Show me cybersecurity companies in Israel with enterprise clients"
-- "Find sustainable energy startups in Nordic countries"
-- "Show me B2B SaaS companies in Singapore with over 100 employees"
-
-## Deep research
-
-For research queries, the application uses the Deep research agent to:
-
-- Analyze topics in-depth.
-- Create structured research reports.
-- Provide educational content.
-- Include relevant citations and sources.
-
-### Example queries
-
-Example queries for research and content generation are listed below.
-
-- "Explain quantum computing and its applications in cryptography"
-- "How does CRISPR gene editing work in modern medicine?"
-- "What's the relationship between AI and neuromorphic computing?"
-- "Explain the impact of blockchain on supply chain management"
-- "How do machine learning algorithms handle natural language processing?"
-- "What are the latest developments in fusion energy research?"
-
-## Financial analysis
-
-For financial queries, the application uses the Financial analysis agent to:
-
-- Analyze company financial performance.
-- Track market trends and competitive positioning.
-- Evaluate stock performance and valuation metrics.
-- Generate investment insights.
-- Monitor industry-specific metrics.
-- Compare companies within sectors.
-
-### Example queries
-
-Example queries for financial analysis and market research are listed below.
-
-- "Analyze Tesla's recent performance and future growth prospects"
-- "How is the semiconductor industry performing this quarter?"
-- "Compare cloud revenue growth between Microsoft Azure and AWS"
-- "What's the market outlook for AI chip manufacturers?"
-- "Evaluate Apple's financial health considering recent product launches"
-- "Compare profitability metrics between major EV manufacturers"
-
 ## Intelligent query routing
 
 The application automatically determines the best category for your query, ensuring efficient processing. Query routing is automatically done for use-cases such as:
@@ -345,26 +263,8 @@ Additional features of the application are listed below.
 - ✍ AI-generated outreach templates – Craft professional messages instantly
 
 
-# Usage
-
-1. **Configure API keys**
-
-   - Open settings
-   - Enter your API keys
-   - Keys are securely encrypted
-
-1. **Start searching**
-
-   - Type your query or use voice input
-   - System automatically determines query type
-   - Receive structured results
-
-1. **View results**
-   - Sales information displayed as cards
-   - Research shown as structured reports
-   - Export functionality available
-   - Save important searches
-
 # License
 
 [MIT License](LICENSE)
+
+Project Forked from [SambaNova Deepresearch Agent](https://github.com/sambanova/agents)

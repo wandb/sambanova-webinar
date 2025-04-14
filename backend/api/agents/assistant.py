@@ -42,7 +42,7 @@ tavily_async_client = AsyncTavilyClient()
 async def get_current_time() -> str:
     """Get the current time."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+@weave.op
 async def tavily_search(search_query: str) -> List[Dict[str, Any]]:
     """
     Performs a web search using the Tavily API.
@@ -63,7 +63,7 @@ async def tavily_search(search_query: str) -> List[Dict[str, Any]]:
         })
     
     return search_results
-
+@weave.op
 async def yahoo_finance_search(symbol: str) -> Dict[str, Any]:
     """Get current stock information for a given symbol."""
     try:
@@ -94,7 +94,7 @@ async def yahoo_finance_search(symbol: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Failed to fetch data: {str(e)}"}
 
-
+@weave.op
 def exa_news_search(
     api_key: str, query: str, answer: bool = False) -> List[Dict[str, str]]:
     """Search for news articles or answer questions using Exa API."""
@@ -141,7 +141,7 @@ class AssistantAgentWrapper(RoutedAgent):
         self.redis_client = redis_client
         self._current_provider = None
         self._assistant_instance = None
-        
+          
     def get_assistant(self, provider: str) -> AssistantAgent:
         """Get or create an AssistantAgent instance for the given provider.
         Only creates a new instance if the provider changes.

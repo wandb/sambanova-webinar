@@ -45,7 +45,7 @@ class DocumentContextLengthError(Exception):
         self.max_tokens = max_tokens
         super().__init__(f"Combined documents exceed maximum context window size of {max_tokens} tokens (got {total_tokens} tokens). Please reduce the number or size of documents.")
 
-@weave.op()
+@weave.op(name='initialize_agent')
 async def initialize_agent_runtime(
     redis_client: SecureRedisService,
     api_keys: APIKeys,

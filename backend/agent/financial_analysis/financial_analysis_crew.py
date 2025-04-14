@@ -197,7 +197,7 @@ class FinancialAnalysisCrew:
       7) Aggregator => merges all into final JSON, at least 700 words in summary.
     Using partial concurrency to speed up tasks that do not depend on each other.
     """
-
+    @weave.op
     def __init__(
         self,
         llm_api_key: str,
@@ -235,7 +235,7 @@ class FinancialAnalysisCrew:
         self.message_id = message_id
         self._init_agents()
         self._init_tasks()
-
+    @weave.op
     def _init_agents(self):
         # 1) competitor finder
         self.enhanced_competitor_agent = Agent(
@@ -403,7 +403,7 @@ class FinancialAnalysisCrew:
             redis_client=self.redis_client,
             message_id=self.message_id
             )
-
+    @weave.op
     def _init_tasks(self):
         # 1) competitor tasks => sequential
         self.enhanced_competitor_task = Task(
@@ -477,7 +477,7 @@ class FinancialAnalysisCrew:
             output_pydantic=FinancialAnalysisResult,
             converter_cls=CustomConverter
         )
-        
+    @weave.op    
     def execute_financial_analysis(self, inputs: Dict[str,Any]) -> Tuple[str, Dict[str,Any]]:
         """
         1) Competitor tasks => sequential

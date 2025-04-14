@@ -123,7 +123,7 @@ Content:
     return formatted_str
 
 
-@weave.op()
+@weave.op
 async def tavily_search_async(search_queries: List[str], key_rotator: APIKeyRotator) -> List[Dict[str, Any]]:
     """
     Performs concurrent web searches using the Tavily API with key rotation.
@@ -212,7 +212,7 @@ async def _tavily_search_with_retry(query: str, client: AsyncTavilyClient, key_r
             raise
 
 
-@weave.op()
+@weave.op
 def perplexity_search(search_queries, key_rotator: APIKeyRotator):
     """
     Search the web using the Perplexity API.

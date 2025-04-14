@@ -1123,7 +1123,7 @@ class LeadGenerationAPI:
                     status_code=500,
                     content={"error": f"Failed to delete user data: {str(e)}"}
                 )
-    @weave.op()
+
     async def execute_research(self, crew: ResearchCrew, parameters: Dict[str, Any]):
         extractor = UserPromptExtractor(crew.llm.api_key)
         combined_text = " ".join([
@@ -1137,7 +1137,7 @@ class LeadGenerationAPI:
 
         raw_result, _ = await asyncio.to_thread(crew.execute_research, extracted_info)
         return raw_result
-    @weave.op()
+
     async def execute_financial(self, crew: FinancialAnalysisCrew, parameters: Dict[str,Any], provider: str):
         fextractor = FinancialPromptExtractor(crew.llm.api_key, provider)
         query_text = parameters.get("query_text","")

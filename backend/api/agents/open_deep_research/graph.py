@@ -23,6 +23,8 @@ from api.services.redis_service import SecureRedisService
 
 from config.model_registry import model_registry
 
+import weave
+
 # We import our data models from the api module
 
 from .state import (
@@ -767,7 +769,7 @@ def summarize_documents(summary_model, state: ReportState, config: RunnableConfi
                 for s in sections
                 if s.research
     ])
-
+@weave.op
 def get_graph(api_key: str, provider: str):
     """
     Create and configure the graph for deep research.

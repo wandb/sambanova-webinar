@@ -318,7 +318,7 @@ class ResearchCrew:
             context=[self.market_trends_task, self.data_enrichment_task],
             output_pydantic=OutreachList
         )
-
+    
     def execute_research(self, inputs: dict) -> Tuple[str, Dict[str,Any]]:
         """
         Run the 5-step pipeline with 4 agents in sequential order.
@@ -369,8 +369,6 @@ def main():
         "product": ""
     }
     final_output, _ = crew.execute_research(example_inputs)
-    print("Crew Output:")
-    print(final_output)
 
 
 if __name__ == "__main__":

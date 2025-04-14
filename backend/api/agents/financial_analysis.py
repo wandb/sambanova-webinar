@@ -41,7 +41,7 @@ class FinancialAnalysisAgent(RoutedAgent):
         logger.info(logger.format_message(None, f"Initializing FinancialAnalysisAgent with ID: {self.id}"))
         self.api_keys = api_keys
         self.redis_client = redis_client
-    @weave.op()
+    
     async def execute_financial(
         self, crew: FinancialAnalysisCrew, parameters: Dict[str, Any], provider: str
     ) -> Tuple[str, Dict[str,Any]]:

@@ -78,7 +78,7 @@ class CustomLLM(LLM):
         self.set_callbacks(callbacks)
         self.set_env_callbacks()
         
-
+    @weave.op()
     def call(
         self,
         messages: Union[str, List[Dict[str, str]]],
@@ -219,7 +219,7 @@ class CustomLLM(LLM):
                 )._is_context_limit_error(str(e)):
                     logging.error(f"LiteLLM call failed: {str(e)}")
                 raise
-            
+
     def supports_function_calling(self) -> bool:
         try:
             params = get_supported_openai_params(model=self.model)

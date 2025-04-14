@@ -1,8 +1,8 @@
 ![Samba Agents Logo](https://sambanova.ai/hubfs/sambanova-logo-black.png)
 
 <p align="center">
-  <img src="./assets/logo-dark.svg#gh-dark-mode-only" width="600" alt="Weights & Biases" />
-  <img src="./assets/logo-light.svg#gh-light-mode-only" width="600" alt="Weights & Biases" />
+  <img src="./assets/wandb_logo-dark.svg#gh-dark-mode-only" width="600" alt="Weights & Biases" />
+  <img src="./assets/wandb_logo-light.svg#gh-light-mode-only" width="600" alt="Weights & Biases" />
 </p>
 
 <h1 style="font-size: 3em;">Agents</h1>

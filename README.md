@@ -7,12 +7,9 @@
 
 <h1 style="font-size: 3em;">Agents</h1>
 
-The Agents application routes requests to four different agents: General assistant agent, Sales leads agent, Deep research agent, and a Finance analysis agent. The agents process tens of thousands of tokens that generates lightning fast and accurate results. The Agents application helps sales teams and researchers by:
+This repo is used for Weight and Biases and SambaNova Webniar. You can find the related blog here: LINK TBD 
 
-- Generating qualified sales information with company insights.
-- Creating detailed research reports and educational content.
-- Intelligently routing queries to the appropriate service.
-- Supporting voice input for natural interaction.
+This Agent application routes requests to four different agents: General assistant agent, Sales leads agent, Deep research agent, and a Finance analysis agent. The agents process tens of thousands of tokens that generates lightning fast and accurate results. 
 
 The basic process of the Agents application is described below.
 
@@ -58,6 +55,7 @@ Ensure to install the prerequisites.
 
 Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
+   - [Weights and Baises API key]((https://wandb.ai))
    - [Exa API key](https://exa.co/) for company data
    - [Tavily API key](https://tavily.com/) for deep research capabilities
    - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)
@@ -101,8 +99,9 @@ Get the following API keys to setup the Agents application.
    EXA_API_KEY=your_serper_api_key
    TAVILY_API_KEY=your_tavily_api_key  # Required for Deep Research agent
    
-   # Optional: For usage tracking
-   LANGTRACE_API_KEY=your_langtrace_api_key  # Optional for usage tracking
+   WANDB_API_KEY=your_wandb_key
+   WANDB_PROJECT=your_unique_project_name
+
    ```
 ## Application Setup
    
@@ -365,14 +364,6 @@ Additional features of the application are listed below.
    - Research shown as structured reports
    - Export functionality available
    - Save important searches
-
-# Contributing
-
-1. Fork the repository
-1. Create your feature branch
-1. Commit your changes
-1. Push to the branch
-1. Create a new pull request
 
 # License
 

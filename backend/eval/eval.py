@@ -3,14 +3,19 @@ import re
 import sys
 import time
 import openai
+import weave
+from dotenv import load_dotenv
 
+
+
+@weave.op
 def get_prompt_score(question: str, answer: str):
     # Inspired by Figure 6 of https://arxiv.org/abs/2411.15594
 
     return f"""Given the following question and answer, rate the answer between 1 and 5 (integer score, higher is better)?
     Question: {question}
     Answer: {answer}"""
-
+@weave.op
 def get_prompt_preference(question: str, answer0: str, answer1: str):
     # Inspired by Figure 6 of https://arxiv.org/abs/2411.15594
 
@@ -25,7 +30,7 @@ def get_messages(prompt: str):
         { "role" : "system", "content" : "You are a helpful assistant" },
         { "role" : "user", "content": prompt }
     ]
-
+@weave.op
 def get_judge_score(model: str, question: str, answer: str) -> int:
     prompt = get_prompt_score(question, answer)
     messages = get_messages(prompt)
@@ -47,7 +52,7 @@ def get_judge_score(model: str, question: str, answer: str) -> int:
         return int(re.search("(\d+)(?!.*\d)", result).group(0))
     except AttributeError:
         return -1
-
+@weave.op
 def get_judge_preference(model: str, question: str, answer0: str, answer1: str) -> str:
     prompt = get_prompt_preference(question, answer0, answer1)
     messages = get_messages(prompt)
@@ -79,7 +84,7 @@ def sort_by_suffix(l):
 
 def count_words(s):
     return len(re.findall(r"\b\w+\b", s))
-
+@weave.op
 def main(client, data_dir, use_azure):
     data = { "name": [], "question": [], "answer": [], "reference": [] }
 
@@ -132,6 +137,12 @@ def postprocess_text(text: str) -> str:
 
 if __name__ == "__main__":
     use_azure = False
+    load_dotenv()
+
+    if os.getenv("WANDB_API_KEY"):
+        import weave 
+        weave.init(os.getenv("WANDB_PROJECT"))
+        print(os.getenv("WANDB_API_KEY"))  
 
     if use_azure:
         api_key = os.getenv("AZURE_API_KEY")
@@ -142,5 +153,6 @@ if __name__ == "__main__":
         client = openai.OpenAI(api_key=api_key, base_url="https://api.sambanova.ai/v1")
 
     data_dir = "./demo"
-
+    os.mkdir(data_dir)
+    
     sys.exit(main(client, data_dir, use_azure))

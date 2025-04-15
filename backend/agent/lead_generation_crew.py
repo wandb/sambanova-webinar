@@ -16,7 +16,9 @@ load_dotenv()
 # Only import and initialize weave if API key is set
 if os.getenv("WANDB_API_KEY"):
     import weave 
-    weave.init(os.getenv("WANDB_PROJECT"))     
+    weave.init(os.getenv("WANDB_PROJECT"))
+    #weave.trace.sanitize.REDACT_KEYS = weave.trace.sanitize.REDACT_KEYS + ("sambanova_key", "")
+    #os.environ["WEAVE_TRACE_LANGCHAIN"] = "false" # <- explicitly disable global tracing.     
 
 from crewai import Agent, Task, Crew, LLM, Process
 from tools.company_intelligence_tool import CompanyIntelligenceTool

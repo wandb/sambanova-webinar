@@ -14,7 +14,7 @@
           <img 
             src="/logo-icon.svg" 
             alt="Samba Sales Agents Logo" 
-            class="hidden md:h-8 md:block size-[30px]"
+            class="hidden md:h-8 md:block size-[90px]"
           />
         </div>
         <h1 class="text-[16px]  font-bold text-primary-brandTextPrimary tracking-tight text-center">

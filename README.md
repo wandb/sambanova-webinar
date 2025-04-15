@@ -19,7 +19,7 @@ The basic process of the Agents application is described below.
 1. Response generation
 
 
-> **Note**: This application uses Weave by Weights & Biases to track agent interactions. [Learn more about Weave traces your agents.](https://weave-docs.wandb.ai/quickstart)
+> **Note**: This application uses [Weave](https://wandb.ai/site/weave/) by Weights & Biases to track agent interactions. [Learn more about Weave traces your agents' actions](https://weave-docs.wandb.ai/quickstart)
 
 
 # Prerequisites

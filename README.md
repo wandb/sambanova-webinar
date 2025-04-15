@@ -55,7 +55,7 @@ Ensure to install the prerequisites.
 
 Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
-   - [Weights and Baises API key]((https://wandb.ai))
+   - [Weights and Baises API key]((https://wandb.ai/))
    - [Exa API key](https://exa.co/) for company data
    - [Tavily API key](https://tavily.com/) for deep research capabilities
    - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)

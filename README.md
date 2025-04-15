@@ -14,26 +14,13 @@ This Agent application routes requests to four different agents: General assista
 The basic process of the Agents application is described below.
 
 1. User query processing
-   - User submits a query via text or voice input.
-   - The application analyzes the query to determine its category (general assistance, sales leads, research, or financial analysis).
-
 1. Agent assignment
-   - The query is routed to the appropriate agent based on content and intent.
-   - If the query spans multiple domains, agents collaborate to provide a comprehensive response.
-   
 1. Data retrieval and processing
-   - The selected agent fetches relevant data from available APIs and knowledge bases.
-   - AI models process and structure the information for clarity and accuracy.
-   
 1. Response generation
-   - The application generates a structured response.
-   - The response is formatted based on the query type (e.g., report format for research, tabular format for financial analysis).
 
-1. User interaction and feedback
-   - The user reviews the response and may refine the query.
-   - The system continuously learns from interactions to improve future responses.
 
-> **Note**: View the **Agent Reasoning** panel on the right side of the application to see the real-time thought output.
+> **Note**: This application uses Weave by Weights & Biases to track agent interactions. [Learn more about Weave traces your agents.](https://weave-docs.wandb.ai/quickstart)
+
 
 # Prerequisites
 
@@ -55,9 +42,9 @@ Ensure to install the prerequisites.
 
 Get the following API keys to setup the Agents application.
    - [SambaNova API key](https://cloud.sambanova.ai/)
-   - [Weights and Baises API key]((https://wandb.ai/))
-   - [Exa API key](https://exa.co/) for company data
-   - [Tavily API key](https://tavily.com/) for deep research capabilities
+   - [Weights and Baises API key](https://wandb.ai/)
+   - [Exa API key](https://exa.co/) for company data collection
+   - [Tavily API key](https://tavily.com/) for deep research 
    - [Clerk](https://clerk.com/) for authentication (you'll need both publishable and secret keys)
 
 ### Clerk authentication setup
@@ -68,7 +55,7 @@ Get the following API keys to setup the Agents application.
 1. Configure your JWT issuer URL.
 1. Add these values to your environment variables as shown above.
 
->**Note**: The DeepSeek-R1-8K model is supported in the application provided.
+>**Note**: The DeepSeek-R1-8K model is supported in this application via SambaNova Cloud.
 
 # Application and Environment variables Setup
 
@@ -154,7 +141,6 @@ Follow the steps below to install the backend for the Agents application.
 1. Start Redis
 
    ```bash
-   # From the project root
    brew services start redis
    ```
 

@@ -212,7 +212,7 @@ async def _tavily_search_with_retry(query: str, client: AsyncTavilyClient, key_r
             raise
 
 
-@weave.op
+
 def perplexity_search(search_queries, key_rotator: APIKeyRotator):
     """
     Search the web using the Perplexity API.

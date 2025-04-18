@@ -249,8 +249,4 @@ Additional features of the application are listed below.
 - ✍ AI-generated outreach templates – Craft professional messages instantly
 
 
-# License
-
-[MIT License](LICENSE)
-
 Project Forked from [SambaNova Deepresearch Agent](https://github.com/sambanova/agents)

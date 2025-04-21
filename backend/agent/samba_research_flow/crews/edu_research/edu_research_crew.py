@@ -130,6 +130,7 @@ class EduResearchCrew:
 
     
     @agent
+    @weave.op()
     def planner(self) -> Agent:
         """
         Create the planner agent.

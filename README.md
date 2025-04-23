@@ -7,7 +7,7 @@
 
 <h1 style="font-size: 3em;">Agents</h1>
 
-This repo is used for Weight and Biases and SambaNova Webniar. You can find the related blog here: LINK TBD 
+This repo is used for Weight and Biases and SambaNova Webniar. You can find the related blog (here)[https://wandb.ai/wandb_fc/sambanova-plus-weave/reports/How-to-build-scalable-research-agents-with-SambaNova-Cloud-and-Weave--VmlldzoxMjQyMDkyOQ]
 
 This Agent application routes requests to four different agents: General assistant agent, Sales leads agent, Deep research agent, and a Finance analysis agent. The agents process tens of thousands of tokens that generates lightning fast and accurate results. 
 
